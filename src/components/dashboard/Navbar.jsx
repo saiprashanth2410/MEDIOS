@@ -243,18 +243,8 @@ export default function Navbar() {
                     </div>
                   </div>
 
-                  {/* Menu items */}
+                  {/* Menu items — View Profile REMOVED */}
                   <div className="p-2">
-                    <button
-                      onClick={() => handleNavClick("/profile")}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-[#0284c7] transition"
-                    >
-                      <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center">
-                        <User size={14} className="text-slate-600" />
-                      </div>
-                      View Profile
-                    </button>
-
                     <button
                       onClick={() => handleNavClick("/settings")}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-[#0284c7] transition"
@@ -370,15 +360,8 @@ export default function Navbar() {
                 </div>
               ))}
 
+              {/* Bottom actions — Profile REMOVED */}
               <div className="border-t border-slate-100 pt-3 mt-3">
-                <button
-                  onClick={() => handleNavClick("/profile")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition mb-1"
-                >
-                  <User size={16} />
-                  Profile
-                </button>
-
                 <button
                   onClick={() => handleNavClick("/settings")}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition mb-1"

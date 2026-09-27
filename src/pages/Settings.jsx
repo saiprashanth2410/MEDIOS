@@ -1,346 +1,482 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  X,
   Search,
   User,
   Lock,
   Bell,
   Palette,
-  Users,
-  BarChart3,
-  FileText,
-  HelpCircle,
-  LogOut,
-  ChevronRight,
-  Package,
   AlertTriangle,
-  Database,
-  Navigation,
+  ChevronRight,
+  ArrowLeft,
+  Sun,
+  Moon,
+  Monitor,
+  Package,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import Navbar from "../components/dashboard/Navbar";
 
 /* =====================================================
-   SETTINGS DATA — MediTrack Specific
+   CATEGORIES
 ===================================================== */
 
-const SETTINGS_SECTIONS = [
+const CATEGORIES = [
   {
-    id: "quick",
+    id: "account",
+    label: "Account",
+    icon: User,
+    header: "Account",
+    description: "Manage your personal information",
     items: [
       {
-        id: "account",
+        id: "view-profile",
         icon: User,
-        label: "Account",
-        subtitle: "Personal information",
-        path: "/profile",
-        tab: "profile",
+        label: "View Profile",
+        desc: "See your profile details",
+        type: "link",
+        action: "/profile",
       },
       {
-        id: "security",
+        id: "edit-profile",
+        icon: User,
+        label: "Edit Profile",
+        desc: "Update name, email, phone",
+        type: "link",
+        action: "/profile",
+      },
+    ],
+  },
+  {
+    id: "security",
+    label: "Security",
+    icon: Lock,
+    header: "Security",
+    description: "Keep your account safe",
+    items: [
+      {
+        id: "change-password",
         icon: Lock,
-        label: "Security",
-        subtitle: "Password & sessions",
-        path: "/profile",
+        label: "Change Password",
+        desc: "Update your account password",
+        type: "link",
+        action: "/profile",
         tab: "security",
       },
-      {
-        id: "notifications",
-        icon: Bell,
-        label: "Notifications",
-        subtitle: "Alerts & reminders",
-        path: "/profile",
-        tab: "preferences",
-      },
-      {
-        id: "appearance",
-        icon: Palette,
-        label: "Appearance",
-        subtitle: "Theme & display",
-        path: "/profile",
-        tab: "preferences",
-      },
     ],
   },
   {
-    id: "pharmacy",
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    header: "Notifications",
+    description: "Choose what alerts you want to receive",
     items: [
       {
-        id: "prescriptions",
-        icon: FileText,
-        label: "Prescriptions",
-        subtitle: "Manage prescriptions",
-        path: "/prescriptions",
+        id: "push-notifications",
+        icon: Bell,
+        label: "Push Notifications",
+        desc: "Mobile & desktop alerts",
+        type: "toggle",
+        storageKey: "meditrack-push",
       },
       {
-        id: "medicines",
-        icon: Package,
-        label: "Medicines",
-        subtitle: "Inventory management",
-        path: "/medicines",
-      },
-      {
-        id: "expiry",
+        id: "expiry-alerts",
         icon: AlertTriangle,
         label: "Expiry Alerts",
-        subtitle: "Near-expiry items",
-        path: "/expiry",
+        desc: "Notify when medicines are near expiry",
+        type: "toggle",
+        storageKey: "meditrack-expiry",
       },
       {
-        id: "pharmacists",
-        icon: Users,
-        label: "Team",
-        subtitle: "Manage pharmacists",
-        path: "/pharmacists",
-      },
-    ],
-  },
-  {
-    id: "data",
-    items: [
-      {
-        id: "reports",
-        icon: BarChart3,
-        label: "Reports",
-        subtitle: "Sales & analytics",
-        path: "/reports",
-      },
-      {
-        id: "storage",
-        icon: Database,
-        label: "Storage & data",
-        subtitle: "Backup & sync",
-        action: () => toast.info("Storage settings coming soon"),
+        id: "low-stock-alerts",
+        icon: Package,
+        label: "Low Stock Alerts",
+        desc: "Notify when stock falls below threshold",
+        type: "toggle",
+        storageKey: "meditrack-lowstock",
       },
     ],
   },
   {
-    id: "support",
+    id: "appearance",
+    label: "Appearance",
+    icon: Palette,
+    header: "Appearance",
+    description: "Customize how MediTrack looks",
     items: [
       {
-        id: "help",
-        icon: HelpCircle,
-        label: "Help & feedback",
-        action: () => toast.info("Help & feedback coming soon"),
+        id: "theme-light",
+        icon: Sun,
+        label: "Light Mode",
+        desc: "Bright theme",
+        type: "theme",
+        themeValue: "light",
+      },
+      {
+        id: "theme-dark",
+        icon: Moon,
+        label: "Dark Mode",
+        desc: "Coming soon",
+        type: "coming-soon",
+      },
+      {
+        id: "theme-system",
+        icon: Monitor,
+        label: "System Default",
+        desc: "Coming soon",
+        type: "coming-soon",
       },
     ],
   },
 ];
 
 /* =====================================================
-   MAIN COMPONENT
+   HIGHLIGHT COMPONENT
+===================================================== */
+
+function HighlightText({ text = "", query = "" }) {
+  if (!query || !text) return <>{text}</>;
+
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-[#0284c7]/20 text-inherit rounded-sm px-0.5">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+/* =====================================================
+   TOGGLE SWITCH
+===================================================== */
+
+function ToggleSwitch({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange(!checked);
+      }}
+      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7]/40 ${
+        checked ? "bg-[#0284c7]" : "bg-slate-300"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
+/* =====================================================
+   MAIN SETTINGS PAGE
 ===================================================== */
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const userName = user?.name || "Pharmacist";
-  const userEmail = user?.email || "user@meditrack.ai";
+  const initialCategory = searchParams.get("category") || "account";
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  /* Handlers */
-  const handleClose = () => navigate(-1);
+  // Toggle states (persisted)
+  const [toggles, setToggles] = useState(() => ({
+    "meditrack-push": localStorage.getItem("meditrack-push") === "true",
+    "meditrack-expiry": localStorage.getItem("meditrack-expiry") === "true",
+    "meditrack-lowstock": localStorage.getItem("meditrack-lowstock") === "true",
+  }));
 
-  const handleUserClick = () => navigate("/profile");
+  const trimmedQuery = searchQuery.trim().toLowerCase();
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Logged out successfully");
-    navigate("/login", { replace: true });
-  };
+  /* =====================================================
+     SYNC CATEGORY TO URL
+  ===================================================== */
 
-  const handleItemClick = (item) => {
-    if (item.path) {
-      // ✨ Pass tab as router state
-      navigate(item.path, item.tab ? { state: { tab: item.tab } } : undefined);
-    } else if (item.action) {
-      item.action();
-    }
-  };
+  useEffect(() => {
+    setSearchParams({ category: activeCategory }, { replace: true });
+  }, [activeCategory, setSearchParams]);
 
-  /* Filter by search */
-  const filteredSections = SETTINGS_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter(
-      (item) =>
-        item.label.toLowerCase().includes(search.toLowerCase()) ||
-        (item.subtitle &&
-          item.subtitle.toLowerCase().includes(search.toLowerCase()))
-    ),
-  })).filter((section) => section.items.length > 0);
+  /* =====================================================
+     FILTERED CATEGORIES
+  ===================================================== */
+
+  const filteredCategories = useMemo(() => {
+    if (!trimmedQuery) return CATEGORIES;
+
+    return CATEGORIES.filter(
+      (cat) =>
+        cat.label.toLowerCase().includes(trimmedQuery) ||
+        cat.items.some(
+          (item) =>
+            item.label.toLowerCase().includes(trimmedQuery) ||
+            item.desc?.toLowerCase().includes(trimmedQuery)
+        )
+    );
+  }, [trimmedQuery]);
+
+  const currentCategory = useMemo(() => {
+    const found = filteredCategories.find((c) => c.id === activeCategory);
+    return found || filteredCategories[0] || null;
+  }, [filteredCategories, activeCategory]);
+
+  /* =====================================================
+     HANDLERS
+  ===================================================== */
+
+  const handleToggle = useCallback((item) => {
+    setToggles((prev) => {
+      const next = { ...prev, [item.storageKey]: !prev[item.storageKey] };
+      localStorage.setItem(item.storageKey, String(next[item.storageKey]));
+      toast.success(
+        `${item.label} ${next[item.storageKey] ? "enabled" : "disabled"}`
+      );
+      return next;
+    });
+  }, []);
+
+  const handleItemClick = useCallback(
+    (item) => {
+      if (item.type === "toggle") {
+        handleToggle(item);
+        return;
+      }
+      if (item.type === "coming-soon") {
+        toast.info(`${item.label} — coming soon`);
+        return;
+      }
+      if (item.type === "theme") {
+        toast.success(`${item.label} is already active`);
+        return;
+      }
+      if (item.type === "link" && item.action?.startsWith("/")) {
+        navigate(
+          item.action,
+          item.tab ? { state: { tab: item.tab } } : undefined
+        );
+        return;
+      }
+      toast.info(`${item.label} — coming soon`);
+    },
+    [navigate, handleToggle]
+  );
+
+  const clearSearch = useCallback(() => setSearchQuery(""), []);
+
+  /* =====================================================
+     RENDER
+  ===================================================== */
 
   return (
-    <div className="min-h-screen bg-[#f2f2f7] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen bg-[#f0f9ff] text-slate-900">
+      <Navbar onScanClick={() => {}} />
 
-      {/* =====================================================
-          TOP BAR — iOS Style
-      ====================================================== */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-      <header className="sticky top-0 z-40 bg-[#f2f2f7]/95 dark:bg-slate-950/95 backdrop-blur-lg border-b border-slate-200 dark:border-slate-700/60 dark:border-slate-800">
-        <div className="max-w-[600px] mx-auto px-4 py-3 relative flex items-center justify-center">
-          {/* X Button */}
-          <button
-            onClick={handleClose}
-            className="absolute left-4 w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-            aria-label="Close"
-          >
-            <X
-              size={20}
-              className="text-slate-700 dark:text-slate-300"
-              strokeWidth={2.5}
-            />
-          </button>
-
-          {/* Title */}
-          <h1 className="text-lg font-bold tracking-tight">Settings</h1>
-        </div>
-      </header>
-
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
-
-      <main className="max-w-[600px] mx-auto px-4 py-5 pb-20">
-
-        {/* Search Bar */}
-        <div className="mb-4">
-          <div className="relative">
-            <Search
-              size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search"
-              className="w-full h-11 pl-11 pr-4 rounded-xl bg-white dark:bg-slate-900 border-0 text-sm outline-none placeholder:text-slate-400 dark:text-slate-500 shadow-sm focus:ring-2 focus:ring-[#0284c7]/20"
-            />
-          </div>
-        </div>
-
-        {/* USER CARD — Clickable → Profile */}
-        <div className="mb-6">
-          <button
-            onClick={handleUserClick}
-            className="w-full bg-white dark:bg-slate-900 rounded-2xl p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm text-left"
-          >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0">
-              {userName[0]?.toUpperCase()}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-semibold text-slate-800 dark:text-white truncate">
-                {userName}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 truncate">
-                {userEmail}
-              </p>
-            </div>
-
-            <ChevronRight size={20} className="text-slate-300 shrink-0" />
-          </button>
-        </div>
-
-        {/* SETTINGS SECTIONS */}
-        {filteredSections.map((section) => (
-          <div key={section.id} className="mb-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm">
-              {section.items.map((item, iIdx) => {
-                const Icon = item.icon;
-                const isLast = iIdx === section.items.length - 1;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleItemClick(item)}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left relative"
-                  >
-                    {/* Icon */}
-                    <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                      <Icon
-                        size={16}
-                        className="text-slate-700 dark:text-slate-300"
-                        strokeWidth={2}
-                      />
-                    </div>
-
-                    {/* Label + Subtitle */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 dark:text-white">
-                        {item.label}
-                      </p>
-                      {item.subtitle && (
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                          {item.subtitle}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Chevron */}
-                    <ChevronRight
-                      size={18}
-                      className="text-slate-300 dark:text-slate-600 dark:text-slate-300 shrink-0"
-                    />
-
-                    {/* Divider */}
-                    {!isLast && (
-                      <span className="absolute bottom-0 left-16 right-0 h-px bg-slate-100 dark:bg-slate-800" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        {/* Empty State */}
-        {filteredSections.length === 0 && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center shadow-sm">
-            <Search size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-700 dark:text-white mb-1">
-              No results found
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-              Try a different search term
-            </p>
-          </div>
-        )}
-
-        {/* LOGOUT BUTTON */}
-        {!search && (
-          <div className="mt-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center shrink-0">
-                  <LogOut
-                    size={16}
-                    className="text-rose-600 dark:text-rose-400"
-                    strokeWidth={2}
-                  />
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          {/* LEFT SIDEBAR */}
+          <aside className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-fit shadow-sm">
+            {/* User header */}
+            <div className="px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-11 h-11 rounded-full bg-[#0284c7] flex items-center justify-center text-white font-semibold text-base shrink-0"
+                  aria-hidden="true"
+                >
+                  {(user?.name || "P").charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-rose-600 dark:text-rose-400">
-                    Log out
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {user?.name || "Pharmacist"}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {user?.email || "user@example.com"}
                   </p>
                 </div>
-                <ChevronRight size={18} className="text-rose-300 shrink-0" />
-              </button>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Footer */}
-        <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-8">
-          MediTrack v2.4.1
-        </p>
+            {/* Search */}
+            <div className="px-3 py-3 border-b border-slate-100">
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search settings..."
+                  aria-label="Search settings"
+                  className="w-full h-9 pl-9 pr-8 rounded-lg bg-slate-100 text-sm outline-none focus:ring-2 focus:ring-[#0284c7]/30 placeholder:text-slate-400 transition"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full hover:bg-slate-200 flex items-center justify-center transition"
+                  >
+                    <X size={12} className="text-slate-500" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-      </main>
+            {/* Categories */}
+            <nav className="p-2" aria-label="Settings categories">
+              {filteredCategories.length === 0 ? (
+                <p className="px-3 py-6 text-center text-xs text-slate-400">
+                  No settings match "{searchQuery}"
+                </p>
+              ) : (
+                filteredCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  const isActive = currentCategory?.id === cat.id;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7]/40 ${
+                        isActive
+                          ? "bg-[#0284c7] text-white shadow-sm"
+                          : "hover:bg-slate-100"
+                      }`}
+                    >
+                      <Icon
+                        size={16}
+                        className={`shrink-0 ${
+                          isActive ? "text-white" : "text-slate-500"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={`text-sm font-medium truncate ${
+                          isActive ? "text-white" : "text-slate-700"
+                        }`}
+                      >
+                        <HighlightText text={cat.label} query={trimmedQuery} />
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </nav>
+
+            <div className="h-3" />
+          </aside>
+
+          {/* RIGHT PANEL */}
+          <main
+            className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-fit shadow-sm"
+            aria-live="polite"
+          >
+            {currentCategory ? (
+              <>
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-slate-100">
+                  <h2 className="text-lg font-bold text-slate-800">
+                    {currentCategory.header}
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {currentCategory.description}
+                  </p>
+                </div>
+
+                {/* Items */}
+                <div className="divide-y divide-slate-100">
+                  {currentCategory.items.map((item) => {
+                    const ItemIcon = item.icon;
+                    const isToggleOn =
+                      item.type === "toggle" && toggles[item.storageKey];
+                    const isComingSoon = item.type === "coming-soon";
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleItemClick(item)}
+                        disabled={isComingSoon}
+                        className={`w-full flex items-center gap-4 px-6 py-4 transition text-left group focus-visible:outline-none ${
+                          isComingSoon
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-slate-50 focus-visible:bg-slate-50"
+                        }`}
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-[#0284c7]/10 transition">
+                          <ItemIcon
+                            size={16}
+                            className="text-slate-600 group-hover:text-[#0284c7] transition"
+                            aria-hidden="true"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800">
+                            <HighlightText
+                              text={item.label}
+                              query={trimmedQuery}
+                            />
+                          </p>
+                          {item.desc && (
+                            <p className="text-xs text-slate-500 mt-0.5 truncate">
+                              <HighlightText
+                                text={item.desc}
+                                query={trimmedQuery}
+                              />
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Right side control */}
+                        {item.type === "toggle" ? (
+                          <ToggleSwitch
+                            checked={isToggleOn}
+                            onChange={() => handleToggle(item)}
+                          />
+                        ) : isComingSoon ? (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-slate-100 text-slate-500 shrink-0">
+                            Soon
+                          </span>
+                        ) : (
+                          <ChevronRight
+                            size={16}
+                            className="text-slate-300 group-hover:text-[#0284c7] transition shrink-0"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="h-3" />
+              </>
+            ) : (
+              <div className="px-6 py-16 text-center">
+                <p className="text-sm text-slate-500">
+                  No matching settings found.
+                </p>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
     </div>
   );
 }
