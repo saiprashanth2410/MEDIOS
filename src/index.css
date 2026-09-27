@@ -1,0 +1,326 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* =====================================================
+   ANIMATIONS
+===================================================== */
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--rot, 0deg)); }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+@keyframes blobMove {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -50px) scale(1.08); }
+  66% { transform: translate(-30px, 30px) scale(0.94); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =====================================================
+   ANIMATION UTILITIES
+===================================================== */
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+}
+
+.animate-float {
+  animation: floatY 5s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: floatY 7s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulseSoft 2s ease-in-out infinite;
+}
+
+.animate-blob {
+  animation: blobMove 16s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* =====================================================
+   TILT HOVER
+===================================================== */
+
+.tilt-hover {
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.4s ease;
+}
+
+.tilt-hover:hover {
+  transform: rotate(0deg) scale(1.04) translateY(-6px) !important;
+}
+
+/* =====================================================
+   SHIMMER BUTTON
+===================================================== */
+
+.shimmer-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  pointer-events: none;
+}
+
+/* =====================================================
+   REDUCED MOTION
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-float,
+  .animate-float-slow,
+  .animate-gradient,
+  .animate-fade-up,
+  .shimmer-btn::after {
+    animation: none !important;
+  }
+}
+
+/* =====================================================
+   DARK MODE — SOFTER PALETTE
+   Higher specificity override using html.dark prefix
+   Makes dark mode comfortable (not pure black)
+===================================================== */
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Body base */
+html.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* =====================================================
+   PAGE BACKGROUNDS
+===================================================== */
+
+/* Page background — soft navy (not pure black) */
+html.dark .dark\:bg-slate-950,
+html.dark [class*="dark:bg-slate-950"] {
+  background-color: #0f172a !important;
+}
+
+/* Slightly lighter sections */
+html.dark [class*="dark:bg-slate-900"] {
+  background-color: #1e293b !important;
+}
+
+/* Input fields and controls */
+html.dark [class*="dark:bg-slate-800"] {
+  background-color: #1e293b !important;
+}
+
+/* =====================================================
+   BORDERS — MORE VISIBLE
+===================================================== */
+
+html.dark [class*="dark:border-slate-800"] {
+  border-color: #334155 !important;
+}
+
+html.dark [class*="dark:border-slate-700"] {
+  border-color: #475569 !important;
+}
+
+/* =====================================================
+   TEXT — SOFTER WHITE
+===================================================== */
+
+html.dark [class*="dark:text-white"] {
+  color: #f1f5f9 !important;
+}
+
+html.dark [class*="dark:text-slate-100"] {
+  color: #e2e8f0 !important;
+}
+
+html.dark [class*="dark:text-slate-300"] {
+  color: #cbd5e1 !important;
+}
+
+html.dark [class*="dark:text-slate-400"] {
+  color: #94a3b8 !important;
+}
+
+html.dark [class*="dark:text-slate-500"] {
+  color: #64748b !important;
+}
+
+/* =====================================================
+   NAVBAR — DEEP BLUE INSTEAD OF BLACK
+===================================================== */
+
+html.dark header {
+  background-color: #0c4a6e !important;
+}
+
+/* =====================================================
+   HOVER STATES
+===================================================== */
+
+html.dark [class*="dark:hover:bg-slate-800"]:hover {
+  background-color: #334155 !important;
+}
+
+html.dark [class*="dark:hover:bg-slate-700"]:hover {
+  background-color: #475569 !important;
+}
+
+/* =====================================================
+   SMOOTH TRANSITIONS
+===================================================== */
+
+html.dark * {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* =====================================================
+   DARK MODE — SOFTER TEXT COLORS (eye-friendly)
+   Pure white (#ffffff) is too harsh on dark backgrounds.
+   Use off-white instead.
+===================================================== */
+
+/* Override pure white with softer off-white */
+html.dark [class*="dark:text-white"],
+html.dark .dark\:text-white {
+  color: #e2e8f0 !important;
+}
+
+/* Slate-100 — softer */
+html.dark [class*="dark:text-slate-100"] {
+  color: #cbd5e1 !important;
+}
+
+/* Slate-300 — softer */
+html.dark [class*="dark:text-slate-300"] {
+  color: #b6c2d1 !important;
+}
+
+/* Slate-400 — softer */
+html.dark [class*="dark:text-slate-400"] {
+  color: #94a3b8 !important;
+}
+
+/* Slate-500 — softer */
+html.dark [class*="dark:text-slate-500"] {
+  color: #7c8798 !important;
+}
+
+/* Bold headings — slightly brighter than body */
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4 {
+  color: #e2e8f0 !important;
+}
+
+/* =====================================================
+   TEXT RENDERING — Smoother Anti-aliasing
+===================================================== */
+
+html.dark body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* =====================================================
+   REMOVE HARSH TRANSITIONS ON TEXT
+===================================================== */
+
+html.dark *:not(button):not(a) {
+  transition: none;
+}
+
+html.dark button,
+html.dark a {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Warm off-white (comfortable) */
+html.dark body {
+  color: #e5e1dc !important;
+}
+
+html.dark [class*="dark:text-white"] {
+  color: #e5e1dc !important;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3 {
+  color: #ede9e3 !important;
+}
+
+/* Reduce overall brightness in dark mode */
+html.dark body {
+  filter: brightness(0.95) contrast(0.95);
+}
+
+/* Keep interactive elements normal */
+html.dark button,
+html.dark a,
+html.dark input {
+  filter: brightness(1.05) contrast(1.05);
+}
+
+/* Even softer text for low-contrast preference */
+html.dark [class*="dark:text-white"],
+html.dark .dark\:text-white {
+  color: #cbd5e1 !important;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3 {
+  color: #cbd5e1 !important;
+}
