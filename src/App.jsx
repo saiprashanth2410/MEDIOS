@@ -3,6 +3,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { ScanProvider } from "./context/ScanContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+
+// Pages
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Medicines from "./pages/Medicines";
@@ -14,6 +16,8 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import ForgotPassword from "./pages/ForgotPassword";
 import ComingSoon from "./pages/ComingSoon";
+import Batches from "./pages/Batches";
+import ExpiryManagement from "./pages/ExpiryManagement"; // <-- New Import
 
 function App() {
   return (
@@ -21,17 +25,11 @@ function App() {
       <AuthProvider>
         <ScanProvider>
           <Routes>
-            {/* =====================================================
-                PUBLIC ROUTES
-            ====================================================== */}
-
+            {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* =====================================================
-                PROTECTED ROUTES
-            ====================================================== */}
-
+            {/* Protected Routes (Navbar already inside each page) */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/medicines" element={<ProtectedRoute><Medicines /></ProtectedRoute>} />
             <Route path="/prescriptions" element={<ProtectedRoute><Prescriptions /></ProtectedRoute>} />
@@ -40,22 +38,20 @@ function App() {
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            
+            {/* Batches Route */}
+            <Route path="/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
 
-            {/* =====================================================
-                COMING SOON ROUTES
-            ====================================================== */}
+            {/* Expiry Management Route (Updated) */}
+            <Route path="/expiry" element={<ProtectedRoute><ExpiryManagement /></ProtectedRoute>} />
 
-            <Route path="/batches" element={<ProtectedRoute><ComingSoon title="Batches" /></ProtectedRoute>} />
-            <Route path="/expiry" element={<ProtectedRoute><ComingSoon title="Expiry Management" /></ProtectedRoute>} />
+            {/* Coming Soon Routes */}
             <Route path="/reorder" element={<ProtectedRoute><ComingSoon title="Auto-Reorder" /></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute><ComingSoon title="Suppliers" /></ProtectedRoute>} />
             <Route path="/shipments" element={<ProtectedRoute><ComingSoon title="Shipments" /></ProtectedRoute>} />
             <Route path="/forecast" element={<ProtectedRoute><ComingSoon title="AI Forecast" /></ProtectedRoute>} />
 
-            {/* =====================================================
-                FALLBACK ROUTES
-            ====================================================== */}
-
+            {/* Fallback */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
