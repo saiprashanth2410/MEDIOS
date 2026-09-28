@@ -4,25 +4,23 @@ import { toast } from "sonner";
 import {
   Pill,
   ScanLine,
-  Bell,
   LogOut,
   Menu,
   X,
   LayoutDashboard,
   Boxes,
   AlertTriangle,
-  ShoppingCart,
   Factory,
   Truck,
   Settings,
   Package,
   ClipboardList,
-  User,
   ChevronDown,
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import BarcodeScanner from "../scanner/BarcodeScanner";
+import NotificationBell from "./NotificationBell";
 
 const NAV_GROUPS = [
   {
@@ -180,15 +178,8 @@ export default function Navbar() {
               <span className="hidden sm:inline">Scan</span>
             </button>
 
-            {/* Notifications */}
-            <button
-              className="p-2 rounded-md hover:bg-white/10 transition relative"
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              <Bell size={16} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400" />
-            </button>
+            {/* Notifications — NEW component */}
+            <NotificationBell />
 
             {/* USER MENU DROPDOWN */}
             <div className="relative" ref={userMenuRef}>
@@ -253,23 +244,6 @@ export default function Navbar() {
                         <Settings size={14} className="text-slate-600" />
                       </div>
                       Settings
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        toast.info("Notifications coming soon");
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-[#0284c7] transition"
-                    >
-                      <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center relative">
-                        <Bell size={14} className="text-slate-600" />
-                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      </div>
-                      Notifications
-                      <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700">
-                        3
-                      </span>
                     </button>
                   </div>
 

@@ -1,16 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  LayoutDashboard,
   Pill,
   Package,
-  Users,
-  BarChart3,
-  Settings,
-  LogOut,
   ClipboardList,
-  CalendarClock,
   ArrowUpRight,
   ArrowDown,
   ArrowUp,
@@ -19,7 +13,6 @@ import {
   ShieldCheck,
   Activity,
   FileText,
-  Bell,
   MapPin,
   Gauge,
   Calendar,
@@ -28,19 +21,11 @@ import {
   Building2,
   BadgeCheck,
   ScanLine,
-  CheckCircle2,
-  Brain,
-  TrendingDown,
   Truck,
   Thermometer,
   Droplets,
   Factory,
   ShoppingCart,
-  Boxes,
-  Sparkles,
-  Menu,
-  X,
-  ChevronDown,
   Info,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -48,19 +33,12 @@ import BarcodeScanner from "../components/scanner/BarcodeScanner";
 import AddMedicineModal from "../components/dashboard/AddMedicineModal";
 import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionModal";
 import Navbar from "../components/dashboard/Navbar";
-import Skeleton from "../components/ui/Skeleton";
-import EmptyState from "../components/ui/EmptyState";
+import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
+import usePerformanceData from "../hooks/usePerformanceData";
 
 /* =====================================================
    DATA
 ===================================================== */
-
-const KPI_METRICS = [
-  { label: "Demand Forecast Error", before: "18-27%", after: "3%", improvement: "83%", icon: Brain, color: "violet" },
-  { label: "Inventory Overstock", before: "22%", after: "14%", improvement: "36%", icon: Package, color: "sky" },
-  { label: "Stockout Incidents", before: "9%", after: "1.8%", improvement: "80%", icon: AlertTriangle, color: "emerald" },
-  { label: "Procurement Delay", before: "14-18 days", after: "7 days", improvement: "56%", icon: Clock, color: "amber" },
-];
 
 const EXPIRY_ALERTS = {
   critical: { label: "Critical", days: "≤30 days", count: 8, value: 24500, color: "rose", description: "Quarantine + process for credit" },
@@ -93,7 +71,7 @@ const ACTIVITY = [
 ];
 
 /* =====================================================
-   COLOR STYLES — WITH DARK VARIANTS
+   COLOR STYLES
 ===================================================== */
 
 const COLOR_STYLES = {
@@ -136,6 +114,7 @@ const EXPIRY_CARD_STYLES = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { data: performanceData } = usePerformanceData();
 
   const [showScanner, setShowScanner] = useState(false);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
@@ -162,10 +141,7 @@ export default function Dashboard() {
       <Navbar />
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* =====================================================
-            GREETING
-        ====================================================== */}
-
+        {/* GREETING */}
         <div className="flex items-start sm:items-center justify-between mb-6 sm:mb-8 flex-wrap gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
@@ -199,64 +175,16 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* =====================================================
-            KPI METRICS
-        ====================================================== */}
-
+        {/* KPI METRICS — DYNAMIC */}
         <section className="mb-6 animate-fade-up">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Performance Metrics
-            </h2>
+            
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {KPI_METRICS.map((kpi) => {
-              const Icon = kpi.icon;
-              const colors = COLOR_STYLES[kpi.color];
-              return (
-                <div
-                  key={kpi.label}
-                  className="bg-white dark:bg-slate-900 rounded-lg p-3 sm:p-4 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div
-                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-md flex items-center justify-center ${colors.bg}`}
-                    >
-                      <Icon size={14} className={colors.text} />
-                    </div>
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5">
-                      <TrendingDown size={9} />
-                      {kpi.improvement}
-                    </span>
-                  </div>
-
-                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-                    {kpi.label}
-                  </p>
-
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">
-                      {kpi.before}
-                    </span>
-                    <ChevronRight
-                      size={10}
-                      className="text-slate-300 dark:text-slate-600"
-                    />
-                    <span className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {kpi.after}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <PerformanceMetrics data={performanceData} />
         </section>
 
-        {/* =====================================================
-            MAIN GRID
-        ====================================================== */}
-
+        {/* MAIN GRID */}
         <div className="grid lg:grid-cols-[1fr_360px] gap-4 sm:gap-6">
           <div>
             {/* EXPIRY MANAGEMENT */}
@@ -487,10 +415,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* =====================================================
-              SIDEBAR
-          ====================================================== */}
-
+          {/* SIDEBAR */}
           <aside className="space-y-4">
             {/* SHIPMENTS */}
             <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
