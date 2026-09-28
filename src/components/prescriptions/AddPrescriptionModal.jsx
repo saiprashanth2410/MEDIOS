@@ -265,7 +265,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                   onChange={(e) =>
                     setForm({ ...form, patientName: e.target.value })
                   }
-                  placeholder="John Doe"
+                  placeholder=""
                   className={`${FIELD_BASE} ${
                     errors.patientName ? "border-rose-300" : ""
                   }`}

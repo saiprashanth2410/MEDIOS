@@ -43,19 +43,37 @@ const DEFAULT_EXPIRY = "2027-12-31";
 const MAX_ITEMS = 500;
 
 /* =====================================================
-   BRAND NAME EXTRACTOR
+   BRAND NAME EXTRACTOR — FIXED
 ===================================================== */
 
 function extractBrandName(fullName) {
   if (!fullName) return "";
+
   let name = String(fullName).trim();
+
+  // 1. Remove round brackets (generic name)
   name = name.replace(/\s*\([^)]*\)/g, "");
+
+  // 2. Remove strength + dosage patterns
+  //    Handles: "5 million unit/1 vial", "200 mg tablet", "50 mcg/1 actuation", "400 mg/5 ml"
   name = name.replace(
-    /\s+\d+(\.\d+)?\s*(mg|mcg|g|ml|mL|IU|%|w\/v|w\/w)(\s*\/\s*\d*\s*(mg|mcg|g|ml|mL))?.*$/i,
+    /\s+\d+(\.\d+)?\s*(million|thousand|billion)?\s*(unit|units|mg|mcg|g|ml|mL|IU|%|w\/v|w\/w)?(\s*\/\s*\d*\s*(unit|units|mg|mcg|g|ml|mL))?.*$/i,
     ""
   );
+
   name = name.trim();
-  if (!name) name = String(fullName).split(/\s+/)[0];
+
+  // 3. Fallback — if name too long (> 30 chars), take first 2 words
+  if (name.length > 30) {
+    const words = name.split(/\s+/);
+    name = words.slice(0, 2).join(" ");
+  }
+
+  // 4. If empty, take first word of full name
+  if (!name) {
+    name = String(fullName).split(/\s+/)[0];
+  }
+
   return name;
 }
 
@@ -108,12 +126,13 @@ export default function Medicines() {
                 const fullName = String(row["Brand Name"] || "").trim();
                 if (!fullName) return null;
 
-              const brandName = extractBrandName(fullName);
-const generic = String(row["Generic Identifier"] || "N/A").trim();
+                // ✅ FIXED: extract short brand name
+                const brandName = extractBrandName(fullName);
+                const generic = String(row["Generic Identifier"] || "N/A").trim();
 
-// ⚡ LOCAL DETECTION — Use fullName (not generic)
-// Because CDCI generic column has numeric codes, not names
-const category = detectCategoryLocal(fullName, brandName);
+                // ⚡ LOCAL DETECTION — Use fullName
+                const category = detectCategoryLocal(fullName, brandName);
+
                 return {
                   id: String(row["Identifier"] || `med-${index}`),
                   name: brandName,
@@ -168,23 +187,21 @@ const category = detectCategoryLocal(fullName, brandName);
   }, []);
 
   /* =====================================================
-     HANDLE ADD MEDICINE — AI DETECT
+     HANDLE ADD MEDICINE
   ===================================================== */
 
   const handleAddMedicine = async (newMedicine) => {
     const tempId = newMedicine.id || `med-${Date.now()}`;
 
-    // 1. Local detect first (instant)
     const localCat = detectCategoryLocal(
       newMedicine.name,
       newMedicine.generic || ""
     );
 
-    // 2. Add immediately
     const tempItem = {
       ...newMedicine,
       id: tempId,
-      fullName: newMedicine.name,
+      fullName: newMedicine.fullName || newMedicine.name,
       category: localCat === "Other" ? "Detecting..." : localCat,
       aiDetected: localCat !== "Other",
       schedule: newMedicine.schedule || "H",
@@ -194,7 +211,6 @@ const category = detectCategoryLocal(fullName, brandName);
     setMedicines((prev) => [tempItem, ...prev]);
     toast.success(`${newMedicine.name} added!`);
 
-    // 3. If local failed, use AI
     if (localCat === "Other") {
       console.log(`🤖 AI detecting: "${newMedicine.name}"...`);
       try {

@@ -1,429 +1,686 @@
-import { useState, useEffect, useId } from "react";
-import { toast } from "sonner";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   X,
+  Search,
   Pill,
-  Building2,
-  Package,
-  Calendar,
   Hash,
   IndianRupee,
-  Tag,
   MapPin,
+  Calendar,
+  Package,
+  Loader2,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+import Papa from "papaparse";
+import { toast } from "sonner";
+import { suppliersAPI } from "../../services/api";
 
-const FIELD_BASE =
-  "w-full h-12 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 dark:text-slate-500";
+/* =====================================================
+   CONSTANTS
+===================================================== */
 
-const LABEL_BASE = "block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5";
+const CATEGORIES = [
+  "Antibiotic",
+  "Analgesic",
+  "Antidiabetic",
+  "Antihistamine",
+  "Antiseptic",
+  "Cardiac",
+  "Other",
+];
 
-export default function AddMedicineModal({ onClose, onAdd }) {
+const DRUG_SCHEDULES = [
+  "OTC (Over the counter)",
+  "Schedule H",
+  "Schedule H1",
+  "Schedule X",
+];
+
+/* =====================================================
+   MAIN COMPONENT
+===================================================== */
+
+export default function AddMedicineModal({ onAdd, onClose }) {
+  const [brandMaster, setBrandMaster] = useState([]);
+  const [loadingMaster, setLoadingMaster] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [selectedMaster, setSelectedMaster] = useState(null);
+  const [nameError, setNameError] = useState("");
+
+  const suggestionsRef = useRef(null);
+  const inputRef = useRef(null);
+
   const [form, setForm] = useState({
     name: "",
     generic: "",
     manufacturer: "",
-    batch: "",
-    expiry: "",
-    stock: "",
-    price: "",
+    batch: `AMX-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+    expiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0],
+    stock: 100,
+    price: 50,
     category: "Antibiotic",
-    schedule: "OTC",
+    schedule: "OTC (Over the counter)",
     rack: "",
   });
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
-  const nameId = useId();
-  const genericId = useId();
-  const manufacturerId = useId();
-  const batchId = useId();
-  const expiryId = useId();
-  const stockId = useId();
-  const priceId = useId();
-  const categoryId = useId();
-  const scheduleId = useId();
-  const rackId = useId();
+  /* =====================================================
+     LOAD SUPPLIER NAMES + BRANDMASTER.TSV
+  ===================================================== */
 
   useEffect(() => {
-    document.body.style.overflow = "hidden";
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        setLoadingMaster(true);
+
+        // 1. Load supplier names first
+        let supplierMap = {};
+        try {
+          const supplierData = await suppliersAPI.list({ limit: 10000 });
+          supplierData.suppliers.forEach((s) => {
+            supplierMap[s.code] = s.name;
+          });
+          console.log(`✅ Loaded ${Object.keys(supplierMap).length} supplier names`);
+        } catch (err) {
+          console.error("Supplier names load error:", err);
+        }
+
+        if (cancelled) return;
+
+        // 2. Load BrandMaster.tsv
+        const res = await fetch("/data/BrandMaster.tsv");
+        if (!res.ok) throw new Error("Failed to load");
+
+        const text = await res.text();
+
+        Papa.parse(text, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter: "\t",
+          complete: (results) => {
+            if (cancelled) return;
+
+            const parsed = (results.data || [])
+              .map((row, index) => {
+                const fullName = String(row["Brand Name"] || "").trim();
+                if (!fullName) return null;
+
+                // Extract generic name from brackets
+                const genericMatch = fullName.match(/\(([^)]+)\)/);
+                const genericName = genericMatch ? genericMatch[1].trim() : "";
+
+                // Brand name = text before first bracket
+                const brandName = fullName.split("(")[0].trim();
+
+                // Dosage info = text after last bracket
+                const dosageMatch = fullName.match(/\)\s*(.+)$/);
+                const dosage = dosageMatch ? dosageMatch[1].trim() : "";
+
+                // ✅ Supplier code from BrandMaster
+                const supplierCode = String(
+                  row["Supplier Identifier"] || ""
+                ).trim();
+
+                // ✅ Supplier NAME from lookup (fallback to code)
+                const supplierName = supplierMap[supplierCode] || supplierCode;
+
+                return {
+                  id: String(row["Identifier"] || `bm-${index}`),
+                  fullName,
+                  brandName,
+                  genericName,
+                  dosage,
+                  manufacturerCode: supplierCode,
+                  manufacturer: supplierName, // ✅ NAME, not code!
+                };
+              })
+              .filter(Boolean);
+
+            setBrandMaster(parsed);
+            setLoadingMaster(false);
+            console.log(`✅ BrandMaster loaded: ${parsed.length} medicines`);
+          },
+          error: (err) => {
+            console.error("Parse error:", err);
+            setLoadingMaster(false);
+          },
+        });
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Fetch error:", err);
+        setLoadingMaster(false);
+      }
+    };
+
+    loadData();
     return () => {
-      document.body.style.overflow = "";
+      cancelled = true;
     };
   }, []);
 
+  /* =====================================================
+     SUGGESTIONS — Search by generic name first
+  ===================================================== */
+
+  const suggestions = useMemo(() => {
+    const q = form.name.toLowerCase().trim();
+    if (!q || q.length < 2) return [];
+
+    return brandMaster
+      .filter((med) => {
+        return (
+          med.genericName.toLowerCase().includes(q) ||
+          med.brandName.toLowerCase().includes(q) ||
+          med.fullName.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const aStart = a.genericName.toLowerCase().startsWith(q) ? 1 : 0;
+        const bStart = b.genericName.toLowerCase().startsWith(q) ? 1 : 0;
+        if (aStart !== bStart) return bStart - aStart;
+
+        const aContains = a.genericName.toLowerCase().includes(q) ? 1 : 0;
+        const bContains = b.genericName.toLowerCase().includes(q) ? 1 : 0;
+        return bContains - aContains;
+      })
+      .slice(0, 8);
+  }, [form.name, brandMaster]);
+
+  /* =====================================================
+     HANDLERS
+  ===================================================== */
+
+  const handleChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleNameChange = (value) => {
+    setForm((prev) => ({ ...prev, name: value }));
+    setShowSuggestions(true);
+    setHighlightedIndex(-1);
+    setSelectedMaster(null);
+    setNameError("");
+  };
+
+  const handleSelectSuggestion = (med) => {
+    setForm((prev) => ({
+      ...prev,
+      name: med.genericName || med.brandName,
+      generic: med.genericName || prev.generic,
+      manufacturer: med.manufacturer || prev.manufacturer, // ✅ Now NAME
+    }));
+    setSelectedMaster(med);
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
+    setNameError("");
+  };
+
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      );
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+        handleSelectSuggestion(suggestions[highlightedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
   useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") onClose?.();
+    const handleClickOutside = (e) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target)
+      ) {
+        setShowSuggestions(false);
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const update = (key, value) => {
-    setForm((f) => ({ ...f, [key]: value }));
-    if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
-  };
+  /* =====================================================
+     SUBMIT — STRICT MODE
+  ===================================================== */
 
-  const validate = () => {
-    const e = {};
-    if (!form.name.trim()) e.name = "Medicine name is required";
-    if (!form.generic.trim()) e.generic = "Generic name is required";
-    if (!form.manufacturer.trim()) e.manufacturer = "Manufacturer is required";
-    if (!form.batch.trim()) e.batch = "Batch number is required";
-    if (!form.expiry) e.expiry = "Expiry date is required";
-    if (!form.stock || Number(form.stock) <= 0)
-      e.stock = "Stock must be greater than 0";
-    if (!form.price || Number(form.price) <= 0)
-      e.price = "Price must be greater than 0";
-    if (!form.rack.trim()) e.rack = "Rack location is required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!validate()) {
-      toast.error("Please fix the errors below");
+
+    if (!selectedMaster) {
+      setNameError(
+        "Please select a medicine from the suggestions list. Only CDCI registered medicines are allowed."
+      );
+      toast.error("Invalid medicine — select from suggestions");
+      inputRef.current?.focus();
       return;
     }
-    setSubmitting(true);
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      const newMedicine = {
-        id: `MED-${Date.now().toString().slice(-6)}`,
-        barcode: `890${Date.now().toString().slice(-10)}`,
-        name: form.name.trim(),
-        generic: form.generic.trim(),
-        manufacturer: form.manufacturer.trim(),
-        batch: form.batch.trim(),
-        expiry: form.expiry,
-        stock: Number(form.stock),
-        price: Number(form.price),
-        category: form.category,
-        schedule: form.schedule,
-        rack: form.rack.trim(),
-      };
-      onAdd?.(newMedicine);
-      toast.success(`${newMedicine.name} added successfully!`);
-      onClose?.();
-    } catch {
-      toast.error("Failed to add medicine. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+    if (!form.generic.trim()) {
+      toast.error("Generic name required");
+      return;
     }
+    if (!form.manufacturer.trim()) {
+      toast.error("Manufacturer required");
+      return;
+    }
+    if (!form.rack.trim()) {
+      toast.error("Rack location required");
+      return;
+    }
+
+    const newMedicine = {
+      id: `med-${Date.now()}`,
+      masterId: selectedMaster.id,
+      name: selectedMaster.genericName || selectedMaster.brandName,
+      fullName: selectedMaster.fullName,
+      brandName: selectedMaster.brandName,
+      generic: form.generic.trim(),
+      manufacturer: form.manufacturer.trim(),
+      manufacturerCode: selectedMaster.manufacturerCode, // ✅ Store code too
+      batch: form.batch.trim(),
+      rack: form.rack.trim(),
+      stock: parseInt(form.stock, 10) || 0,
+      price: parseFloat(form.price) || 0,
+      category: form.category,
+      schedule: form.schedule.split(" ")[0],
+      expiry: form.expiry,
+      aiDetected: false,
+    };
+
+    onAdd(newMedicine);
+    onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl my-8 shadow-2xl">
+  /* =====================================================
+     RENDER
+  ===================================================== */
 
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800">
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl border border-slate-200 dark:border-slate-800 overflow-hidden my-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center">
-              <Pill size={20} className="text-[#0284c7]" />
+            <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center">
+              <Pill size={18} className="text-[#0284c7]" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
                 Add New Medicine
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                Fill in the details below
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Only CDCI registered medicines allowed
               </p>
             </div>
           </div>
-
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 transition"
-            aria-label="Close"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           >
-            <X size={18} className="text-slate-500 dark:text-slate-400 dark:text-slate-500" />
+            <X size={18} className="text-slate-500" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid sm:grid-cols-2 gap-4">
-
-            <div className="sm:col-span-2">
-              <label htmlFor={nameId} className={LABEL_BASE}>
-                Medicine Name *
-              </label>
-              <div className="relative">
-                <Pill
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
-                />
-                <input
-                  id={nameId}
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => update("name", e.target.value)}
-                  placeholder="Amoxicillin 500mg"
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.name ? "border-rose-300" : ""
-                  }`}
-                />
-              </div>
-              {errors.name && (
-                <p className="mt-1 text-xs text-rose-600">{errors.name}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor={genericId} className={LABEL_BASE}>
-                Generic Name *
-              </label>
-              <input
-                id={genericId}
-                type="text"
-                value={form.generic}
-                onChange={(e) => update("generic", e.target.value)}
-                placeholder="Amoxicillin"
-                className={`${FIELD_BASE} ${
-                  errors.generic ? "border-rose-300" : ""
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Medicine Name */}
+          <div ref={suggestionsRef} className="relative">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Medicine Name <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Pill
+                size={14}
+                className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${
+                  selectedMaster ? "text-emerald-500" : "text-slate-400"
                 }`}
               />
-              {errors.generic && (
-                <p className="mt-1 text-xs text-rose-600">{errors.generic}</p>
-              )}
-            </div>
+              <input
+                ref={inputRef}
+                type="text"
+                value={form.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                onFocus={() =>
+                  form.name.length >= 2 && setShowSuggestions(true)
+                }
+                onKeyDown={handleKeyDown}
+                placeholder=""
+                className={`w-full h-11 pl-10 pr-10 rounded-lg border bg-white dark:bg-slate-800 text-sm outline-none transition ${
+                  nameError
+                    ? "border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                    : selectedMaster
+                    ? "border-emerald-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    : "border-slate-200 dark:border-slate-700 focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10"
+                }`}
+                autoComplete="off"
+              />
 
-            <div>
-              <label htmlFor={manufacturerId} className={LABEL_BASE}>
-                Manufacturer *
-              </label>
-              <div className="relative">
-                <Building2
+              {loadingMaster && (
+                <Loader2
+                  size={14}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 animate-spin"
+                />
+              )}
+              {!loadingMaster && selectedMaster && (
+                <CheckCircle2
                   size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500"
                 />
-                <input
-                  id={manufacturerId}
-                  type="text"
-                  value={form.manufacturer}
-                  onChange={(e) => update("manufacturer", e.target.value)}
-                  placeholder="Cipla Ltd"
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.manufacturer ? "border-rose-300" : ""
-                  }`}
-                />
-              </div>
-              {errors.manufacturer && (
-                <p className="mt-1 text-xs text-rose-600">
-                  {errors.manufacturer}
-                </p>
+              )}
+              {!loadingMaster && !selectedMaster && form.name && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, name: "" }));
+                    setShowSuggestions(false);
+                    setSelectedMaster(null);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={14} />
+                </button>
               )}
             </div>
 
+            {nameError && (
+              <div className="mt-1.5 flex items-start gap-1.5 text-rose-600">
+                <AlertCircle size={12} className="mt-0.5 shrink-0" />
+                <p className="text-[11px] font-medium">{nameError}</p>
+              </div>
+            )}
+
+            {selectedMaster && !nameError && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-emerald-600">
+                <CheckCircle2 size={12} />
+                <p className="text-[11px] font-medium">
+                  ✓ Selected: <strong>{selectedMaster.brandName}</strong> ({selectedMaster.genericName})
+                </p>
+              </div>
+            )}
+
+            {/* SUGGESTIONS DROPDOWN */}
+            {showSuggestions && form.name.length >= 2 && !selectedMaster && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-10 max-h-80 overflow-y-auto">
+                {loadingMaster ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2
+                      size={18}
+                      className="text-[#0284c7] animate-spin"
+                    />
+                    <span className="ml-2 text-xs text-slate-500">
+                      Loading master data...
+                    </span>
+                  </div>
+                ) : suggestions.length === 0 ? (
+                  <div className="px-4 py-6 text-center">
+                    <AlertCircle
+                      size={20}
+                      className="text-rose-400 mx-auto mb-2"
+                    />
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Medicine not found
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Only CDCI-registered medicines can be added
+                    </p>
+                  </div>
+                ) : (
+                  suggestions.map((med, idx) => (
+                    <button
+                      key={med.id}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(med)}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition border-b border-slate-100 dark:border-slate-800 last:border-b-0 ${
+                        highlightedIndex === idx
+                          ? "bg-sky-50 dark:bg-slate-800"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-md bg-sky-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Pill size={14} className="text-[#0284c7]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
+                          {med.genericName || med.brandName}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          {med.brandName}
+                          {med.dosage ? ` · ${med.dosage}` : ""}
+                        </p>
+                        {/* ✅ Show supplier name in suggestion too */}
+                        {med.manufacturer && med.manufacturer !== med.manufacturerCode && (
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            🏭 {med.manufacturer}
+                          </p>
+                        )}
+                      </div>
+                      <CheckCircle2
+                        size={14}
+                        className="text-emerald-500 shrink-0"
+                      />
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Generic + Manufacturer */}
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor={batchId} className={LABEL_BASE}>
-                Batch Number *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Generic Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.generic}
+                onChange={(e) => handleChange("generic", e.target.value)}
+                placeholder="Auto-filled from master"
+                disabled={!!selectedMaster}
+                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Manufacturer <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.manufacturer}
+                onChange={(e) => handleChange("manufacturer", e.target.value)}
+                placeholder="Auto-filled from master"
+                disabled={!!selectedMaster}
+                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+
+          {/* Batch + Expiry */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Batch Number <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Hash
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                 />
                 <input
-                  id={batchId}
                   type="text"
                   value={form.batch}
-                  onChange={(e) => update("batch", e.target.value)}
-                  placeholder="AMX-2026-042"
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.batch ? "border-rose-300" : ""
-                  }`}
+                  onChange={(e) => handleChange("batch", e.target.value)}
+                  className="w-full h-11 pl-10 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
                 />
               </div>
-              {errors.batch && (
-                <p className="mt-1 text-xs text-rose-600">{errors.batch}</p>
-              )}
             </div>
 
             <div>
-              <label htmlFor={expiryId} className={LABEL_BASE}>
-                Expiry Date *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Expiry Date <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Calendar
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                 />
                 <input
-                  id={expiryId}
                   type="date"
                   value={form.expiry}
-                  onChange={(e) => update("expiry", e.target.value)}
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.expiry ? "border-rose-300" : ""
-                  }`}
+                  onChange={(e) => handleChange("expiry", e.target.value)}
+                  className="w-full h-11 pl-10 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
                 />
               </div>
-              {errors.expiry && (
-                <p className="mt-1 text-xs text-rose-600">{errors.expiry}</p>
-              )}
             </div>
+          </div>
 
+          {/* Stock + Price */}
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor={stockId} className={LABEL_BASE}>
-                Stock Quantity *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Stock Quantity <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Package
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                 />
                 <input
-                  id={stockId}
                   type="number"
                   value={form.stock}
-                  onChange={(e) => update("stock", e.target.value)}
-                  placeholder="240"
-                  min="1"
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.stock ? "border-rose-300" : ""
-                  }`}
+                  onChange={(e) => handleChange("stock", e.target.value)}
+                  className="w-full h-11 pl-10 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
                 />
               </div>
-              {errors.stock && (
-                <p className="mt-1 text-xs text-rose-600">{errors.stock}</p>
-              )}
             </div>
 
             <div>
-              <label htmlFor={priceId} className={LABEL_BASE}>
-                Unit Price (₹) *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Unit Price (₹) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <IndianRupee
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                 />
                 <input
-                  id={priceId}
                   type="number"
-                  value={form.price}
-                  onChange={(e) => update("price", e.target.value)}
-                  placeholder="45.00"
                   step="0.01"
-                  min="0"
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.price ? "border-rose-300" : ""
-                  }`}
+                  value={form.price}
+                  onChange={(e) => handleChange("price", e.target.value)}
+                  className="w-full h-11 pl-10 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
                 />
               </div>
-              {errors.price && (
-                <p className="mt-1 text-xs text-rose-600">{errors.price}</p>
-              )}
             </div>
+          </div>
 
+          {/* Category + Schedule */}
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor={categoryId} className={LABEL_BASE}>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Category
               </label>
-              <div className="relative">
-                <Tag
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
-                />
-                <select
-                  id={categoryId}
-                  value={form.category}
-                  onChange={(e) => update("category", e.target.value)}
-                  className={`${FIELD_BASE} pl-11 appearance-none cursor-pointer`}
-                >
-                  <option>Antibiotic</option>
-                  <option>Analgesic</option>
-                  <option>Antidiabetic</option>
-                  <option>Antihistamine</option>
-                  <option>Antiseptic</option>
-                  <option>Cardiac</option>
-                  <option>Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor={scheduleId} className={LABEL_BASE}>
-                Drug Schedule
-              </label>
               <select
-                id={scheduleId}
-                value={form.schedule}
-                onChange={(e) => update("schedule", e.target.value)}
-                className={`${FIELD_BASE} appearance-none cursor-pointer`}
+                value={form.category}
+                onChange={(e) => handleChange("category", e.target.value)}
+                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
               >
-                <option value="OTC">OTC (Over the counter)</option>
-                <option value="H">Schedule H</option>
-                <option value="H1">Schedule H1</option>
-                <option value="X">Schedule X</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label htmlFor={rackId} className={LABEL_BASE}>
-                Rack Location *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Drug Schedule
               </label>
-              <div className="relative">
-                <MapPin
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
-                />
-                <input
-                  id={rackId}
-                  type="text"
-                  value={form.rack}
-                  onChange={(e) => update("rack", e.target.value)}
-                  placeholder="A-12"
-                  className={`${FIELD_BASE} pl-11 ${
-                    errors.rack ? "border-rose-300" : ""
-                  }`}
-                />
-              </div>
-              {errors.rack && (
-                <p className="mt-1 text-xs text-rose-600">{errors.rack}</p>
-              )}
+              <select
+                value={form.schedule}
+                onChange={(e) => handleChange("schedule", e.target.value)}
+                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
+              >
+                {DRUG_SCHEDULES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             </div>
-
           </div>
 
-          <div className="mt-5 flex items-start gap-2 rounded-lg bg-sky-50 border border-sky-100 dark:border-slate-800 px-4 py-3">
-            <CheckCircle2
-              size={14}
-              className="text-[#0284c7] mt-0.5 shrink-0"
-            />
-            <p className="text-xs text-sky-800">
-              Barcode will be auto-generated for this medicine.
+          {/* Rack */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Rack Location <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <MapPin
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={form.rack}
+                onChange={(e) => handleChange("rack", e.target.value)}
+                placeholder="A-12"
+                className="w-full h-11 pl-10 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
+              />
+            </div>
+          </div>
+
+          {/* Info */}
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/50">
+            <CheckCircle2 size={14} className="text-[#0284c7] shrink-0" />
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Only CDCI registered medicines can be added. Barcode will be
+              auto-generated.
             </p>
           </div>
 
-          <div className="flex gap-3 mt-6">
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={submitting}
-              className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-60"
+              className="flex-1 h-11 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >
               Cancel
             </button>
-
             <button
               type="submit"
-              disabled={submitting}
-              className="flex-1 h-12 rounded-xl bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm"
+              disabled={!selectedMaster}
+              className={`flex-1 h-11 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                selectedMaster
+                  ? "bg-[#0284c7] text-white hover:bg-[#0369a1]"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
             >
-              {submitting ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Pill size={16} />
-                  Add Medicine
-                </>
-              )}
+              <Pill size={14} />
+              Add Medicine
             </button>
           </div>
         </form>
