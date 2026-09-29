@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const batchSchema = new mongoose.Schema(
   {
@@ -19,4 +19,4 @@ const batchSchema = new mongoose.Schema(
 
 batchSchema.index({ medicineName: "text", batchNumber: "text" });
 
-module.exports = mongoose.model("Batch", batchSchema);
+export default mongoose.model("Batch", batchSchema);

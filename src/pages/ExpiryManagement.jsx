@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Search, Filter, AlertTriangle, CheckCircle, XCircle, 
   Trash2, Download, ArrowUpDown, ChevronLeft, ChevronRight, 
@@ -6,40 +6,149 @@ import {
 } from 'lucide-react';
 import { initialExpiryData } from '../data/expiryData';
 import Navbar from '../components/dashboard/Navbar';
+import { batchesAPI } from '../services/api';
+
+function formatBatchToExpiryItem(b, index) {
+  const expiry = new Date(b.expiryDate);
+  const today = new Date();
+  const diffTime = expiry - today;
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  let status = 'Safe';
+  let color = 'green';
+  if (daysLeft < 0) {
+    status = 'Expired';
+    color = 'red';
+  } else if (daysLeft <= 30) {
+    status = 'Critical';
+    color = 'orange';
+  } else if (daysLeft <= 60) {
+    status = 'Warning';
+    color = 'yellow';
+  }
+
+  return {
+    id: b.id || `batch-${index}`,
+    medicineName: b.medicineName,
+    batchNumber: b.batchNumber,
+    quantity: b.quantity || 0,
+    expiryDate: b.expiryDate,
+    daysLeft,
+    supplier: b.supplier || 'Standard Supplier',
+    location: b.rack || `Shelf ${String.fromCharCode(65 + (index % 4))}-${(index % 5) + 1}`,
+    status: b.status === 'Quarantined' || b.status === 'Returned' ? b.status : status,
+    color: b.status === 'Quarantined' ? 'gray' : b.status === 'Returned' ? 'blue' : color,
+  };
+}
+
+const STATUS_STYLES = {
+  'Expired': 'bg-red-100 text-red-700 border-red-200',
+  'Critical': 'bg-red-100 text-red-700 border-red-200',
+  'Warning': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  'Review': 'bg-blue-100 text-blue-700 border-blue-200',
+  'Safe': 'bg-green-100 text-green-700 border-green-200',
+  'Quarantined': 'bg-gray-100 text-gray-700 border-gray-200',
+  'Returned': 'bg-blue-100 text-blue-700 border-blue-200',
+};
+
+function StatusBadge({ status, daysLeft }) {
+  const icons = {
+    'Expired': <XCircle size={14} className="mr-1" />,
+    'Critical': <AlertTriangle size={14} className="mr-1" />,
+    'Warning': <AlertTriangle size={14} className="mr-1" />,
+    'Review': <Clock size={14} className="mr-1" />,
+    'Safe': <CheckCircle size={14} className="mr-1" />,
+    'Quarantined': <ShieldAlert size={14} className="mr-1" />,
+    'Returned': <RotateCcw size={14} className="mr-1" />,
+  };
+  return (
+    <span className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_STYLES[status] || STATUS_STYLES['Safe']}`}>
+      {icons[status] || icons['Safe']} {status} {daysLeft < 0 ? `(${Math.abs(daysLeft)}d ago)` : daysLeft < 90 ? `(${daysLeft}d)` : ''}
+    </span>
+  );
+}
+
+function SortableHeader({ label, sortKey, sortConfig, onSort }) {
+  return (
+    <th 
+      className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown size={14} className={sortConfig.key === sortKey ? 'text-blue-500' : 'text-gray-400'} />
+      </div>
+    </th>
+  );
+}
 
 const ExpiryManagement = () => {
   const [items, setItems] = useState(() => {
     const saved = localStorage.getItem('pharmacyExpiry');
     return saved ? JSON.parse(saved) : initialExpiryData;
   });
-
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: 'expiryDate', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  /* Fetch live batches from DB */
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLiveBatches = async () => {
+      try {
+        const data = await batchesAPI.list({ limit: 1000 });
+        if (!cancelled && data?.batches && data.batches.length > 0) {
+          const formatted = data.batches.map(formatBatchToExpiryItem);
+          setItems(formatted);
+        }
+      } catch (err) {
+        console.warn("Could not load batches from DB, using cached items:", err.message);
+      }
+    };
+    fetchLiveBatches();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('pharmacyExpiry', JSON.stringify(items));
   }, [items]);
 
   // --- Handlers ---
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if(window.confirm("Are you sure you want to delete this item?")) {
+      try {
+        await batchesAPI.delete(id);
+      } catch (err) {
+        console.debug("Batch delete offline fallback:", err);
+      }
       setItems(items.filter(item => item.id !== id));
     }
   };
 
-  const handleQuarantine = (id) => {
+  const handleQuarantine = async (id) => {
     if(window.confirm("Move this item to Quarantine? It will not be dispensed.")) {
+      try {
+        await batchesAPI.update(id, { status: 'Quarantined' });
+      } catch (err) {
+        console.debug("Batch quarantine offline fallback:", err);
+      }
       setItems(items.map(item => 
         item.id === id ? { ...item, status: 'Quarantined', color: 'gray' } : item
       ));
     }
   };
 
-  const handleReturnToSupplier = (id) => {
+  const handleReturnToSupplier = async (id) => {
     if(window.confirm("Return this item to supplier?")) {
+      try {
+        await batchesAPI.update(id, { status: 'Returned' });
+      } catch (err) {
+        console.debug("Batch return offline fallback:", err);
+      }
       setItems(items.map(item => 
         item.id === id ? { ...item, status: 'Returned', color: 'blue' } : item
       ));
@@ -99,49 +208,6 @@ const ExpiryManagement = () => {
 
   const totalPages = Math.ceil(processedItems.length / itemsPerPage);
   const currentItems = processedItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
-
-  // --- UI Components ---
-  const StatusBadge = ({ status, color, daysLeft }) => {
-    const styles = {
-      'Expired': 'bg-red-100 text-red-700 border-red-200',
-      'Critical': 'bg-red-100 text-red-700 border-red-200',
-      'Warning': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      'Review': 'bg-blue-100 text-blue-700 border-blue-200',
-      'Safe': 'bg-green-100 text-green-700 border-green-200',
-      'Quarantined': 'bg-gray-100 text-gray-700 border-gray-200',
-      'Returned': 'bg-blue-100 text-blue-700 border-blue-200',
-    };
-    const icons = {
-      'Expired': <XCircle size={14} className="mr-1" />,
-      'Critical': <AlertTriangle size={14} className="mr-1" />,
-      'Warning': <AlertTriangle size={14} className="mr-1" />,
-      'Review': <Clock size={14} className="mr-1" />,
-      'Safe': <CheckCircle size={14} className="mr-1" />,
-      'Quarantined': <ShieldAlert size={14} className="mr-1" />,
-      'Returned': <RotateCcw size={14} className="mr-1" />,
-    };
-    return (
-      <span className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${styles[status] || styles['Safe']}`}>
-        {icons[status] || icons['Safe']} {status} {daysLeft < 0 ? `(${Math.abs(daysLeft)}d ago)` : daysLeft < 90 ? `(${daysLeft}d)` : ''}
-      </span>
-    );
-  };
-
-  const SortableHeader = ({ label, sortKey }) => (
-    <th 
-      className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
-      onClick={() => handleSort(sortKey)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        <ArrowUpDown size={14} className={sortConfig.key === sortKey ? 'text-blue-500' : 'text-gray-400'} />
-      </div>
-    </th>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -213,7 +279,10 @@ const ExpiryManagement = () => {
                 type="text" 
                 placeholder="Search by medicine or batch no..." 
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
@@ -222,7 +291,10 @@ const ExpiryManagement = () => {
               <Filter size={18} className="text-gray-400" />
               <select 
                 value={filterStatus} 
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="All">All Status</option>
@@ -243,13 +315,13 @@ const ExpiryManagement = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
-                    <SortableHeader label="Medicine Name" sortKey="medicineName" />
-                    <SortableHeader label="Batch No" sortKey="batchNumber" />
-                    <SortableHeader label="Quantity" sortKey="quantity" />
-                    <SortableHeader label="Expiry Date" sortKey="expiryDate" />
+                    <SortableHeader label="Medicine Name" sortKey="medicineName" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="Batch No" sortKey="batchNumber" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="Quantity" sortKey="quantity" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="Expiry Date" sortKey="expiryDate" sortConfig={sortConfig} onSort={handleSort} />
                     <th className="px-6 py-4">Supplier</th>
                     <th className="px-6 py-4">Location</th>
-                    <SortableHeader label="Status" sortKey="status" />
+                    <SortableHeader label="Status" sortKey="status" sortConfig={sortConfig} onSort={handleSort} />
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -268,7 +340,7 @@ const ExpiryManagement = () => {
                         <td className="px-6 py-4 text-sm text-gray-600">{item.supplier || 'N/A'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600">{item.location || 'N/A'}</td>
                         <td className="px-6 py-4">
-                          <StatusBadge status={item.status} color={item.color} daysLeft={item.daysLeft} />
+                          <StatusBadge status={item.status} daysLeft={item.daysLeft} />
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">

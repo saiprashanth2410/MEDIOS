@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   X,
-  Search,
   Pill,
   Hash,
   IndianRupee,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import Papa from "papaparse";
 import { toast } from "sonner";
-import { suppliersAPI } from "../../services/api";
 
 /* =====================================================
    CONSTANTS
@@ -52,7 +50,7 @@ export default function AddMedicineModal({ onAdd, onClose }) {
   const suggestionsRef = useRef(null);
   const inputRef = useRef(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     name: "",
     generic: "",
     manufacturer: "",
@@ -65,7 +63,7 @@ export default function AddMedicineModal({ onAdd, onClose }) {
     category: "Antibiotic",
     schedule: "OTC (Over the counter)",
     rack: "",
-  });
+  }));
 
   /* =====================================================
      LOAD SUPPLIER NAMES + BRANDMASTER.TSV
@@ -78,78 +76,79 @@ export default function AddMedicineModal({ onAdd, onClose }) {
       try {
         setLoadingMaster(true);
 
-        // 1. Load supplier names first
-        let supplierMap = {};
+        // 1. Try loading pre-built fast catalog
+        let parsed = [];
         try {
-          const supplierData = await suppliersAPI.list({ limit: 10000 });
-          supplierData.suppliers.forEach((s) => {
-            supplierMap[s.code] = s.name;
-          });
-          console.log(`✅ Loaded ${Object.keys(supplierMap).length} supplier names`);
-        } catch (err) {
-          console.error("Supplier names load error:", err);
+          const catRes = await fetch("/data/catalogMedicines.json");
+          if (catRes.ok) {
+            const data = await catRes.json();
+            parsed = data.map((med) => ({
+              id: med.id,
+              fullName: med.fullName || med.name,
+              brandName: med.brandName || med.name,
+              genericName: med.generic || "",
+              dosage: "",
+              manufacturerCode: med.manufacturerCode || "",
+              manufacturer: med.manufacturer || "Standard Pharma",
+            }));
+          }
+        } catch (catErr) {
+          console.debug("Fast catalog fallback:", catErr);
         }
 
         if (cancelled) return;
 
-        // 2. Load BrandMaster.tsv
-        const res = await fetch("/data/BrandMaster.tsv");
-        if (!res.ok) throw new Error("Failed to load");
+        // 2. Fallback to BrandMaster.tsv if fast catalog not loaded (use preview limit)
+        if (!parsed || parsed.length === 0) {
+          try {
+            const res = await fetch("/data/BrandMaster.tsv");
+            if (res.ok) {
+              const text = await res.text();
+              await new Promise((resolve) => {
+                Papa.parse(text, {
+                  header: true,
+                  skipEmptyLines: true,
+                  delimiter: "\t",
+                  preview: 500,
+                  complete: (results) => {
+                    parsed = (results.data || [])
+                      .map((row, index) => {
+                        const fullName = String(row["Brand Name"] || "").trim();
+                        if (!fullName) return null;
+                        const genericMatch = fullName.match(/\(([^)]+)\)/);
+                        const genericName = genericMatch ? genericMatch[1].trim() : "";
+                        const brandName = fullName.split("(")[0].trim();
+                        const dosageMatch = fullName.match(/\)\s*(.+)$/);
+                        const dosage = dosageMatch ? dosageMatch[1].trim() : "";
+                        const supplierCode = String(row["Supplier Identifier"] || "").trim();
 
-        const text = await res.text();
+                        return {
+                          id: String(row["Identifier"] || `bm-${index}`),
+                          fullName,
+                          brandName,
+                          genericName,
+                          dosage,
+                          manufacturerCode: supplierCode,
+                          manufacturer: "Standard Pharma",
+                        };
+                      })
+                      .filter(Boolean);
+                    resolve();
+                  },
+                  error: () => resolve(),
+                });
+              });
+            }
+          } catch (tsvErr) {
+            console.error("BrandMaster load error:", tsvErr);
+          }
+        }
 
-        Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter: "\t",
-          complete: (results) => {
-            if (cancelled) return;
+        if (cancelled) return;
 
-            const parsed = (results.data || [])
-              .map((row, index) => {
-                const fullName = String(row["Brand Name"] || "").trim();
-                if (!fullName) return null;
-
-                // Extract generic name from brackets
-                const genericMatch = fullName.match(/\(([^)]+)\)/);
-                const genericName = genericMatch ? genericMatch[1].trim() : "";
-
-                // Brand name = text before first bracket
-                const brandName = fullName.split("(")[0].trim();
-
-                // Dosage info = text after last bracket
-                const dosageMatch = fullName.match(/\)\s*(.+)$/);
-                const dosage = dosageMatch ? dosageMatch[1].trim() : "";
-
-                // ✅ Supplier code from BrandMaster
-                const supplierCode = String(
-                  row["Supplier Identifier"] || ""
-                ).trim();
-
-                // ✅ Supplier NAME from lookup (fallback to code)
-                const supplierName = supplierMap[supplierCode] || supplierCode;
-
-                return {
-                  id: String(row["Identifier"] || `bm-${index}`),
-                  fullName,
-                  brandName,
-                  genericName,
-                  dosage,
-                  manufacturerCode: supplierCode,
-                  manufacturer: supplierName, // ✅ NAME, not code!
-                };
-              })
-              .filter(Boolean);
-
-            setBrandMaster(parsed);
-            setLoadingMaster(false);
-            console.log(`✅ BrandMaster loaded: ${parsed.length} medicines`);
-          },
-          error: (err) => {
-            console.error("Parse error:", err);
-            setLoadingMaster(false);
-          },
-        });
+        setBrandMaster(parsed);
+        setLoadingMaster(false);
+        console.log(`✅ Fast catalog loaded: ${parsed.length} medicines`);
       } catch (err) {
         if (cancelled) return;
         console.error("Fetch error:", err);
@@ -210,7 +209,7 @@ export default function AddMedicineModal({ onAdd, onClose }) {
   const handleSelectSuggestion = (med) => {
     setForm((prev) => ({
       ...prev,
-      name: med.genericName || med.brandName,
+      name: med.brandName || med.genericName,
       generic: med.genericName || prev.generic,
       manufacturer: med.manufacturer || prev.manufacturer, // ✅ Now NAME
     }));
@@ -290,9 +289,9 @@ export default function AddMedicineModal({ onAdd, onClose }) {
     const newMedicine = {
       id: `med-${Date.now()}`,
       masterId: selectedMaster.id,
-      name: selectedMaster.genericName || selectedMaster.brandName,
+      name: selectedMaster.brandName || selectedMaster.genericName || form.name,
       fullName: selectedMaster.fullName,
-      brandName: selectedMaster.brandName,
+      brandName: selectedMaster.brandName || form.name,
       generic: form.generic.trim(),
       manufacturer: form.manufacturer.trim(),
       manufacturerCode: selectedMaster.manufacturerCode, // ✅ Store code too

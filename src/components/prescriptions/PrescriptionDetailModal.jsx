@@ -3,7 +3,6 @@ import {
   X,
   User,
   Stethoscope,
-  Calendar,
   Pill,
   CheckCircle2,
   Clock,

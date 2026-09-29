@@ -60,7 +60,9 @@ export default function BarcodeScanner({ onScan, onClose }) {
       try {
         const capabilities = scanner.getRunningTrackCapabilities();
         if (capabilities?.torch) setTorchSupported(true);
-      } catch {}
+      } catch (err) {
+        console.debug("Torch capability check:", err);
+      }
     } catch (err) {
       console.error(err);
       setError("Camera access denied. Please allow camera permission or use upload.");
@@ -76,7 +78,9 @@ export default function BarcodeScanner({ onScan, onClose }) {
       try {
         await scannerRef.current.stop();
         scannerRef.current.clear();
-      } catch {}
+      } catch (err) {
+        console.debug("Stop scanner fallback:", err);
+      }
       scannerRef.current = null;
     }
     setScanning(false);
@@ -133,23 +137,21 @@ export default function BarcodeScanner({ onScan, onClose }) {
      MODE SWITCH
   ===================================================== */
   useEffect(() => {
-    if (mode === "camera" && !result) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      if (mode === "camera" && !result) {
+        startCamera();
+      } else {
+        stopCamera();
+      }
+    });
     return () => {
+      active = false;
       stopCamera();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
-
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mode, result]);
 
   const handleClose = () => {
     stopCamera();

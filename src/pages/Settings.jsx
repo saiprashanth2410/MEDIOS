@@ -8,7 +8,6 @@ import {
   Palette,
   AlertTriangle,
   ChevronRight,
-  ArrowLeft,
   Sun,
   Moon,
   Monitor,

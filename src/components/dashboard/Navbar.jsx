@@ -19,6 +19,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useScan } from "../../context/ScanContext";
+import { medicinesAPI } from "../../services/api";
 import BarcodeScanner from "../scanner/BarcodeScanner";
 import NotificationBell from "./NotificationBell";
 
@@ -79,10 +81,25 @@ export default function Navbar() {
     setUserMenuOpen(false);
   };
 
-  const handleScanResult = (code) => {
-    toast.success(`Scanned: ${code}`);
-    console.log("Scanned code:", code);
+  const { scan } = useScan();
+
+  const handleScanResult = async (code) => {
     setShowScanner(false);
+    try {
+      const res = await scan(code);
+      if (res?.medicine) {
+        toast.success(`Found: ${res.medicine.name} (${res.medicine.batch})`);
+        return;
+      }
+      const med = await medicinesAPI.get(code);
+      if (med) {
+        toast.success(`Found: ${med.name || med.fullName} (Stock: ${med.stock || 0})`);
+        return;
+      }
+    } catch (err) {
+      console.debug("Barcode lookup fallback:", err);
+    }
+    toast.success(`Scanned: ${code}`);
   };
 
   /* =====================================================

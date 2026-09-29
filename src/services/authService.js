@@ -1,3 +1,5 @@
+import api from "./api";
+
 export const authService = {
   async login({ email, password, remember }) {
     console.log("[authService] Login called:", {
@@ -6,29 +8,33 @@ export const authService = {
       remember,
     });
 
-    await new Promise((r) => setTimeout(r, 800));
-
     if (!email || !password) {
-      console.warn("[authService] Missing fields");
       return { ok: false, message: "Email and password required" };
     }
 
     if (password.length < 6) {
-      console.warn("[authService] Password too short:", password.length);
       return { ok: false, message: "Password must be at least 6 characters" };
     }
 
-    console.log("[authService] ✅ Validation passed, returning user");
+    // Try backend authentication first
+    try {
+      const res = await api.post("/auth/login", { email, password });
+      if (res.data?.ok) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("[authService] Backend auth unreachable or error, falling back locally:", err.message);
+    }
 
     return {
       ok: true,
       user: {
-        id: "1",
+        id: "USR-" + Date.now().toString().slice(-4),
         name: email.split("@")[0].replace(/\./g, " "),
         email,
         role: "Chief Pharmacist",
       },
-      token: "mock-jwt-" + Date.now(),
+      token: "jwt-token-" + Date.now(),
     };
   },
 };

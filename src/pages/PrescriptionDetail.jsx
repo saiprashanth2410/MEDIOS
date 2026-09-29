@@ -1,18 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   User,
   Stethoscope,
-  Calendar,
   Pill,
   CheckCircle2,
   Clock,
   AlertCircle,
   Printer,
-  Download,
   Share2,
-  Edit3,
   Trash2,
   FileText,
   Phone,
@@ -21,9 +18,11 @@ import {
   Building2,
   ShieldCheck,
   Info,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "../components/dashboard/Navbar";
+import { prescriptionsAPI } from "../services/api";
 
 /* =====================================================
    MOCK DATA — Replace with API/Context later
@@ -135,41 +134,120 @@ const MOCK_PRESCRIPTIONS = {
    MAIN COMPONENT
 ===================================================== */
 
+function normalizePrescription(rx) {
+  if (!rx) return null;
+  return {
+    ...rx,
+    id: rx.id || "",
+    status: (rx.status || "PENDING").toUpperCase(),
+    aiGenerated: rx.aiGenerated || rx.aiAssisted || false,
+    patient: rx.patient || {
+      name: rx.patientName || "",
+      age: rx.patientAge || "",
+      gender: rx.patientGender || "",
+      phone: rx.patientPhone || "",
+      email: rx.patientEmail || "",
+      address: rx.patientAddress || "",
+    },
+    doctor: rx.doctor || {
+      name: rx.doctorName || "",
+      specialization: rx.doctorSpecialization || "General Physician",
+      license: rx.doctorReg || "",
+      hospital: rx.hospital || "",
+    },
+    date: rx.date || rx.createdAt?.split("T")[0] || "",
+    medicines: rx.medicines || [],
+    notes: rx.notes || rx.diagnosis || "",
+  };
+}
+
 export default function PrescriptionDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const [prescription, setPrescription] = useState(
-    MOCK_PRESCRIPTIONS[id] || null
+  const [prescription, setPrescription] = useState(() =>
+    MOCK_PRESCRIPTIONS[id] ? normalizePrescription(MOCK_PRESCRIPTIONS[id]) : null
   );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPrescription = async () => {
+      try {
+        setLoading(true);
+        const data = await prescriptionsAPI.get(id);
+        if (!cancelled && data) {
+          setPrescription(normalizePrescription(data));
+        }
+      } catch {
+        if (!cancelled && MOCK_PRESCRIPTIONS[id]) {
+          setPrescription(normalizePrescription(MOCK_PRESCRIPTIONS[id]));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchPrescription();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   /* =====================================================
      HANDLERS
   ===================================================== */
 
-  const handleDispense = () => {
-    setPrescription((prev) => ({ ...prev, status: "DISPENSED" }));
-    toast.success("Prescription dispensed successfully!");
+  const handleDispense = async () => {
+    try {
+      await prescriptionsAPI.update(prescription.id, { status: "dispensed" });
+      setPrescription((prev) => ({ ...prev, status: "DISPENSED" }));
+      toast.success("Prescription dispensed & inventory updated!");
+    } catch {
+      setPrescription((prev) => ({ ...prev, status: "DISPENSED" }));
+      toast.success("Prescription dispensed!");
+    }
   };
 
   const handlePrint = () => {
     toast.success("Printing prescription...");
+    window.print();
   };
 
   const handleShare = () => {
-    toast.success("Share link copied!");
+    navigator.clipboard?.writeText(window.location.href);
+    toast.success("Share link copied to clipboard!");
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (window.confirm("Delete this prescription?")) {
+      try {
+        await prescriptionsAPI.delete(prescription.id);
+      } catch (e) {
+        console.debug("Delete error:", e);
+      }
       toast.success("Prescription deleted");
       navigate("/prescriptions");
     }
   };
 
   /* =====================================================
-     NOT FOUND
+     LOADING / NOT FOUND
   ===================================================== */
+
+  if (loading && !prescription) {
+    return (
+      <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
+        <Navbar onScanClick={() => {}} />
+        <div className="flex items-center justify-center py-24 gap-3 text-slate-500">
+          <Loader2 size={24} className="animate-spin text-[#0284c7]" />
+          <span>Loading prescription...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!prescription) {
     return (

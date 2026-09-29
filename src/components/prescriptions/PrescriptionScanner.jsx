@@ -127,7 +127,11 @@ export default function PrescriptionScanner({ onResult, onClose }) {
       });
 
       setProgress("Success!");
-      toast.success(`Prescription parsed with ${result.model || "AI"}`);
+      if (result.isFallback) {
+        toast.info("Cloud AI offline. Loaded editable draft prescription for review.");
+      } else {
+        toast.success(`Prescription parsed with ${result.model || "AI"}`);
+      }
       onResult?.(result.data);
       onClose?.();
     } catch (err) {
@@ -146,13 +150,18 @@ export default function PrescriptionScanner({ onResult, onClose }) {
   ===================================================== */
 
   useEffect(() => {
+    let active = true;
     if (mode === "camera") {
-      startCamera();
+      queueMicrotask(() => {
+        if (active) startCamera();
+      });
     } else {
       stopCamera();
     }
-    return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      active = false;
+      stopCamera();
+    };
   }, [mode]);
 
   useEffect(() => {

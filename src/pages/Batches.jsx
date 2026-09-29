@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, Plus, Filter, AlertTriangle,
   CheckCircle, XCircle, Edit, Trash2, Download,
@@ -8,6 +8,39 @@ import AddBatchModal from '../components/batches/AddBatchModal';
 import Navbar from '../components/dashboard/Navbar';
 import { batchesAPI } from '../services/api';
 import { toast } from 'sonner';
+
+const BATCH_STATUS_STYLES = {
+  'Active': 'bg-green-100 text-green-700 border-green-200',
+  'Expiring Soon': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  'Expired': 'bg-red-100 text-red-700 border-red-200',
+};
+
+function StatusBadge({ status }) {
+  const icons = {
+    'Active': <CheckCircle size={14} className="mr-1" />,
+    'Expiring Soon': <AlertTriangle size={14} className="mr-1" />,
+    'Expired': <XCircle size={14} className="mr-1" />,
+  };
+  return (
+    <span className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${BATCH_STATUS_STYLES[status] || BATCH_STATUS_STYLES['Active']}`}>
+      {icons[status]} {status}
+    </span>
+  );
+}
+
+function SortableHeader({ label, sortKey, sortConfig, onSort }) {
+  return (
+    <th
+      className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown size={14} className={sortConfig.key === sortKey ? 'text-blue-500' : 'text-gray-400'} />
+      </div>
+    </th>
+  );
+}
 
 const Batches = () => {
   const [batches, setBatches] = useState([]);
@@ -61,8 +94,16 @@ const Batches = () => {
   }, [searchTerm, filterStatus]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    let cancelled = false;
+    batchesAPI.stats().then((data) => {
+      if (!cancelled && data) setStats(data);
+    }).catch((err) => {
+      console.error("Stats error:", err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => fetchBatches(), 300);
@@ -153,40 +194,6 @@ const Batches = () => {
   const totalPages = Math.ceil(processedBatches.length / itemsPerPage);
   const currentBatches = processedBatches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
-
-  const StatusBadge = ({ status }) => {
-    const styles = {
-      'Active': 'bg-green-100 text-green-700 border-green-200',
-      'Expiring Soon': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      'Expired': 'bg-red-100 text-red-700 border-red-200',
-    };
-    const icons = {
-      'Active': <CheckCircle size={14} className="mr-1" />,
-      'Expiring Soon': <AlertTriangle size={14} className="mr-1" />,
-      'Expired': <XCircle size={14} className="mr-1" />,
-    };
-    return (
-      <span className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${styles[status]}`}>
-        {icons[status]} {status}
-      </span>
-    );
-  };
-
-  const SortableHeader = ({ label, sortKey }) => (
-    <th
-      className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
-      onClick={() => handleSort(sortKey)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        <ArrowUpDown size={14} className={sortConfig.key === sortKey ? 'text-blue-500' : 'text-gray-400'} />
-      </div>
-    </th>
-  );
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -256,7 +263,10 @@ const Batches = () => {
                 type="text"
                 placeholder="Search by medicine or batch no..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
@@ -265,7 +275,10 @@ const Batches = () => {
               <Filter size={18} className="text-gray-400" />
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="All">All Status</option>
@@ -287,10 +300,10 @@ const Batches = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
-                      <SortableHeader label="Medicine Name" sortKey="medicineName" />
-                      <SortableHeader label="Batch No" sortKey="batchNumber" />
-                      <SortableHeader label="Quantity" sortKey="quantity" />
-                      <SortableHeader label="Expiry Date" sortKey="expiryDate" />
+                      <SortableHeader label="Medicine Name" sortKey="medicineName" sortConfig={sortConfig} onSort={handleSort} />
+                      <SortableHeader label="Batch No" sortKey="batchNumber" sortConfig={sortConfig} onSort={handleSort} />
+                      <SortableHeader label="Quantity" sortKey="quantity" sortConfig={sortConfig} onSort={handleSort} />
+                      <SortableHeader label="Expiry Date" sortKey="expiryDate" sortConfig={sortConfig} onSort={handleSort} />
                       <th className="px-6 py-4">Supplier</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4 text-right">Actions</th>

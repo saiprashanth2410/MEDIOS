@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Brain, Box, AlertTriangle, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import {
   calculateForecastError,
@@ -96,8 +96,6 @@ const METRIC_CONFIG = [
 ===================================================== */
 
 export default function PerformanceMetrics({ data = MOCK_DATA }) {
-  const [loading, setLoading] = useState(false);
-
   /* =====================================================
      COMPUTE METRICS FROM DATA
   ===================================================== */

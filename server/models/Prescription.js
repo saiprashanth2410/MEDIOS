@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const medicineSchema = new mongoose.Schema(
   {
@@ -24,7 +24,10 @@ const prescriptionSchema = new mongoose.Schema(
     doctorReg: { type: String, default: "" },
     doctorSpecialization: { type: String, default: "" },
     hospital: { type: String, default: "" },
-    date: { type: String, default: () => new Date().toISOString().split("T")[0] },
+    date: {
+      type: String,
+      default: () => new Date().toISOString().split("T")[0],
+    },
     diagnosis: { type: String, default: "" },
     notes: { type: String, default: "" },
     medicines: { type: [medicineSchema], default: [] },
@@ -39,6 +42,10 @@ const prescriptionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-prescriptionSchema.index({ patientName: "text", doctorName: "text", id: "text" });
+prescriptionSchema.index({
+  patientName: "text",
+  doctorName: "text",
+  id: "text",
+});
 
-module.exports = mongoose.model("Prescription", prescriptionSchema);
+export default mongoose.model("Prescription", prescriptionSchema);

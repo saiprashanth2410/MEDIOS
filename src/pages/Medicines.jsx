@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import {
@@ -15,12 +14,15 @@ import {
   LayoutGrid,
   List as ListIcon,
   X,
+  Edit3,
+  Trash2,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 import { detectCategoryLocal } from "../utils/localCategoryRules";
 import { detectCategoryWithAI } from "../utils/aiCategoryDetector";
 import AddMedicineModal from "../components/dashboard/AddMedicineModal";
+import EditStockModal from "../components/medicines/EditStockModal";
 import Navbar from "../components/dashboard/Navbar";
+import { medicinesAPI } from "../services/api";
 
 console.log("🔥🔥🔥 VERSION 6 — LOCAL + AI (Add only) 🔥🔥🔥");
 
@@ -55,7 +57,6 @@ function extractBrandName(fullName) {
   name = name.replace(/\s*\([^)]*\)/g, "");
 
   // 2. Remove strength + dosage patterns
-  //    Handles: "5 million unit/1 vial", "200 mg tablet", "50 mcg/1 actuation", "400 mg/5 ml"
   name = name.replace(
     /\s+\d+(\.\d+)?\s*(million|thousand|billion)?\s*(unit|units|mg|mcg|g|ml|mL|IU|%|w\/v|w\/w)?(\s*\/\s*\d*\s*(unit|units|mg|mcg|g|ml|mL))?.*$/i,
     ""
@@ -63,13 +64,11 @@ function extractBrandName(fullName) {
 
   name = name.trim();
 
-  // 3. Fallback — if name too long (> 30 chars), take first 2 words
   if (name.length > 30) {
     const words = name.split(/\s+/);
     name = words.slice(0, 2).join(" ");
   }
 
-  // 4. If empty, take first word of full name
   if (!name) {
     name = String(fullName).split(/\s+/)[0];
   }
@@ -77,24 +76,35 @@ function extractBrandName(fullName) {
   return name;
 }
 
+function extractGenericName(fullName) {
+  if (!fullName) return "General Formulation";
+  const match = String(fullName).match(/\(([^)]+)\)/);
+  if (match && match[1]) {
+    const raw = match[1].trim();
+    return raw
+      .split(/\s+/)
+      .map((w) => (w.length > 2 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+      .join(" ");
+  }
+  return "General Formulation";
+}
+
 /* =====================================================
    MAIN COMPONENT
 ===================================================== */
 
 export default function Medicines() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-
   const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [viewMode, setViewMode] = useState("grid");
 
   /* =====================================================
-     FETCH 500 MEDICINES — LOCAL CATEGORIES ONLY
+     FETCH MEDICINES — TSV DATA + SERVER DATABASE SYNC
   ===================================================== */
 
   useEffect(() => {
@@ -105,73 +115,193 @@ export default function Medicines() {
         setLoading(true);
         setError(null);
 
-        console.log("🔥 Loading BrandMaster.tsv...");
-        const response = await fetch("/data/BrandMaster.tsv");
-        if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+        // 1. Load supplier names map
+        const supplierMap = {};
+        try {
+          const suppRes = await fetch("/data/suppliers.tsv");
+          if (suppRes.ok) {
+            const suppText = await suppRes.text();
+            Papa.parse(suppText, {
+              header: true,
+              delimiter: "\t",
+              skipEmptyLines: true,
+              complete: (res) => {
+                (res.data || []).forEach((row) => {
+                  const values = Object.values(row);
+                  const id = String(values[0] || "").trim();
+                  const name = String(values[1] || "").trim();
+                  if (id && name) supplierMap[id] = name;
+                });
+              },
+            });
+          }
+        } catch (suppErr) {
+          console.debug("Supplier mapping fallback:", suppErr);
+        }
 
-        const tsvText = await response.text();
+        // 2. Fetch server DB medicines and local overrides
+        const dbMedicinesMap = {};
+        const deletedIds = new Set();
+        try {
+          const savedDeleted = localStorage.getItem("meditrack_deleted_medicines");
+          if (savedDeleted) {
+            JSON.parse(savedDeleted).forEach((id) => deletedIds.add(String(id)));
+          }
+        } catch (err) {
+          console.debug(err);
+        }
 
-        Papa.parse(tsvText, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter: "\t",
-          complete: (results) => {
-            if (cancelled) return;
+        let overrides = {};
+        try {
+          const savedOverrides = localStorage.getItem("meditrack_medicine_overrides");
+          if (savedOverrides) overrides = JSON.parse(savedOverrides);
+        } catch (err) {
+          console.debug(err);
+        }
 
-            const rows = (results.data || []).slice(0, MAX_ITEMS);
-            console.log(`📊 Total rows: ${rows.length}`);
+        let customMedicines = [];
+        try {
+          const savedCustom = localStorage.getItem("meditrack_custom_medicines");
+          if (savedCustom) {
+            customMedicines = JSON.parse(savedCustom).filter(
+              (m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name)
+            );
+          }
+        } catch (err) {
+          console.debug(err);
+        }
 
-            const parsed = rows
-              .map((row, index) => {
-                const fullName = String(row["Brand Name"] || "").trim();
-                if (!fullName) return null;
+        try {
+          const apiData = await medicinesAPI.list({ limit: 100 });
+          if (apiData?.medicines) {
+            apiData.medicines.forEach((m) => {
+              const key = String(m.code || m._id || m.name);
+              dbMedicinesMap[key] = m;
+              if (m.name) dbMedicinesMap[m.name] = m;
 
-                // ✅ FIXED: extract short brand name
-                const brandName = extractBrandName(fullName);
-                const generic = String(row["Generic Identifier"] || "N/A").trim();
-
-                // ⚡ LOCAL DETECTION — Use fullName
-                const category = detectCategoryLocal(fullName, brandName);
-
-                return {
-                  id: String(row["Identifier"] || `med-${index}`),
-                  name: brandName,
-                  fullName,
-                  generic,
-                  manufacturer: String(row["Supplier Identifier"] || "Unknown").trim(),
-                  category,
+              // Include only genuine custom user medicines from DB
+              if (
+                m.isCustom &&
+                !deletedIds.has(String(m.code || m._id)) &&
+                !deletedIds.has(m.name) &&
+                !customMedicines.some((c) => c.id === (m.code || String(m._id)))
+              ) {
+                customMedicines.push({
+                  id: m.code || String(m._id),
+                  name: m.name || m.fullName,
+                  fullName: m.fullName || m.name,
+                  generic: m.generic || m.composition || "General Formulation",
+                  manufacturer: m.supplierName || "In-House",
+                  category: m.category || "Other",
                   aiDetected: false,
-                  batch: `BATCH-${1000 + index}`,
-                  rack: `R-${(index % 20) + 1}`,
-                  stock: 50 + ((index * 7) % 200),
-                  price: 10 + ((index * 13) % 490),
-                  schedule: "H",
-                  expiry: DEFAULT_EXPIRY,
-                };
-              })
-              .filter(Boolean);
-
-            // Stats
-            const categoryStats = {};
-            parsed.forEach((m) => {
-              categoryStats[m.category] = (categoryStats[m.category] || 0) + 1;
+                  batch: m.batch || "BATCH-CUSTOM",
+                  rack: m.rack || "R-1",
+                  stock: m.stock ?? 100,
+                  price: m.price ?? m.sellingPrice ?? 50,
+                  schedule: m.schedule || "OTC",
+                  expiry: m.expiry || DEFAULT_EXPIRY,
+                });
+              }
             });
+          }
+        } catch (apiErr) {
+          console.debug("DB medicines list fallback:", apiErr);
+        }
 
-            console.log("📊 Category breakdown:");
-            Object.entries(categoryStats).forEach(([cat, count]) => {
-              console.log(`   ${cat}: ${count}`);
+        // 3. Load catalog medicines (Fast JSON first with fallback to preview: 500)
+        let catalog = [];
+        try {
+          const catRes = await fetch("/data/catalogMedicines.json");
+          if (catRes.ok) {
+            catalog = await catRes.json();
+          }
+        } catch (catErr) {
+          console.debug("Fast catalog fetch fallback:", catErr);
+        }
+
+        if (!catalog || catalog.length === 0) {
+          console.log("🔥 Loading BrandMaster.tsv with preview limit...");
+          const response = await fetch("/data/BrandMaster.tsv");
+          if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+          const tsvText = await response.text();
+
+          await new Promise((resolve) => {
+            Papa.parse(tsvText, {
+              header: true,
+              skipEmptyLines: true,
+              delimiter: "\t",
+              preview: MAX_ITEMS,
+              complete: (results) => {
+                catalog = (results.data || [])
+                  .map((row, index) => {
+                    const id = String(row["Identifier"] || `med-${index}`);
+                    const fullName = String(row["Brand Name"] || "").trim();
+                    if (!fullName) return null;
+
+                    const brandName = extractBrandName(fullName);
+                    if (!brandName) return null;
+
+                    const generic = extractGenericName(fullName);
+                    const category = detectCategoryLocal(fullName, brandName);
+                    const supplierId = String(row["Supplier Identifier"] || "").trim();
+                    const manufacturer = supplierMap[supplierId] || "Standard Pharma";
+
+                    return {
+                      id,
+                      name: brandName,
+                      fullName,
+                      brandName,
+                      generic,
+                      manufacturer,
+                      manufacturerCode: supplierId,
+                      category,
+                      aiDetected: false,
+                      batch: `BATCH-${1000 + index}`,
+                      rack: `R-${(index % 20) + 1}`,
+                      stock: 50 + ((index * 7) % 200),
+                      price: 10 + ((index * 13) % 490),
+                      schedule: "H",
+                      expiry: DEFAULT_EXPIRY,
+                    };
+                  })
+                  .filter(Boolean);
+                resolve();
+              },
+              error: () => resolve(),
             });
-            console.log("🔴 AI NOT USED for 500 medicines (local keywords only)");
+          });
+        }
 
-            setMedicines(parsed);
-            setLoading(false);
-          },
-          error: (err) => {
-            console.error(err);
-            setError("Parse failed");
-            setLoading(false);
-          },
-        });
+        if (cancelled) return;
+
+        // 4. Merge catalog with user overrides and DB updates
+        const parsed = catalog
+          .filter((med) => !deletedIds.has(String(med.id)) && !deletedIds.has(med.name))
+          .map((med) => {
+            const dbMatch = dbMedicinesMap[med.id] || dbMedicinesMap[med.name];
+            const override = overrides[med.id] || overrides[med.name];
+
+            const stock =
+              override?.stock !== undefined
+                ? override.stock
+                : dbMatch?.stock !== undefined
+                ? dbMatch.stock
+                : med.stock;
+
+            const batch = override?.batch || dbMatch?.batch || med.batch;
+            const rack = override?.rack || dbMatch?.rack || med.rack;
+
+            return {
+              ...med,
+              stock,
+              batch,
+              rack,
+              price: typeof dbMatch?.price === "number" ? dbMatch.price : med.price,
+            };
+          });
+
+        setMedicines([...customMedicines, ...parsed]);
+        setLoading(false);
       } catch (err) {
         if (cancelled) return;
         console.error(err);
@@ -185,6 +315,112 @@ export default function Medicines() {
       cancelled = true;
     };
   }, []);
+
+  /* =====================================================
+     SAVE STOCK TO SERVER & STATE
+  ===================================================== */
+
+  const handleSaveStock = async (medId, newStock, newBatch, newRack) => {
+    const target = medicines.find((m) => m.id === medId);
+    if (!target) return;
+
+    const updatedStock = Number(newStock);
+    const updatedBatch = newBatch || target.batch;
+    const updatedRack = newRack || target.rack;
+
+    // 1. Immediate UI update
+    setMedicines((prev) =>
+      prev.map((m) =>
+        m.id === medId
+          ? {
+              ...m,
+              stock: updatedStock,
+              batch: updatedBatch,
+              rack: updatedRack,
+            }
+          : m
+      )
+    );
+
+    // 2. Persist to MongoDB Server
+    try {
+      await medicinesAPI.update(medId, {
+        code: medId,
+        name: target.name,
+        fullName: target.fullName,
+        brand: target.name,
+        category: target.category,
+        composition: target.generic,
+        generic: target.generic,
+        supplierName: target.manufacturer,
+        stock: updatedStock,
+        quantity: updatedStock,
+        batch: updatedBatch,
+        rack: updatedRack,
+        price: target.price,
+        sellingPrice: target.price,
+        expiry: target.expiry,
+      });
+      toast.success(`Stock updated for ${target.name}: ${updatedStock} units`);
+    } catch (err) {
+      console.warn("Server stock update fallback:", err.message);
+      toast.success(`Stock updated locally for ${target.name}`);
+    }
+
+    // 3. Persist to localStorage override
+    try {
+      const overrides = JSON.parse(
+        localStorage.getItem("meditrack_medicine_overrides") || "{}"
+      );
+      overrides[medId] = {
+        stock: updatedStock,
+        batch: updatedBatch,
+        rack: updatedRack,
+      };
+      if (target.name) overrides[target.name] = overrides[medId];
+      localStorage.setItem(
+        "meditrack_medicine_overrides",
+        JSON.stringify(overrides)
+      );
+    } catch (err) {
+      console.debug("Overrides save error:", err);
+    }
+  };
+
+  /* =====================================================
+     DELETE MEDICINE FROM SERVER & STATE
+  ===================================================== */
+
+  const handleDeleteMedicine = async (medId, medName) => {
+    if (!window.confirm(`Are you sure you want to delete ${medName}?`)) return;
+
+    // 1. Immediate UI removal
+    setMedicines((prev) => prev.filter((m) => m.id !== medId));
+
+    // 2. Delete on Server
+    try {
+      await medicinesAPI.delete(medId);
+      toast.success(`${medName} deleted from server`);
+    } catch (err) {
+      console.warn("Server delete fallback:", err.message);
+      toast.success(`${medName} removed`);
+    }
+
+    // 3. Persist to deleted IDs in localStorage
+    try {
+      const deleted = JSON.parse(
+        localStorage.getItem("meditrack_deleted_medicines") || "[]"
+      );
+      if (!deleted.includes(medId)) deleted.push(medId);
+      if (medName && !deleted.includes(medName)) deleted.push(medName);
+      localStorage.setItem(
+        "meditrack_deleted_medicines",
+        JSON.stringify(deleted)
+      );
+    } catch (err) {
+      console.debug("Deleted save error:", err);
+    }
+  };
 
   /* =====================================================
      HANDLE ADD MEDICINE
@@ -210,6 +446,45 @@ export default function Medicines() {
 
     setMedicines((prev) => [tempItem, ...prev]);
     toast.success(`${newMedicine.name} added!`);
+
+    // Persist to custom medicines list in localStorage
+    try {
+      const savedCustom = JSON.parse(
+        localStorage.getItem("meditrack_custom_medicines") || "[]"
+      );
+      savedCustom.unshift(tempItem);
+      localStorage.setItem("meditrack_custom_medicines", JSON.stringify(savedCustom));
+    } catch (err) {
+      console.debug(err);
+    }
+
+    // Persist to backend database
+    try {
+      await medicinesAPI.create({
+        code: tempId,
+        name: newMedicine.name,
+        fullName: newMedicine.fullName || newMedicine.name,
+        brand: newMedicine.brandName || newMedicine.name,
+        category: localCat !== "Other" ? localCat : "Pharmaceutical",
+        composition: newMedicine.generic || "",
+        generic: newMedicine.generic || "",
+        supplierName: newMedicine.manufacturer || "",
+        supplierCode: newMedicine.manufacturerCode || "",
+        stock: Number(newMedicine.quantity) || 100,
+        quantity: Number(newMedicine.quantity) || 100,
+        sellingPrice: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+        price: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+        mrp: Number(newMedicine.unitPrice) || 60,
+        reorderLevel: Number(newMedicine.minStock) || 10,
+        batch: newMedicine.batch || `BATCH-${Date.now().toString().slice(-4)}`,
+        rack: newMedicine.rack || "R-1",
+        schedule: newMedicine.schedule || "H",
+        expiry: newMedicine.expiry || DEFAULT_EXPIRY,
+        isCustom: true,
+      });
+    } catch (saveErr) {
+      console.warn("Could not save medicine to DB:", saveErr.message);
+    }
 
     if (localCat === "Other") {
       console.log(`🤖 AI detecting: "${newMedicine.name}"...`);
@@ -280,13 +555,19 @@ export default function Medicines() {
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return medicines.filter((m) => {
+      const name = String(m.name || "").toLowerCase();
+      const fullName = String(m.fullName || "").toLowerCase();
+      const generic = String(m.generic || "").toLowerCase();
+      const manufacturer = String(m.manufacturer || "").toLowerCase();
+      const batch = String(m.batch || "").toLowerCase();
+
       const matchesSearch =
         !q ||
-        m.name.toLowerCase().includes(q) ||
-        m.fullName.toLowerCase().includes(q) ||
-        m.generic.toLowerCase().includes(q) ||
-        m.manufacturer.toLowerCase().includes(q) ||
-        m.batch.toLowerCase().includes(q);
+        name.includes(q) ||
+        fullName.includes(q) ||
+        generic.includes(q) ||
+        manufacturer.includes(q) ||
+        batch.includes(q);
 
       const matchesCategory =
         activeCategory === "All" || m.category === activeCategory;
@@ -520,7 +801,12 @@ export default function Medicines() {
         ) : viewMode === "grid" ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((med) => (
-              <MedicineCard key={med.id} med={med} />
+              <MedicineCard
+                key={med.id}
+                med={med}
+                onEdit={() => setEditingMedicine(med)}
+                onDelete={() => handleDeleteMedicine(med.id, med.name)}
+              />
             ))}
           </div>
         ) : (
@@ -542,6 +828,9 @@ export default function Medicines() {
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">
                     Price
+                  </th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -577,8 +866,26 @@ export default function Medicines() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm font-semibold text-[#0284c7]">
-                        ₹{med.price.toFixed(2)}
+                        ₹{Number(med.price || 0).toFixed(2)}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setEditingMedicine(med)}
+                          className="p-1.5 text-slate-400 hover:text-[#0284c7] hover:bg-sky-100 rounded-md transition"
+                          title="Edit Stock"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMedicine(med.id, med.name)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                          title="Delete Medicine"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -592,6 +899,15 @@ export default function Medicines() {
         <AddMedicineModal
           onAdd={handleAddMedicine}
           onClose={() => setShowAddMedicine(false)}
+        />
+      )}
+
+      {editingMedicine && (
+        <EditStockModal
+          medicine={editingMedicine}
+          isOpen={!!editingMedicine}
+          onClose={() => setEditingMedicine(null)}
+          onSave={handleSaveStock}
         />
       )}
     </div>
@@ -629,7 +945,7 @@ function CategoryBadge({ category }) {
    MEDICINE CARD
 ===================================================== */
 
-function MedicineCard({ med }) {
+function MedicineCard({ med, onEdit, onDelete }) {
   const isExpiringSoon = (expiryDate) => {
     const t = new Date();
     t.setMonth(t.getMonth() + 3);
@@ -664,6 +980,24 @@ function MedicineCard({ med }) {
           <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
             {med.generic}
           </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="p-1.5 text-slate-400 hover:text-[#0284c7] hover:bg-sky-50 dark:hover:bg-slate-800 rounded-md transition"
+            title="Edit Stock"
+          >
+            <Edit3 size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-md transition"
+            title="Delete Medicine"
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       </div>
 
@@ -710,12 +1044,19 @@ function MedicineCard({ med }) {
             >
               {getStockLabel(med.stock)}
             </span>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="text-[11px] font-semibold text-[#0284c7] hover:text-[#0369a1] hover:underline cursor-pointer ml-1"
+            >
+              Edit
+            </button>
           </div>
         </div>
         <div className="text-right">
           <p className="text-[10px] text-slate-400 mb-0.5">Price</p>
           <p className="text-sm font-bold text-[#0284c7]">
-            ₹{med.price.toFixed(2)}
+            ₹{Number(med.price || 0).toFixed(2)}
           </p>
         </div>
       </div>

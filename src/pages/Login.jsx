@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Fingerprint,
   Globe,
   Lock,
   Mail,
@@ -199,12 +198,6 @@ function Login() {
     }
   }, [user, navigate]);
 
-  /* Clear error when user types */
-  useEffect(() => {
-    if (error) setError("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, password]);
-
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const passwordValid = password.length >= 6;
 
@@ -354,7 +347,10 @@ function Login() {
                     type="email"
                     autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError("");
+                    }}
                     onBlur={() => setTouched((t) => ({ ...t, email: true }))}
                     placeholder="you@pharmacy.com"
                     aria-invalid={touched.email && !emailValid}
@@ -401,7 +397,10 @@ function Login() {
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError("");
+                    }}
                     onBlur={() => setTouched((t) => ({ ...t, password: true }))}
                     placeholder="Enter your password"
                     aria-invalid={touched.password && !passwordValid}

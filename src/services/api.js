@@ -8,11 +8,17 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const csrf = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="))
-    ?.split("=")[1];
-  if (csrf) config.headers["X-XSRF-TOKEN"] = csrf;
+  try {
+    if (typeof document !== "undefined" && document.cookie) {
+      const csrf = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("XSRF-TOKEN="))
+        ?.split("=")[1];
+      if (csrf) config.headers["X-XSRF-TOKEN"] = csrf;
+    }
+  } catch (err) {
+    console.debug("CSRF token check failed:", err);
+  }
   return config;
 });
 
@@ -156,6 +162,73 @@ export const batchesAPI = {
 
   delete: async (id) => {
     const res = await api.delete(`/batches/${id}`);
+    return res.data;
+  },
+};
+
+/* =====================================================
+   PHARMACISTS API
+===================================================== */
+export const pharmacistsAPI = {
+  list: async ({ search = "", status = "all" } = {}) => {
+    const params = new URLSearchParams({ search, status });
+    const res = await api.get(`/pharmacists?${params}`);
+    return res.data;
+  },
+
+  stats: async () => {
+    const res = await api.get("/pharmacists/stats");
+    return res.data;
+  },
+
+  get: async (id) => {
+    const res = await api.get(`/pharmacists/${id}`);
+    return res.data;
+  },
+
+  create: async (pharmacist) => {
+    const res = await api.post("/pharmacists", pharmacist);
+    return res.data;
+  },
+
+  update: async (id, pharmacist) => {
+    const res = await api.put(`/pharmacists/${id}`, pharmacist);
+    return res.data;
+  },
+
+  delete: async (id) => {
+    const res = await api.delete(`/pharmacists/${id}`);
+    return res.data;
+  },
+};
+
+/* =====================================================
+   SALES & BILLING (POS) API
+===================================================== */
+export const salesAPI = {
+  list: async ({ page = 1, limit = 50, search = "" } = {}) => {
+    const params = new URLSearchParams({ page, limit, search });
+    const res = await api.get(`/sales?${params}`);
+    return res.data;
+  },
+
+  stats: async () => {
+    const res = await api.get("/sales/stats");
+    return res.data;
+  },
+
+  create: async (saleData) => {
+    const res = await api.post("/sales", saleData);
+    return res.data;
+  },
+};
+
+/* =====================================================
+   ANALYTICS API
+===================================================== */
+export const analyticsAPI = {
+  summary: async () => {
+    const res = await api.get("/analytics/summary");
     return res.data;
   },
 };

@@ -18,7 +18,7 @@ export function getCurrentCoordinates() {
         });
       },
       (error) => {
-        let message = "Unable to get location";
+        let message;
 
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -31,7 +31,7 @@ export function getCurrentCoordinates() {
             message = "Location request timed out. Try again.";
             break;
           default:
-            message = "Unknown location error.";
+            message = "Unable to get location.";
         }
 
         reject(new Error(message));
@@ -86,7 +86,7 @@ export async function reverseGeocode(latitude, longitude) {
     };
   } catch (err) {
     console.error("[locationService] Reverse geocode failed:", err);
-    throw new Error("Could not determine address. Try again.");
+    throw new Error("Could not determine address. Try again.", { cause: err });
   }
 }
 

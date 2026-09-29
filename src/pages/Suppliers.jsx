@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -32,6 +32,7 @@ export default function Suppliers() {
   const [total, setTotal] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const observerTarget = useRef(null);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -82,8 +83,20 @@ export default function Suppliers() {
   );
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const data = await suppliersAPI.stats();
+        if (!cancelled && data) setStats(data);
+      } catch (err) {
+        console.error("Stats error:", err);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -92,9 +105,30 @@ export default function Suppliers() {
     return () => clearTimeout(timer);
   }, [fetchSuppliers]);
 
-  const handleLoadMore = () => {
-    if (page < totalPages) fetchSuppliers(page + 1, true);
-  };
+  const handleLoadMore = useCallback(() => {
+    if (page < totalPages && !loading && !loadingMore) {
+      fetchSuppliers(page + 1, true);
+    }
+  }, [page, totalPages, loading, loadingMore, fetchSuppliers]);
+
+  useEffect(() => {
+    const target = observerTarget.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: "300px", threshold: 0.1 }
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, [handleLoadMore]);
 
   const handleRefresh = async () => {
     if (!window.confirm("Refresh suppliers?")) return;
@@ -351,20 +385,23 @@ export default function Suppliers() {
                   </button>
                 ))}
 
-                {page < totalPages && (
-                  <div className="col-span-full flex justify-center mt-4">
-                    <button
-                      onClick={handleLoadMore}
-                      disabled={loadingMore}
-                      className="px-6 py-3 bg-[#0284c7] text-white rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {loadingMore && (
-                        <Loader2 size={16} className="animate-spin" />
-                      )}
-                      Load More ({(total - suppliers.length).toLocaleString()} remaining)
-                    </button>
-                  </div>
-                )}
+                {/* Infinite Scroll Sentinel & Loader */}
+                <div
+                  ref={observerTarget}
+                  className="col-span-full flex flex-col items-center justify-center py-6"
+                >
+                  {loadingMore && (
+                    <div className="flex items-center gap-2 text-sm text-[#0284c7] font-medium py-3">
+                      <Loader2 size={22} className="animate-spin text-[#0284c7]" />
+                      <span>Loading more suppliers...</span>
+                    </div>
+                  )}
+                  {!loadingMore && page >= totalPages && suppliers.length > 0 && (
+                    <p className="text-xs text-slate-400 py-3">
+                      All {total.toLocaleString()} suppliers loaded
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </div>

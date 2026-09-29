@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { salesAPI, medicinesAPI } from "../services/api";
 
 /* =====================================================
    MOCK DATA — Replace with API calls later
@@ -42,24 +43,50 @@ export default function usePerformanceData() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Real API-ku switch panna:
-    // async function fetchData() {
-    //   try {
-    //     setLoading(true);
-    //     const [sales, medicines, orders, shipments] = await Promise.all([
-    //       fetch("/api/sales?days=30").then((r) => r.json()),
-    //       fetch("/api/medicines").then((r) => r.json()),
-    //       fetch("/api/orders?days=30").then((r) => r.json()),
-    //       fetch("/api/shipments?days=30").then((r) => r.json()),
-    //     ]);
-    //     setData({ sales, medicines, orders, shipments });
-    //   } catch (err) {
-    //     setError(err.message);
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // }
-    // fetchData();
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const [salesRes, medRes] = await Promise.allSettled([
+          salesAPI.list({ limit: 50 }),
+          medicinesAPI.list({ limit: 50 }),
+        ]);
+
+        if (cancelled) return;
+
+        const liveMedicines =
+          medRes.status === "fulfilled" && medRes.value?.medicines?.length > 0
+            ? medRes.value.medicines.map((m) => ({
+                stock: m.quantity || m.stock || 0,
+                price: m.unitPrice || m.price || 0,
+                lastSoldDate: m.updatedAt || m.createdAt || "2026-09-01",
+              }))
+            : MOCK_DATA.medicines;
+
+        const liveSales =
+          salesRes.status === "fulfilled" && salesRes.value?.sales?.length > 0
+            ? salesRes.value.sales.map((s) => ({
+                actualQty: s.items?.reduce((acc, it) => acc + (it.quantity || 1), 0) || 1,
+                forecastedQty: Math.max(1, (s.items?.reduce((acc, it) => acc + (it.quantity || 1), 0) || 1) + 2),
+              }))
+            : MOCK_DATA.sales;
+
+        setData({
+          sales: liveSales,
+          medicines: liveMedicines,
+          orders: MOCK_DATA.orders,
+          shipments: MOCK_DATA.shipments,
+        });
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { data, loading, error };

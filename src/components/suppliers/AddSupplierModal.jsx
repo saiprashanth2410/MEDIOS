@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Factory, Phone, Mail, MapPin, User, FileText, CreditCard, Save } from "lucide-react";
+import { X, Factory, Phone, Mail, MapPin, User, FileText, Save } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORIES = [

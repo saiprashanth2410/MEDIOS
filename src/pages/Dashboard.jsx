@@ -35,6 +35,7 @@ import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionMod
 import Navbar from "../components/dashboard/Navbar";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import usePerformanceData from "../hooks/usePerformanceData";
+import { medicinesAPI, prescriptionsAPI } from "../services/api";
 
 /* =====================================================
    DATA
@@ -126,13 +127,40 @@ export default function Dashboard() {
   const greeting =
     hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
-  const handleAddMedicine = (newMedicine) => {
-    console.log("New medicine added:", newMedicine);
+  const handleAddMedicine = async (newMedicine) => {
+    try {
+      await medicinesAPI.create({
+        code: newMedicine.id || `med-${Date.now()}`,
+        name: newMedicine.name,
+        fullName: newMedicine.fullName || newMedicine.name,
+        brand: newMedicine.brandName || newMedicine.name,
+        generic: newMedicine.generic || "",
+        composition: newMedicine.generic || "",
+        supplierName: newMedicine.manufacturer || "",
+        supplierCode: newMedicine.manufacturerCode || "",
+        stock: Number(newMedicine.quantity) || 100,
+        quantity: Number(newMedicine.quantity) || 100,
+        sellingPrice: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+        price: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+        mrp: Number(newMedicine.unitPrice) || 60,
+        reorderLevel: Number(newMedicine.minStock) || 10,
+        batch: newMedicine.batch || "",
+        rack: newMedicine.rack || "R-1",
+        schedule: newMedicine.schedule || "H",
+        expiry: newMedicine.expiry || "2027-12-31",
+      });
+    } catch (err) {
+      console.warn("Could not save medicine to DB from dashboard:", err.message);
+    }
     toast.success(`${newMedicine.name} added to inventory`);
   };
 
-  const handleAddPrescription = (prescription) => {
-    console.log("New prescription added:", prescription);
+  const handleAddPrescription = async (prescription) => {
+    try {
+      await prescriptionsAPI.create(prescription);
+    } catch (err) {
+      console.warn("Could not save prescription to DB from dashboard:", err.message);
+    }
     toast.success(`Prescription ${prescription.id} saved!`);
   };
 

@@ -1,13 +1,7 @@
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  LayoutDashboard,
   Pill,
   ClipboardList,
-  Users,
-  BarChart3,
-  Settings,
-  LogOut,
   TrendingUp,
   TrendingDown,
   Package,
@@ -16,7 +10,6 @@ import {
   DollarSign,
   Activity,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/dashboard/Navbar";
 
 const STATS = [
@@ -46,9 +39,19 @@ const ACTIVITY = [
 ];
 
 export default function Reports() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const userName = user?.name || "Pharmacist";
+  const handleExport = () => {
+    const headers = ["Medicine Name", "Units Sold", "Revenue Generated"];
+    const rows = TOP_MEDICINES.map((m) => [m.name, m.sold, m.revenue]);
+    const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `meditrack_report_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Pharmacy report exported to CSV!");
+  };
 
   return (
     <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
@@ -78,11 +81,11 @@ export default function Reports() {
               This Month
             </button>
             <button
-              onClick={() => toast.info("Export coming soon")}
+              onClick={handleExport}
               className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
             >
               <Download size={16} />
-              Export
+              Export CSV
             </button>
           </div>
         </div>

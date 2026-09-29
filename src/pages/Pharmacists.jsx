@@ -1,14 +1,6 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import {
-  LayoutDashboard,
-  Pill,
-  ClipboardList,
-  Users,
-  BarChart3,
-  Settings,
-  LogOut,
   Plus,
   Search,
   Mail,
@@ -22,17 +14,17 @@ import {
   Trash2,
   Save,
   User,
+  Users,
   Calendar,
   ShieldCheck,
-  AlertTriangle,
   Filter,
   LayoutGrid,
   List as ListIcon,
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/dashboard/Navbar";
+import { pharmacistsAPI } from "../services/api";
 
 const INITIAL_PHARMACISTS = [
   { id: "PH-001", name: "Dr. Rajesh Kumar", email: "rajesh@meditrack.ai", phone: "+91 98765 43210", license: "TN/PH/2020/1234", role: "Chief Pharmacist", shift: "Morning (9AM - 5PM)", status: "active", joinDate: "15 Jan 2020" },
@@ -51,9 +43,6 @@ const FIELD_BASE =
 const LABEL_BASE = "block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5";
 
 export default function Pharmacists() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-
   const [pharmacists, setPharmacists] = useState(INITIAL_PHARMACISTS);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -63,25 +52,46 @@ export default function Pharmacists() {
   const [editingId, setEditingId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
 
-  const userName = user?.name || "Pharmacist";
+  /* Fetch from backend */
+  useEffect(() => {
+    let cancelled = false;
+    const fetchTeam = async () => {
+      try {
+        const data = await pharmacistsAPI.list();
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setPharmacists(data);
+        }
+      } catch (err) {
+        console.warn("Could not fetch pharmacists from API, using initial list:", err.message);
+      }
+    };
+    fetchTeam();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* =====================================================
      HANDLERS
   ===================================================== */
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Logged out successfully");
-    navigate("/login", { replace: true });
-  };
-
-  const handleAddPharmacist = (newPharmacist) => {
-    setPharmacists((prev) => [newPharmacist, ...prev]);
+  const handleAddPharmacist = async (newPharmacist) => {
+    try {
+      const created = await pharmacistsAPI.create(newPharmacist);
+      setPharmacists((prev) => [created || newPharmacist, ...prev]);
+    } catch {
+      setPharmacists((prev) => [newPharmacist, ...prev]);
+    }
     toast.success(`${newPharmacist.name} added to team!`);
     setShowAddModal(false);
   };
 
-  const handleEditPharmacist = (updated) => {
+  const handleEditPharmacist = async (updated) => {
+    try {
+      await pharmacistsAPI.update(updated.id, updated);
+    } catch (err) {
+      console.debug("Update error:", err);
+    }
     setPharmacists((prev) =>
       prev.map((p) => (p.id === updated.id ? updated : p))
     );
@@ -89,9 +99,14 @@ export default function Pharmacists() {
     setEditingId(null);
   };
 
-  const handleDeletePharmacist = (id) => {
+  const handleDeletePharmacist = async (id) => {
     const pharmacist = pharmacists.find((p) => p.id === id);
     if (window.confirm(`Delete ${pharmacist?.name}?`)) {
+      try {
+        await pharmacistsAPI.delete(id);
+      } catch (err) {
+        console.debug("Delete error:", err);
+      }
       setPharmacists((prev) => prev.filter((p) => p.id !== id));
       toast.success("Pharmacist removed");
       setOpenMenuId(null);
@@ -454,9 +469,9 @@ export default function Pharmacists() {
 ===================================================== */
 
 function AddPharmacistModal({ initial, onAdd, onClose, isEdit }) {
-  const [form, setForm] = useState(
+  const [form, setForm] = useState(() =>
     initial || {
-      id: `PH-${Date.now().toString().slice(-3)}`,
+      id: `PH-${Math.floor(100 + Math.random() * 900)}`,
       name: "",
       email: "",
       phone: "",

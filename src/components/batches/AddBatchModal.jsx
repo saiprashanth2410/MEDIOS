@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Loader2, Pill, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
@@ -24,7 +24,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
   });
 
   /* =====================================================
-     LOAD BRANDMASTER.TSV
+     LOAD CATALOG MEDICINES
   ===================================================== */
   useEffect(() => {
     let cancelled = false;
@@ -32,48 +32,71 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
     const loadBrandMaster = async () => {
       try {
         setLoadingMaster(true);
-        const res = await fetch("/data/BrandMaster.tsv");
-        if (!res.ok) throw new Error("Failed to load BrandMaster");
 
-        const text = await res.text();
+        // 1. Try fast catalog first
+        let parsed = [];
+        try {
+          const res = await fetch("/data/catalogMedicines.json");
+          if (res.ok) {
+            const data = await res.json();
+            parsed = data.map((med) => ({
+              id: med.id,
+              fullName: med.fullName || med.name,
+              brandName: med.brandName || med.name,
+              genericName: med.generic || "",
+              dosage: "",
+            }));
+          }
+        } catch (catErr) {
+          console.debug("Fast catalog fallback:", catErr);
+        }
 
-        Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter: "\t",
-          complete: (results) => {
-            if (cancelled) return;
+        if (cancelled) return;
 
-            const parsed = (results.data || [])
-              .map((row, index) => {
-                const fullName = String(row["Brand Name"] || "").trim();
-                if (!fullName) return null;
+        // 2. Fallback to BrandMaster.tsv with preview limit
+        if (!parsed || parsed.length === 0) {
+          const res = await fetch("/data/BrandMaster.tsv");
+          if (res.ok) {
+            const text = await res.text();
+            await new Promise((resolve) => {
+              Papa.parse(text, {
+                header: true,
+                skipEmptyLines: true,
+                delimiter: "\t",
+                preview: 500,
+                complete: (results) => {
+                  parsed = (results.data || [])
+                    .map((row, index) => {
+                      const fullName = String(row["Brand Name"] || "").trim();
+                      if (!fullName) return null;
 
-                const genericMatch = fullName.match(/\(([^)]+)\)/);
-                const genericName = genericMatch ? genericMatch[1].trim() : "";
-                const brandName = fullName.split("(")[0].trim();
-                const dosageMatch = fullName.match(/\)\s*(.+)$/);
-                const dosage = dosageMatch ? dosageMatch[1].trim() : "";
+                      const genericMatch = fullName.match(/\(([^)]+)\)/);
+                      const genericName = genericMatch ? genericMatch[1].trim() : "";
+                      const brandName = fullName.split("(")[0].trim();
+                      const dosageMatch = fullName.match(/\)\s*(.+)$/);
+                      const dosage = dosageMatch ? dosageMatch[1].trim() : "";
 
-                return {
-                  id: String(row["Identifier"] || `bm-${index}`),
-                  fullName,
-                  brandName,
-                  genericName,
-                  dosage,
-                };
-              })
-              .filter(Boolean);
+                      return {
+                        id: String(row["Identifier"] || `bm-${index}`),
+                        fullName,
+                        brandName,
+                        genericName,
+                        dosage,
+                      };
+                    })
+                    .filter(Boolean);
+                  resolve();
+                },
+                error: () => resolve(),
+              });
+            });
+          }
+        }
 
-            setBrandMaster(parsed);
-            setLoadingMaster(false);
-            console.log(`✅ BrandMaster loaded: ${parsed.length} medicines`);
-          },
-          error: (err) => {
-            console.error("Parse error:", err);
-            setLoadingMaster(false);
-          },
-        });
+        if (cancelled) return;
+
+        setBrandMaster(parsed);
+        setLoadingMaster(false);
       } catch (err) {
         if (cancelled) return;
         console.error("Fetch error:", err);
@@ -119,28 +142,30 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
      FILL FORM WHEN EDITING + RESET ON OPEN
   ===================================================== */
   useEffect(() => {
-    if (editBatch) {
-      setFormData({
-        medicineName: editBatch.medicineName || '',
-        batchNumber: editBatch.batchNumber || '',
-        quantity: editBatch.quantity || '',
-        expiryDate: editBatch.expiryDate || '',
-        supplier: editBatch.supplier || ''
-      });
-      setSelectedMaster({ fullName: editBatch.medicineName }); // Treat as selected in edit mode
-      setNameError("");
-    } else {
-      setFormData({
-        medicineName: '',
-        batchNumber: '',
-        quantity: '',
-        expiryDate: '',
-        supplier: ''
-      });
-      setSelectedMaster(null);
-      setShowSuggestions(false);
-      setNameError("");
-    }
+    queueMicrotask(() => {
+      if (editBatch) {
+        setFormData({
+          medicineName: editBatch.medicineName || '',
+          batchNumber: editBatch.batchNumber || '',
+          quantity: editBatch.quantity || '',
+          expiryDate: editBatch.expiryDate || '',
+          supplier: editBatch.supplier || ''
+        });
+        setSelectedMaster({ fullName: editBatch.medicineName }); // Treat as selected in edit mode
+        setNameError("");
+      } else {
+        setFormData({
+          medicineName: '',
+          batchNumber: '',
+          quantity: '',
+          expiryDate: '',
+          supplier: ''
+        });
+        setSelectedMaster(null);
+        setShowSuggestions(false);
+        setNameError("");
+      }
+    });
   }, [editBatch, isOpen]);
 
   /* =====================================================

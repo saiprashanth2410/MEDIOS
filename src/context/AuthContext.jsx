@@ -1,32 +1,26 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { authService } from "../services/authService";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [authLoading, setAuthLoading] = useState(false);
-
-  /* =====================================================
-     RESTORE SESSION ON MOUNT
-  ===================================================== */
-  useEffect(() => {
+  const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem("meditrack_user");
       if (saved) {
         const parsed = JSON.parse(saved);
-        setUser(parsed);
         console.log("[AuthContext] Restored session:", parsed);
+        return parsed;
       }
     } catch (err) {
       console.error("[AuthContext] Session restore failed:", err);
       localStorage.removeItem("meditrack_user");
-    } finally {
-      setLoading(false);
     }
-  }, []);
+    return null;
+  });
+  const loading = false;
+  const [authLoading, setAuthLoading] = useState(false);
 
   /* =====================================================
      LOGIN — async, handles API + persistence

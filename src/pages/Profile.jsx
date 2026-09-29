@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -72,26 +72,6 @@ export default function Profile() {
   });
 
   const userName = user?.name || "Pharmacist";
-
-  useEffect(() => {
-    if (location.state?.tab) {
-      setActiveTab(location.state.tab);
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    setForm({
-      name: user?.name || "Pharmacist",
-      email: user?.email || "",
-      phone: user?.phone || "+91 98765 43210",
-      role: user?.role || "Chief Pharmacist",
-      license: user?.license || "TN/PH/2026/4821",
-      pharmacy: user?.pharmacy || "MediTrack Pharmacy",
-      pharmacyId: user?.pharmacyId || "PH-MT-220022",
-      branch: user?.branch || "Anna Nagar, Chennai",
-      joinDate: user?.joinDate || "24 Sep 2024",
-    });
-  }, [user]);
 
   const handleSave = () => {
     if (!form.name.trim()) {

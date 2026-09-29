@@ -75,7 +75,7 @@ Category:`;
    BATCH DETECTION (kept for backward compat — not used)
 ===================================================== */
 
-export async function detectCategoryBatch(medicines) {
+export async function detectCategoryBatch() {
   console.log("🔴 Batch AI disabled — using local keywords only");
   return {};
 }

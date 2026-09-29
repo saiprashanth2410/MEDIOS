@@ -67,8 +67,20 @@ export default function Prescriptions() {
   }, [searchQuery]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const data = await prescriptionsAPI.stats();
+        if (!cancelled && data) setStats(data);
+      } catch (err) {
+        console.error("Stats error:", err);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => fetchPrescriptions(), 300);
