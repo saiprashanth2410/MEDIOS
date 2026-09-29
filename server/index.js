@@ -397,13 +397,33 @@ app.put("/api/prescriptions/:id", async (req, res) => {
         if (!item.name) continue;
         const firstWord = item.name.trim().split(" ")[0];
         const medRegex = new RegExp(firstWord, "i");
+
+        // Calculate quantity to deduct based on frequency and duration
+        let qty = 10;
+        if (item.quantity && Number(item.quantity) > 0) {
+          qty = Number(item.quantity);
+        } else {
+          let perDay = 1;
+          const freq = String(item.frequency || "").trim();
+          if (freq.includes("-")) {
+            const parts = freq.split("-").map((p) => Number(p.trim()) || 0);
+            const sum = parts.reduce((a, b) => a + b, 0);
+            if (sum > 0) perDay = sum;
+          }
+          let days = 5;
+          const durMatch = String(item.duration || "").match(/(\d+)/);
+          if (durMatch) days = Number(durMatch[1]);
+          qty = perDay * days;
+          if (qty <= 0) qty = 10;
+        }
+
         await Medicine.findOneAndUpdate(
           { $or: [{ name: medRegex }, { fullName: medRegex }] },
-          { $inc: { stock: -1, quantity: -1 } }
+          { $inc: { stock: -qty, quantity: -qty } }
         );
         await Batch.findOneAndUpdate(
           { medicineName: medRegex, quantity: { $gt: 0 } },
-          { $inc: { quantity: -1 } },
+          { $inc: { quantity: -qty } },
           { sort: { expiryDate: 1 } }
         );
       }

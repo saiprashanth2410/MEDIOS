@@ -12,11 +12,13 @@ import {
   Calendar,
   Brain,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionModal";
 import PrescriptionDetailModal from "../components/prescriptions/PrescriptionDetailModal";
 import Navbar from "../components/dashboard/Navbar";
 import { prescriptionsAPI } from "../services/api";
+import { checkMedicineStock } from "../utils/inventoryDeduction";
 
 const PAGE_SIZE = 50;
 
@@ -274,6 +276,15 @@ export default function Prescriptions() {
                             AI
                           </span>
                         )}
+                        {rx.status !== "dispensed" &&
+                          rx.medicines?.some((m) => {
+                            const s = checkMedicineStock(m).status;
+                            return s === "OUT_OF_STOCK" || s === "NOT_FOUND";
+                          }) && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 flex items-center gap-1 border border-rose-200">
+                              <AlertCircle size={10} /> Needs Stock
+                            </span>
+                          )}
                       </div>
 
                       <div className="flex items-center gap-4 text-sm mb-2 flex-wrap">
@@ -303,16 +314,29 @@ export default function Prescriptions() {
                       {Array.isArray(rx.medicines) &&
                         rx.medicines.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            {rx.medicines.map((med, i) => (
-                              <span
-                                key={i}
-                                className="text-[11px] px-2 py-1 rounded-md bg-sky-50 text-sky-800 font-medium"
-                              >
-                                {med.name}
-                                {med.frequency && ` · ${med.frequency}`}
-                                {med.duration && ` · ${med.duration}`}
-                              </span>
-                            ))}
+                            {rx.medicines.map((med, i) => {
+                              const isOutOfStock =
+                                rx.status !== "dispensed" &&
+                                (() => {
+                                  const s = checkMedicineStock(med).status;
+                                  return s === "OUT_OF_STOCK" || s === "NOT_FOUND";
+                                })();
+                              return (
+                                <span
+                                  key={i}
+                                  className={`text-[11px] px-2 py-1 rounded-md font-medium ${
+                                    isOutOfStock
+                                      ? "bg-rose-50 text-rose-800 border border-rose-200"
+                                      : "bg-sky-50 text-sky-800"
+                                  }`}
+                                >
+                                  {med.name}
+                                  {isOutOfStock && " ⚠️"}
+                                  {med.frequency && ` · ${med.frequency}`}
+                                  {med.duration && ` · ${med.duration}`}
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
                     </div>

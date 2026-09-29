@@ -20,6 +20,7 @@ import {
   Info,
 } from "lucide-react";
 import { toast } from "sonner";
+import { deductPrescriptionInventory } from "../../utils/inventoryDeduction";
 
 /* =====================================================
    MAIN MODAL COMPONENT
@@ -42,8 +43,14 @@ export default function PrescriptionDetailModal({
   const handleDispense = () => {
     const updated = { ...prescription, status: "dispensed" };
     setPrescription(updated);
+    const deducted = deductPrescriptionInventory(updated);
     onUpdate?.(updated); // ✅ Notify parent to update list
-    toast.success("Prescription dispensed successfully!");
+    if (deducted.length > 0) {
+      const summary = deducted.map((d) => `${d.name} (-${d.deducted})`).join(", ");
+      toast.success(`Dispensed! Deducted from stock: ${summary}`);
+    } else {
+      toast.success("Prescription dispensed successfully!");
+    }
   };
 
   const handlePrint = () => toast.success("Printing prescription...");

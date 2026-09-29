@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
-import Papa from "papaparse";
 import {
   Pill,
   Search,
@@ -23,6 +22,7 @@ import AddMedicineModal from "../components/dashboard/AddMedicineModal";
 import EditStockModal from "../components/medicines/EditStockModal";
 import Navbar from "../components/dashboard/Navbar";
 import { medicinesAPI } from "../services/api";
+import defaultMedicines from "../data/catalogMedicines.json";
 
 console.log("🔥🔥🔥 VERSION 6 — LOCAL + AI (Add only) 🔥🔥🔥");
 
@@ -42,61 +42,56 @@ const CATEGORIES = [
 ];
 
 const DEFAULT_EXPIRY = "2027-12-31";
-const MAX_ITEMS = 500;
 
 /* =====================================================
-   BRAND NAME EXTRACTOR — FIXED
+   INITIAL MEDICINES (INSTANT LOAD — NO SPINNER)
 ===================================================== */
 
-function extractBrandName(fullName) {
-  if (!fullName) return "";
+function getInitialMedicines() {
+  if (typeof window === "undefined") return defaultMedicines;
+  try {
+    const deletedIds = new Set(
+      JSON.parse(localStorage.getItem("meditrack_deleted_medicines") || "[]")
+    );
+    const overrides = JSON.parse(
+      localStorage.getItem("meditrack_medicine_overrides") || "{}"
+    );
+    const custom = JSON.parse(
+      localStorage.getItem("meditrack_custom_medicines") || "[]"
+    );
 
-  let name = String(fullName).trim();
+    const merged = defaultMedicines
+      .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
+      .map((m) => {
+        const override = overrides[m.id] || overrides[m.name];
+        if (!override) return m;
+        return {
+          ...m,
+          stock: override.stock !== undefined ? override.stock : m.stock,
+          batch: override.batch || m.batch,
+          rack: override.rack || m.rack,
+        };
+      });
 
-  // 1. Remove round brackets (generic name)
-  name = name.replace(/\s*\([^)]*\)/g, "");
+    const activeCustom = custom.filter(
+      (m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name)
+    );
 
-  // 2. Remove strength + dosage patterns
-  name = name.replace(
-    /\s+\d+(\.\d+)?\s*(million|thousand|billion)?\s*(unit|units|mg|mcg|g|ml|mL|IU|%|w\/v|w\/w)?(\s*\/\s*\d*\s*(unit|units|mg|mcg|g|ml|mL))?.*$/i,
-    ""
-  );
-
-  name = name.trim();
-
-  if (name.length > 30) {
-    const words = name.split(/\s+/);
-    name = words.slice(0, 2).join(" ");
+    return [...activeCustom, ...merged];
+  } catch (err) {
+    console.debug("Initial medicines load fallback:", err);
+    return defaultMedicines;
   }
-
-  if (!name) {
-    name = String(fullName).split(/\s+/)[0];
-  }
-
-  return name;
 }
 
-function extractGenericName(fullName) {
-  if (!fullName) return "General Formulation";
-  const match = String(fullName).match(/\(([^)]+)\)/);
-  if (match && match[1]) {
-    const raw = match[1].trim();
-    return raw
-      .split(/\s+/)
-      .map((w) => (w.length > 2 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
-      .join(" ");
-  }
-  return "General Formulation";
-}
+
 
 /* =====================================================
    MAIN COMPONENT
 ===================================================== */
 
 export default function Medicines() {
-  const [medicines, setMedicines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [medicines, setMedicines] = useState(getInitialMedicines);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -104,43 +99,14 @@ export default function Medicines() {
   const [viewMode, setViewMode] = useState("grid");
 
   /* =====================================================
-     FETCH MEDICINES — TSV DATA + SERVER DATABASE SYNC
+     BACKGROUND SYNC — SERVER DATABASE & UPDATES
   ===================================================== */
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadMedicines = async () => {
+    const syncMedicines = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        // 1. Load supplier names map
-        const supplierMap = {};
-        try {
-          const suppRes = await fetch("/data/suppliers.tsv");
-          if (suppRes.ok) {
-            const suppText = await suppRes.text();
-            Papa.parse(suppText, {
-              header: true,
-              delimiter: "\t",
-              skipEmptyLines: true,
-              complete: (res) => {
-                (res.data || []).forEach((row) => {
-                  const values = Object.values(row);
-                  const id = String(values[0] || "").trim();
-                  const name = String(values[1] || "").trim();
-                  if (id && name) supplierMap[id] = name;
-                });
-              },
-            });
-          }
-        } catch (suppErr) {
-          console.debug("Supplier mapping fallback:", suppErr);
-        }
-
-        // 2. Fetch server DB medicines and local overrides
-        const dbMedicinesMap = {};
         const deletedIds = new Set();
         try {
           const savedDeleted = localStorage.getItem("meditrack_deleted_medicines");
@@ -171,6 +137,7 @@ export default function Medicines() {
           console.debug(err);
         }
 
+        const dbMedicinesMap = {};
         try {
           const apiData = await medicinesAPI.list({ limit: 100 });
           if (apiData?.medicines) {
@@ -179,7 +146,6 @@ export default function Medicines() {
               dbMedicinesMap[key] = m;
               if (m.name) dbMedicinesMap[m.name] = m;
 
-              // Include only genuine custom user medicines from DB
               if (
                 m.isCustom &&
                 !deletedIds.has(String(m.code || m._id)) &&
@@ -205,77 +171,12 @@ export default function Medicines() {
             });
           }
         } catch (apiErr) {
-          console.debug("DB medicines list fallback:", apiErr);
-        }
-
-        // 3. Load catalog medicines (Fast JSON first with fallback to preview: 500)
-        let catalog = [];
-        try {
-          const catRes = await fetch("/data/catalogMedicines.json");
-          if (catRes.ok) {
-            catalog = await catRes.json();
-          }
-        } catch (catErr) {
-          console.debug("Fast catalog fetch fallback:", catErr);
-        }
-
-        if (!catalog || catalog.length === 0) {
-          console.log("🔥 Loading BrandMaster.tsv with preview limit...");
-          const response = await fetch("/data/BrandMaster.tsv");
-          if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
-          const tsvText = await response.text();
-
-          await new Promise((resolve) => {
-            Papa.parse(tsvText, {
-              header: true,
-              skipEmptyLines: true,
-              delimiter: "\t",
-              preview: MAX_ITEMS,
-              complete: (results) => {
-                catalog = (results.data || [])
-                  .map((row, index) => {
-                    const id = String(row["Identifier"] || `med-${index}`);
-                    const fullName = String(row["Brand Name"] || "").trim();
-                    if (!fullName) return null;
-
-                    const brandName = extractBrandName(fullName);
-                    if (!brandName) return null;
-
-                    const generic = extractGenericName(fullName);
-                    const category = detectCategoryLocal(fullName, brandName);
-                    const supplierId = String(row["Supplier Identifier"] || "").trim();
-                    const manufacturer = supplierMap[supplierId] || "Standard Pharma";
-
-                    return {
-                      id,
-                      name: brandName,
-                      fullName,
-                      brandName,
-                      generic,
-                      manufacturer,
-                      manufacturerCode: supplierId,
-                      category,
-                      aiDetected: false,
-                      batch: `BATCH-${1000 + index}`,
-                      rack: `R-${(index % 20) + 1}`,
-                      stock: 50 + ((index * 7) % 200),
-                      price: 10 + ((index * 13) % 490),
-                      schedule: "H",
-                      expiry: DEFAULT_EXPIRY,
-                    };
-                  })
-                  .filter(Boolean);
-                resolve();
-              },
-              error: () => resolve(),
-            });
-          });
+          console.debug("DB background sync fallback:", apiErr?.message);
         }
 
         if (cancelled) return;
 
-        // 4. Merge catalog with user overrides and DB updates
-        const parsed = catalog
+        const updated = defaultMedicines
           .filter((med) => !deletedIds.has(String(med.id)) && !deletedIds.has(med.name))
           .map((med) => {
             const dbMatch = dbMedicinesMap[med.id] || dbMedicinesMap[med.name];
@@ -300,19 +201,28 @@ export default function Medicines() {
             };
           });
 
-        setMedicines([...customMedicines, ...parsed]);
-        setLoading(false);
+        setMedicines([...customMedicines, ...updated]);
       } catch (err) {
-        if (cancelled) return;
-        console.error(err);
-        setError(err.message);
-        setLoading(false);
+        console.debug("Silent sync complete:", err);
       }
     };
 
-    loadMedicines();
+    syncMedicines();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  /* =====================================================
+     LIVE UPDATE ON DISPENSE (REFRESH STOCK INSTANTLY)
+  ===================================================== */
+  useEffect(() => {
+    const handleStockUpdate = () => {
+      setMedicines(getInitialMedicines());
+    };
+    window.addEventListener("meditrack_stock_updated", handleStockUpdate);
+    return () => {
+      window.removeEventListener("meditrack_stock_updated", handleStockUpdate);
     };
   }, []);
 
@@ -592,38 +502,7 @@ export default function Medicines() {
     return "text-emerald-600 bg-emerald-50";
   };
 
-  /* =====================================================
-     LOADING / ERROR
-  ===================================================== */
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#0284c7] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-sm text-slate-600">Loading medicines...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 flex items-center justify-center px-6">
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-rose-200 p-8 max-w-md text-center">
-          <AlertTriangle size={40} className="text-rose-500 mx-auto mb-4" />
-          <p className="text-sm font-semibold mb-2">Failed to load</p>
-          <p className="text-xs text-slate-500 mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-[#0284c7] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#0369a1]"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   /* =====================================================
      MAIN RENDER

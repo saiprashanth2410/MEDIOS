@@ -23,6 +23,8 @@ import {
 import { toast } from "sonner";
 import Navbar from "../components/dashboard/Navbar";
 import { prescriptionsAPI } from "../services/api";
+import { deductPrescriptionInventory, checkMedicineStock } from "../utils/inventoryDeduction";
+import PrescriptionMedicineRow from "../components/prescriptions/PrescriptionMedicineRow";
 
 /* =====================================================
    MOCK DATA — Replace with API/Context later
@@ -200,13 +202,57 @@ export default function PrescriptionDetail() {
      HANDLERS
   ===================================================== */
 
-  const handleDispense = async () => {
+  const handleSwapMedicine = async (index, substitute) => {
+    const oldName = prescription.medicines[index]?.name || "Medicine";
+    const updatedMeds = prescription.medicines.map((m, i) =>
+      i === index
+        ? {
+            ...m,
+            name: substitute.name,
+            generic: substitute.generic,
+            substituted: true,
+            originalPrescribed: oldName,
+          }
+        : m
+    );
+    const updatedRx = { ...prescription, medicines: updatedMeds };
+    setPrescription(updatedRx);
     try {
-      await prescriptionsAPI.update(prescription.id, { status: "dispensed" });
+      await prescriptionsAPI.update(prescription.id, updatedRx);
+    } catch (e) {
+      console.debug("Prescription update error:", e);
+    }
+    toast.success(`Swapped "${oldName}" with in-stock substitute "${substitute.name}"!`);
+  };
+
+  const handleDispense = async () => {
+    const unstocked = (prescription.medicines || []).filter((m) => {
+      const info = checkMedicineStock(m);
+      return info.status === "OUT_OF_STOCK" || info.status === "NOT_FOUND";
+    });
+
+    if (unstocked.length > 0) {
+      const names = unstocked.map((m) => `• ${m.name}`).join("\n");
+      const confirmPartial = window.confirm(
+        `⚠️ Inventory Alert:\nThe following medicine(s) are OUT OF STOCK or not stocked in your pharmacy:\n\n${names}\n\nDo you want to proceed with PARTIAL DISPENSE (dispensing available items only)?`
+      );
+      if (!confirmPartial) return;
+    }
+
+    try {
+      const updated = { ...prescription, status: "dispensed" };
+      await prescriptionsAPI.update(prescription.id, updated);
       setPrescription((prev) => ({ ...prev, status: "DISPENSED" }));
-      toast.success("Prescription dispensed & inventory updated!");
+      const deducted = deductPrescriptionInventory(updated);
+      if (deducted.length > 0) {
+        const summary = deducted.map((d) => `${d.name} (-${d.deducted})`).join(", ");
+        toast.success(`Prescription dispensed! Stock deducted: ${summary}`);
+      } else {
+        toast.success("Prescription dispensed & inventory updated!");
+      }
     } catch {
       setPrescription((prev) => ({ ...prev, status: "DISPENSED" }));
+      deductPrescriptionInventory(prescription);
       toast.success("Prescription dispensed!");
     }
   };
@@ -429,29 +475,15 @@ export default function PrescriptionDetail() {
                   {prescription.medicines.length} items
                 </span>
               </div>
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="p-4 space-y-3">
                 {prescription.medicines.map((med, idx) => (
-                  <div key={idx} className="p-5 flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                      <Pill size={16} className="text-[#0284c7]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                        {med.name}
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">
-                          Dosage: {med.dosage}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700">
-                          Duration: {med.duration}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">
-                          {med.instructions}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <PrescriptionMedicineRow
+                    key={idx}
+                    med={med}
+                    index={idx}
+                    isDispensed={prescription.status === "DISPENSED" || prescription.status === "dispensed"}
+                    onSwap={handleSwapMedicine}
+                  />
                 ))}
               </div>
             </div>
