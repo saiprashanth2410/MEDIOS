@@ -49,8 +49,8 @@ const METRIC_CONFIG = [
     id: "forecast",
     icon: Brain,
     label: "Demand Forecast Error",
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-600",
+    iconBg: "bg-purple-500/10 dark:bg-purple-500/15 border border-purple-200/50 dark:border-purple-500/20",
+    iconColor: "text-purple-600 dark:text-purple-400",
     baselineLabel: "18–27%",
     baselineValue: 22.5,
     unit: "%",
@@ -60,8 +60,8 @@ const METRIC_CONFIG = [
     id: "overstock",
     icon: Box,
     label: "Inventory Overstock",
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
+    iconBg: "bg-blue-500/10 dark:bg-sky-500/15 border border-blue-200/50 dark:border-sky-500/20",
+    iconColor: "text-blue-600 dark:text-sky-400",
     baselineLabel: "22%",
     baselineValue: 22,
     unit: "%",
@@ -71,8 +71,8 @@ const METRIC_CONFIG = [
     id: "stockout",
     icon: AlertTriangle,
     label: "Stockout Incidents",
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
+    iconBg: "bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-200/50 dark:border-emerald-500/20",
+    iconColor: "text-emerald-600 dark:text-emerald-400",
     baselineLabel: "9%",
     baselineValue: 9,
     unit: "%",
@@ -82,8 +82,8 @@ const METRIC_CONFIG = [
     id: "delay",
     icon: Clock,
     label: "Procurement Delay",
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
+    iconBg: "bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/50 dark:border-amber-500/20",
+    iconColor: "text-amber-600 dark:text-amber-400",
     baselineLabel: "14–18 days",
     baselineValue: 16,
     unit: " days",
@@ -134,7 +134,7 @@ export default function PerformanceMetrics({ data = MOCK_DATA }) {
 
   return (
     <div className="w-full">
-      <h2 className="text-lg font-bold text-slate-800 mb-4">
+      <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
         Performance Metrics
       </h2>
 
@@ -146,7 +146,7 @@ export default function PerformanceMetrics({ data = MOCK_DATA }) {
           return (
             <div
               key={card.id}
-              className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition"
+              className="bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition"
             >
               {/* Top row — icon + improvement badge */}
               <div className="flex items-start justify-between mb-3">
@@ -159,8 +159,8 @@ export default function PerformanceMetrics({ data = MOCK_DATA }) {
                 <div
                   className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold ${
                     card.isBetter
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-rose-50 text-rose-700"
+                      ? "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-500/20"
+                      : "bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-200/50 dark:border-rose-500/20"
                   }`}
                 >
                   <TrendIcon size={11} />
@@ -169,19 +169,21 @@ export default function PerformanceMetrics({ data = MOCK_DATA }) {
               </div>
 
               {/* Label */}
-              <p className="text-xs text-slate-500 font-medium mb-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-2">
                 {card.label}
               </p>
 
               {/* Value row — baseline > current */}
               <div className="flex items-baseline gap-2">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-500">
                   {card.baselineLabel}
                 </span>
-                <span className="text-slate-300">›</span>
+                <span className="text-slate-300 dark:text-slate-600">›</span>
                 <span
                   className={`text-2xl font-bold ${
-                    card.isBetter ? "text-emerald-600" : "text-rose-600"
+                    card.isBetter
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
                   }`}
                 >
                   {card.currentValue}

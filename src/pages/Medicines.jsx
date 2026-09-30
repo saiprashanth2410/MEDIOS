@@ -532,44 +532,44 @@ export default function Medicines() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total</span>
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center">
                 <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Total</span>
             </div>
-            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Low Stock</span>
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-200/60 dark:border-rose-500/25 flex items-center justify-center">
                 <AlertTriangle size={18} className="text-rose-600 dark:text-rose-400" />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Low Stock</span>
             </div>
-            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{stats.lowStock}</p>
+            <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{stats.lowStock}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Expiring</span>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/60 dark:border-amber-500/25 flex items-center justify-center">
                 <CalendarClock size={18} className="text-amber-600 dark:text-amber-400" />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Expiring</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.expiring}</p>
+            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.expiring}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Categories</span>
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-200/60 dark:border-violet-500/25 flex items-center justify-center">
                 <Package size={18} className="text-violet-600 dark:text-violet-400" />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Categories</span>
             </div>
-            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.categories}</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.categories}</p>
           </div>
         </div>
 

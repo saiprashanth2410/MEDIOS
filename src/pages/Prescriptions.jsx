@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Search,
   Plus,
-  FileText,
   Clock,
   User,
   Stethoscope,
@@ -13,6 +12,7 @@ import {
   Brain,
   Loader2,
   AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionModal";
 import PrescriptionDetailModal from "../components/prescriptions/PrescriptionDetailModal";
@@ -170,42 +170,44 @@ export default function Prescriptions() {
 
         {/* Stats */}
         <div className="grid sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center">
-                <ClipboardList size={18} className="text-[#0284c7] dark:text-sky-400" />
-              </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Total
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Total Prescriptions
               </span>
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                <ClipboardList size={18} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+              {stats.total.toLocaleString()}
+            </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center">
-                <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Dispensed
               </span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-200/60 dark:border-emerald-500/25 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 size={18} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
               {stats.dispensed.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center">
-                <Clock size={18} className="text-amber-600 dark:text-amber-400" />
-              </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Pending
               </span>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/60 dark:border-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Clock size={18} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
               {stats.pending.toLocaleString()}
             </p>
           </div>

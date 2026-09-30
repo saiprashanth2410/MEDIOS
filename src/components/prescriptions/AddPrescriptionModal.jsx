@@ -15,7 +15,7 @@ import {
 import PrescriptionScanner from "./PrescriptionScanner";
 
 const FIELD_BASE =
-  "w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 dark:text-slate-500";
+  "w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-white outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 dark:placeholder:text-slate-500";
 
 const LABEL_BASE = "block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5";
 
@@ -185,14 +185,14 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center">
-                <ClipboardList size={20} className="text-[#0284c7]" />
+              <div className="w-11 h-11 rounded-xl bg-sky-50 dark:bg-sky-500/15 border border-sky-100 dark:border-sky-500/20 flex items-center justify-center">
+                <ClipboardList size={20} className="text-[#0284c7] dark:text-sky-400" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white">
                   New Prescription
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Manually fill or scan with AI
                 </p>
               </div>
@@ -200,9 +200,9 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
 
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-slate-100 transition"
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition"
             >
-              <X size={18} className="text-slate-500 dark:text-slate-400 dark:text-slate-500" />
+              <X size={18} />
             </button>
           </div>
 
@@ -211,7 +211,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
             <button
               type="button"
               onClick={() => setShowScanner(true)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 hover:from-violet-100 hover:to-purple-100 transition group"
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/40 border border-violet-200 dark:border-violet-800/50 hover:from-violet-100 hover:to-purple-100 dark:hover:from-violet-900/40 dark:hover:to-purple-900/40 transition group"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md">
@@ -221,19 +221,19 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                     Scan Prescription with AI
                   </p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     Snap a photo — AI reads handwriting & fills the form
                   </p>
                 </div>
               </div>
               <Sparkles
                 size={20}
-                className="text-violet-600 group-hover:scale-110 transition"
+                className="text-violet-600 dark:text-violet-400 group-hover:scale-110 transition"
               />
             </button>
 
             {aiFilled && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg">
+              <div className="mt-3 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50 px-3 py-2 rounded-lg">
                 <CheckCircle2 size={13} />
                 AI filled the form — please review before saving
               </div>
@@ -382,7 +382,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
               {/* Medicines */}
               <div className="sm:col-span-2 mt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <h3 className="text-xs uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
                     Medicines
                   </h3>
                   <button
@@ -399,7 +399,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                   {form.medicines.map((med, i) => (
                     <div
                       key={i}
-                      className="grid grid-cols-12 gap-2 p-3 rounded-lg bg-slate-50 border border-slate-100 dark:border-slate-800"
+                      className="grid grid-cols-12 gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60"
                     >
                       <input
                         placeholder="Medicine name *"

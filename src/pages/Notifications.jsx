@@ -395,33 +395,33 @@ export default function Notifications() {
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center text-[#0284c7]">
+              <div className="w-9 h-9 rounded-lg bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/50 dark:border-sky-500/20 flex items-center justify-center text-[#0284c7] dark:text-sky-400">
                 <Bell size={18} />
               </div>
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Total Alerts
               </span>
             </div>
-            <p className="text-2xl font-bold">{stats.total || notifications.length}</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total || notifications.length}</p>
           </div>
 
           <div
             onClick={() => setStatusFilter((prev) => (prev === "unread" ? "all" : "unread"))}
             className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
               statusFilter === "unread"
-                ? "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/20"
+                ? "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/20 dark:bg-rose-950/20"
                 : "border-sky-100 dark:border-slate-800 hover:border-rose-200"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600">
+              <div className="w-9 h-9 rounded-lg bg-rose-500/10 dark:bg-rose-500/15 border border-rose-200/50 dark:border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
                 <ShieldAlert size={18} />
               </div>
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Unread Alerts
               </span>
             </div>
-            <p className="text-2xl font-bold text-rose-600">
+            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
               {stats.unread !== undefined ? stats.unread : unreadCount}
             </p>
           </div>
@@ -430,19 +430,19 @@ export default function Notifications() {
             onClick={() => setActiveType((prev) => (prev === "stock" ? "all" : "stock"))}
             className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
               activeType === "stock"
-                ? "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/20"
+                ? "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/20 dark:bg-rose-950/20"
                 : "border-sky-100 dark:border-slate-800 hover:border-rose-200"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600">
+              <div className="w-9 h-9 rounded-lg bg-rose-500/10 dark:bg-rose-500/15 border border-rose-200/50 dark:border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
                 <Package size={18} />
               </div>
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Stock Warnings
               </span>
             </div>
-            <p className="text-2xl font-bold text-rose-600">
+            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
               {stats.stockCount || notifications.filter((n) => n.type === "stock").length}
             </p>
           </div>
@@ -451,19 +451,19 @@ export default function Notifications() {
             onClick={() => setActiveType((prev) => (prev === "expiry" ? "all" : "expiry"))}
             className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
               activeType === "expiry"
-                ? "border-amber-400 ring-2 ring-amber-400/20 bg-amber-50/20"
+                ? "border-amber-400 ring-2 ring-amber-400/20 bg-amber-50/20 dark:bg-amber-950/20"
                 : "border-sky-100 dark:border-slate-800 hover:border-amber-200"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600">
+              <div className="w-9 h-9 rounded-lg bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/50 dark:border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
                 <CalendarClock size={18} />
               </div>
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Expiry Alerts
               </span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
               {stats.expiryCount || notifications.filter((n) => n.type === "expiry").length}
             </p>
           </div>

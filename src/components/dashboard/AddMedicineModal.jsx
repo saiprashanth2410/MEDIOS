@@ -319,8 +319,8 @@ export default function AddMedicineModal({ onAdd, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center">
-              <Pill size={18} className="text-[#0284c7]" />
+            <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-500/15 border border-sky-100 dark:border-sky-500/20 flex items-center justify-center">
+              <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
@@ -674,8 +674,8 @@ export default function AddMedicineModal({ onAdd, onClose }) {
               disabled={!selectedMaster}
               className={`flex-1 h-11 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 selectedMaster
-                  ? "bg-[#0284c7] text-white hover:bg-[#0369a1]"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  ? "bg-[#0284c7] text-white hover:bg-[#0369a1] shadow-sm"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700/60 cursor-not-allowed"
               }`}
             >
               <Pill size={14} />
