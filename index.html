@@ -5,6 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>𝑀𝑒𝒹𝒾𝑜𝓈</title>
+    <script>
+      (function () {
+        try {
+          const stored = localStorage.getItem("meditrack_theme");
+          if (stored === "light") {
+            document.documentElement.classList.remove("dark");
+          } else if (stored === "system") {
+            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+              document.documentElement.classList.add("dark");
+            } else {
+              document.documentElement.classList.remove("dark");
+            }
+          } else {
+            // Default to dark mode when not set or set to 'dark'
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

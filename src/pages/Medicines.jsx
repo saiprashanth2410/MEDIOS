@@ -497,9 +497,9 @@ export default function Medicines() {
   };
 
   const getStockColor = (stock) => {
-    if (stock < 50) return "text-rose-600 bg-rose-50";
-    if (stock < 100) return "text-amber-600 bg-amber-50";
-    return "text-emerald-600 bg-emerald-50";
+    if (stock < 50) return "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60";
+    if (stock < 100) return "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60";
+    return "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60";
   };
 
 
@@ -517,7 +517,7 @@ export default function Medicines() {
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Medicines</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Manage your pharmacy inventory
             </p>
           </div>
@@ -653,14 +653,14 @@ export default function Medicines() {
 
         {/* Results */}
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             <span className="font-semibold text-slate-800 dark:text-slate-100">
               {filtered.length}
             </span>{" "}
             {filtered.length === 1 ? "medicine" : "medicines"} found
             {activeCategory !== "All" && (
-              <span className="ml-2 text-slate-400">
-                in <strong className="text-slate-600">{activeCategory}</strong>
+              <span className="ml-2 text-slate-400 dark:text-slate-500">
+                in <strong className="text-slate-600 dark:text-slate-300">{activeCategory}</strong>
               </span>
             )}
           </p>
@@ -669,9 +669,9 @@ export default function Medicines() {
         {/* List */}
         {filtered.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-16 text-center shadow-sm">
-            <Pill size={40} className="text-slate-300 mx-auto mb-4" />
-            <p className="text-sm font-semibold mb-1">No medicines found</p>
-            <p className="text-xs text-slate-500 mb-6">
+            <Pill size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1">No medicines found</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
               {activeCategory !== "All"
                 ? `No ${activeCategory} medicines available`
                 : "Try a different search"}

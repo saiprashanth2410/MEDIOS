@@ -40,7 +40,7 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-sky-100 dark:border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
@@ -72,7 +72,7 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
               <button
                 type="button"
                 onClick={() => handleAdjust(-1)}
-                className="w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                className="w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition active:scale-95"
                 title="Decrease 1"
               >
                 <Minus size={18} />
@@ -83,14 +83,14 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
                 min="0"
                 value={stock}
                 onChange={(e) => setStock(Math.max(0, parseInt(e.target.value) || 0))}
-                className="flex-1 h-11 text-center font-bold text-lg border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284c7] text-slate-900 dark:text-white"
+                className="flex-1 h-11 text-center font-bold text-lg border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284c7] text-slate-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 required
               />
 
               <button
                 type="button"
                 onClick={() => handleAdjust(1)}
-                className="w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                className="w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition active:scale-95"
                 title="Increase 1"
               >
                 <Plus size={18} />
@@ -99,14 +99,14 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
 
             {/* Quick Add Buttons for Incoming Stock */}
             <div className="mt-3">
-              <p className="text-[11px] text-slate-400 mb-1.5">Quick add incoming shipment:</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-400 mb-1.5">Quick add incoming shipment:</p>
               <div className="flex items-center gap-2 flex-wrap">
                 {[10, 25, 50, 100, 200].map((amt) => (
                   <button
                     key={amt}
                     type="button"
                     onClick={() => handleQuickAdd(amt)}
-                    className="px-2.5 py-1 text-xs font-semibold rounded-md bg-sky-50 text-[#0284c7] hover:bg-sky-100 transition border border-sky-200"
+                    className="px-2.5 py-1 text-xs font-semibold rounded-md bg-sky-50 dark:bg-sky-950/40 text-[#0284c7] dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition border border-sky-200 dark:border-sky-800/60"
                   >
                     +{amt}
                   </button>
@@ -122,13 +122,13 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
                 Batch Number
               </label>
               <div className="relative">
-                <Package size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Package size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
                   value={batch}
                   onChange={(e) => setBatch(e.target.value)}
                   placeholder="e.g. BATCH-1001"
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0284c7]"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0284c7]"
                 />
               </div>
             </div>
@@ -138,22 +138,24 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
                 Rack / Shelf
               </label>
               <div className="relative">
-                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
                   value={rack}
                   onChange={(e) => setRack(e.target.value)}
                   placeholder="e.g. R-1"
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0284c7]"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0284c7]"
                 />
               </div>
             </div>
           </div>
 
           {/* Info note */}
-          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-3 flex items-start gap-2.5 text-xs text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
-            <AlertCircle size={15} className="text-[#0284c7] shrink-0 mt-0.5" />
-            
+          <div className="bg-sky-50/70 dark:bg-sky-950/30 rounded-lg p-3 flex items-start gap-2.5 text-xs text-sky-800 dark:text-sky-300/90 border border-sky-100 dark:border-sky-900/40">
+            <AlertCircle size={15} className="text-[#0284c7] dark:text-sky-400 shrink-0 mt-0.5" />
+            <p>
+              Stock adjustments sync directly with batch inventory and prescription tracking.
+            </p>
           </div>
 
           {/* Action buttons */}

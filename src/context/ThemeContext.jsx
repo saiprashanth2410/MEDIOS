@@ -4,7 +4,7 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("meditrack_theme") || "system";
+    return localStorage.getItem("meditrack_theme") || "dark";
   });
 
   const [systemTheme, setSystemTheme] = useState(() => {
