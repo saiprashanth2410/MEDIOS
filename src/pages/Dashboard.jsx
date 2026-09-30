@@ -35,17 +35,13 @@ import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionMod
 import Navbar from "../components/dashboard/Navbar";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import usePerformanceData from "../hooks/usePerformanceData";
+import { useExpiryData } from "../utils/expiryStore";
 import { medicinesAPI, prescriptionsAPI } from "../services/api";
 
 /* =====================================================
    DATA
 ===================================================== */
 
-const EXPIRY_ALERTS = {
-  critical: { label: "Critical", days: "≤30 days", count: 8, value: 24500, color: "rose", description: "Quarantine + process for credit" },
-  warning: { label: "Warning", days: "31-60 days", count: 15, value: 67800, color: "amber", description: "Return to wholesaler or redistribute" },
-  review: { label: "Review", days: "61-90 days", count: 25, value: 145000, color: "yellow", description: "AI velocity review needed" },
-};
 
 const REORDER_ALERTS = [
   { name: "Insulin Glargine 100IU", current: 18, min: 50, suggested: 200, supplier: "Novo Nordisk", unitPrice: 850, estimatedCost: 170000 },
@@ -116,6 +112,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: performanceData } = usePerformanceData();
+  const { expiryAlerts } = useExpiryData();
 
   const [showScanner, setShowScanner] = useState(false);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
@@ -243,14 +240,16 @@ export default function Dashboard() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {Object.entries(EXPIRY_ALERTS).map(([key, data]) => {
+                {Object.entries(expiryAlerts).map(([key, data]) => {
                   const colors = COLOR_STYLES[data.color];
                   const cardStyle = EXPIRY_CARD_STYLES[data.color];
 
                   return (
                     <div
                       key={key}
-                      className={`p-3 sm:p-4 rounded-lg border-2 ${cardStyle}`}
+                      onClick={() => navigate(`/expiry?status=${data.label}`)}
+                      className={`p-3 sm:p-4 rounded-lg border-2 cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all ${cardStyle}`}
+                      title={`Click to view all ${data.label} expiry items`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span
