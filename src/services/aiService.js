@@ -8,7 +8,7 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 console.log(
   "[aiService] API Key:",
-  API_KEY ? `✅ Present (${API_KEY.slice(0, 15)}...)` : "❌ Missing"
+  API_KEY ? `✅ Present ` : "❌ Missing"
 );
 
 const genAI = new GoogleGenerativeAI(API_KEY || "");

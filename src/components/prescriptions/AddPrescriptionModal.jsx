@@ -388,18 +388,28 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                   <button
                     type="button"
                     onClick={addMedicineRow}
-                    className="flex items-center gap-1 text-xs font-medium text-[#0284c7] hover:underline"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[#0284c7] hover:text-[#0369a1] dark:text-sky-400 dark:hover:text-sky-300 transition"
                   >
-                    <Plus size={12} />
+                    <Plus size={13} />
                     Add row
                   </button>
+                </div>
+
+                {/* Desktop column header labels */}
+                <div className="hidden sm:grid sm:grid-cols-[minmax(150px,2fr)_90px_80px_90px_minmax(140px,1.6fr)_36px] gap-2 px-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  <span>Medicine Name *</span>
+                  <span>Dosage</span>
+                  <span>Frequency</span>
+                  <span>Duration</span>
+                  <span>Instructions</span>
+                  <span></span>
                 </div>
 
                 <div className="space-y-3">
                   {form.medicines.map((med, i) => (
                     <div
                       key={i}
-                      className="grid grid-cols-12 gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60"
+                      className="grid grid-cols-12 sm:grid-cols-[minmax(150px,2fr)_90px_80px_90px_minmax(140px,1.6fr)_36px] gap-2 p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 items-center transition"
                     >
                       <input
                         placeholder="Medicine name *"
@@ -407,7 +417,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                         onChange={(e) =>
                           updateMedicine(i, "name", e.target.value)
                         }
-                        className={`${FIELD_BASE} col-span-12 sm:col-span-4`}
+                        className={`${FIELD_BASE} col-span-12 sm:col-auto`}
                       />
                       <input
                         placeholder="Dosage"
@@ -415,7 +425,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                         onChange={(e) =>
                           updateMedicine(i, "dosage", e.target.value)
                         }
-                        className={`${FIELD_BASE} col-span-6 sm:col-span-2`}
+                        className={`${FIELD_BASE} col-span-4 sm:col-auto`}
                       />
                       <input
                         placeholder="1-0-1"
@@ -423,7 +433,7 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                         onChange={(e) =>
                           updateMedicine(i, "frequency", e.target.value)
                         }
-                        className={`${FIELD_BASE} col-span-6 sm:col-span-2`}
+                        className={`${FIELD_BASE} col-span-4 sm:col-auto`}
                       />
                       <input
                         placeholder="5 days"
@@ -431,23 +441,25 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
                         onChange={(e) =>
                           updateMedicine(i, "duration", e.target.value)
                         }
-                        className={`${FIELD_BASE} col-span-6 sm:col-span-2`}
+                        className={`${FIELD_BASE} col-span-4 sm:col-auto`}
                       />
                       <input
-                        placeholder="After food"
+                        placeholder="Instructions (e.g. After food)"
                         value={med.instructions}
                         onChange={(e) =>
                           updateMedicine(i, "instructions", e.target.value)
                         }
-                        className={`${FIELD_BASE} col-span-5 sm:col-span-1`}
+                        className={`${FIELD_BASE} col-span-10 sm:col-auto`}
                       />
                       <button
                         type="button"
                         onClick={() => removeMedicineRow(i)}
                         disabled={form.medicines.length === 1}
-                        className="col-span-1 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-rose-500 disabled:opacity-30 transition"
+                        className="col-span-2 sm:col-auto h-11 w-full sm:w-9 flex items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition"
+                        title="Remove medicine"
+                        aria-label="Remove medicine"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   ))}
