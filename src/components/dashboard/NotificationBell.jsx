@@ -1,89 +1,229 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, Package, AlertTriangle, Clock, CheckCheck, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Bell,
+  Package,
+  AlertTriangle,
+  Clock,
+  CheckCheck,
+  X,
+  FileText,
+  CheckCircle2,
+  Loader2,
+  ChevronRight,
+} from "lucide-react";
+import { notificationsAPI } from "../../services/api";
+import { toast } from "sonner";
 
 /* =====================================================
-   MOCK NOTIFICATIONS — Later replace with real data
+   FALLBACK NOTIFICATIONS
 ===================================================== */
 
-const INITIAL_NOTIFICATIONS = [
+const FALLBACK_NOTIFICATIONS = [
   {
-    id: 1,
+    id: "NOTIF-1",
     type: "expiry",
-    icon: AlertTriangle,
     title: "Medicine expiring soon",
     message: "Safedox (BATCH-1000) expires in 15 days",
-    time: "2 min ago",
+    createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     read: false,
     color: "amber",
+    link: "/expiry",
   },
   {
-    id: 2,
+    id: "NOTIF-2",
     type: "stock",
-    icon: Package,
     title: "Low stock alert",
     message: "Flucret stock is below 10 units",
-    time: "1 hr ago",
+    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
     read: false,
     color: "red",
+    link: "/medicines",
   },
   {
-    id: 3,
+    id: "NOTIF-3",
     type: "expiry",
-    icon: AlertTriangle,
     title: "Batch expired",
     message: "BATCH-0998 expired yesterday — remove from shelf",
-    time: "3 hrs ago",
+    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
     read: false,
     color: "red",
+    link: "/batches",
   },
   {
-    id: 4,
+    id: "NOTIF-4",
     type: "order",
-    icon: Clock,
     title: "Purchase order pending",
-    message: "PO-2024-045 waiting for supplier confirmation",
-    time: "Yesterday",
+    message: "PO-2026-045 waiting for supplier confirmation",
+    createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
     read: true,
     color: "blue",
+    link: "/suppliers",
   },
 ];
 
 /* =====================================================
-   COLOR MAP
+   COLOR & ICON MAPS
 ===================================================== */
 
 const COLOR_MAP = {
   amber: {
-    bg: "bg-amber-50",
-    text: "text-amber-600",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    text: "text-amber-600 dark:text-amber-400",
     dot: "bg-amber-500",
   },
   red: {
-    bg: "bg-red-50",
-    text: "text-red-600",
-    dot: "bg-red-500",
+    bg: "bg-rose-50 dark:bg-rose-950/40",
+    text: "text-rose-600 dark:text-rose-400",
+    dot: "bg-rose-500",
   },
   blue: {
-    bg: "bg-blue-50",
-    text: "text-blue-600",
-    dot: "bg-blue-500",
+    bg: "bg-sky-50 dark:bg-sky-950/40",
+    text: "text-sky-600 dark:text-sky-400",
+    dot: "bg-sky-500",
+  },
+  emerald: {
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    text: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+  },
+  purple: {
+    bg: "bg-purple-50 dark:bg-purple-950/40",
+    text: "text-purple-600 dark:text-purple-400",
+    dot: "bg-purple-500",
   },
 };
+
+const TYPE_ICONS = {
+  expiry: AlertTriangle,
+  stock: Package,
+  prescription: FileText,
+  order: Clock,
+  system: CheckCircle2,
+};
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return "Just now";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return String(dateStr);
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 172800) return "Yesterday";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function getInitialBellNotifications() {
+  if (typeof window === "undefined") return [];
+  try {
+    const isCleared =
+      localStorage.getItem("meditrack_notifications_cleared") === "true";
+    if (isCleared) return [];
+
+    const saved = localStorage.getItem("meditrack_notifications");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.debug("Bell initial notifications fallback:", e);
+  }
+  return FALLBACK_NOTIFICATIONS;
+}
 
 /* =====================================================
    MAIN COMPONENT
 ===================================================== */
 
 export default function NotificationBell() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState(getInitialBellNotifications);
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   /* =====================================================
-     CLOSE ON OUTSIDE CLICK
+     FETCH NOTIFICATIONS FROM BACKEND
+  ===================================================== */
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const isCleared =
+          localStorage.getItem("meditrack_notifications_cleared") === "true";
+        const data = await notificationsAPI.list({ limit: 15 });
+        if (!cancelled && data?.notifications && Array.isArray(data.notifications)) {
+          if (isCleared && data.notifications.length === 0) {
+            setNotifications([]);
+            return;
+          }
+          setNotifications(data.notifications);
+          localStorage.setItem(
+            "meditrack_notifications",
+            JSON.stringify(data.notifications)
+          );
+          if (data.notifications.length === 0) {
+            localStorage.setItem("meditrack_notifications_cleared", "true");
+          } else {
+            localStorage.removeItem("meditrack_notifications_cleared");
+          }
+        }
+      } catch (err) {
+        console.debug("Backend notifications fallback:", err?.message);
+      }
+    };
+    load();
+
+    const handleUpdate = () => {
+      load();
+    };
+
+    window.addEventListener("meditrack_notifications_updated", handleUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("meditrack_notifications_updated", handleUpdate);
+    };
+  }, []);
+
+  // Refresh on opening dropdown
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        setLoading(true);
+        const data = await notificationsAPI.list({ limit: 15 });
+        if (!cancelled && data?.notifications && Array.isArray(data.notifications)) {
+          setNotifications(data.notifications);
+          localStorage.setItem(
+            "meditrack_notifications",
+            JSON.stringify(data.notifications)
+          );
+          if (data.notifications.length === 0) {
+            localStorage.setItem("meditrack_notifications_cleared", "true");
+          } else {
+            localStorage.removeItem("meditrack_notifications_cleared");
+          }
+        }
+      } catch (err) {
+        console.debug("Backend notifications refresh fallback:", err?.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    refresh();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  /* =====================================================
+     CLOSE ON OUTSIDE CLICK & ESCAPE
   ===================================================== */
 
   useEffect(() => {
@@ -117,18 +257,51 @@ export default function NotificationBell() {
      ACTIONS
   ===================================================== */
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    const updated = notifications.map((n) => ({ ...n, read: true }));
+    setNotifications(updated);
+    try {
+      localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
+      await notificationsAPI.markAllRead();
+      window.dispatchEvent(new Event("meditrack_notifications_updated"));
+      toast.success("All notifications marked as read");
+    } catch (err) {
+      console.debug("markAllRead error:", err);
+    }
   };
 
-  const markOneRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const handleClickItem = async (notif) => {
+    if (!notif.read) {
+      const updated = notifications.map((n) =>
+        n.id === notif.id ? { ...n, read: true } : n
+      );
+      setNotifications(updated);
+      try {
+        localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
+        await notificationsAPI.markRead(notif.id);
+        window.dispatchEvent(new Event("meditrack_notifications_updated"));
+      } catch (err) {
+        console.debug("markRead error:", err);
+      }
+    }
+
+    if (notif.link) {
+      setOpen(false);
+      navigate(notif.link);
+    }
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     setNotifications([]);
+    try {
+      localStorage.setItem("meditrack_notifications_cleared", "true");
+      localStorage.setItem("meditrack_notifications", "[]");
+      await notificationsAPI.clearAll();
+      window.dispatchEvent(new Event("meditrack_notifications_updated"));
+      toast.success("Notifications cleared");
+    } catch (err) {
+      console.debug("clearAll error:", err);
+    }
   };
 
   /* =====================================================
@@ -160,7 +333,7 @@ export default function NotificationBell() {
       {/* Dropdown Panel */}
       <div
         ref={dropdownRef}
-        className={`absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 origin-top-right transition-all duration-200 ease-out ${
+        className={`absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-50 origin-top-right transition-all duration-200 ease-out ${
           open
             ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
             : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
@@ -169,17 +342,22 @@ export default function NotificationBell() {
         aria-label="Notifications"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              Notifications
+            </h3>
             {unreadCount > 0 && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0284c7]/10 text-[#0284c7]">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#0284c7]/10 text-[#0284c7] dark:bg-[#0284c7]/20 dark:text-sky-300">
                 {unreadCount} new
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            {loading && (
+              <Loader2 size={13} className="text-slate-400 animate-spin" />
+            )}
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
@@ -187,65 +365,70 @@ export default function NotificationBell() {
                 title="Mark all as read"
               >
                 <CheckCheck size={12} />
-                Mark all
+                Mark all read
               </button>
             )}
           </div>
         </div>
 
         {/* List */}
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
           {notifications.length === 0 ? (
             <div className="px-4 py-12 text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
                 <Bell size={20} className="text-slate-400" />
               </div>
-              <p className="text-sm font-medium text-slate-600">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 All caught up!
               </p>
-              <p className="text-xs text-slate-400 mt-1">
-                No new notifications
-              </p>
+              <p className="text-xs text-slate-400 mt-1">No new notifications</p>
             </div>
           ) : (
             notifications.map((n) => {
-              const Icon = n.icon;
+              const Icon = TYPE_ICONS[n.type] || Bell;
               const colors = COLOR_MAP[n.color] || COLOR_MAP.blue;
 
               return (
                 <button
                   key={n.id}
-                  onClick={() => markOneRead(n.id)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition border-b border-slate-50 last:border-0 ${
+                  onClick={() => handleClickItem(n)}
+                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition ${
                     n.read
-                      ? "hover:bg-slate-50"
-                      : "bg-[#0284c7]/[0.03] hover:bg-[#0284c7]/[0.06]"
+                      ? "hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                      : "bg-[#0284c7]/[0.04] dark:bg-sky-950/20 hover:bg-[#0284c7]/[0.08]"
                   }`}
                 >
                   <div
-                    className={`w-9 h-9 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}
+                    className={`w-9 h-9 rounded-lg ${colors.bg} flex items-center justify-center shrink-0 mt-0.5`}
                   >
                     <Icon size={16} className={colors.text} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p
-                        className={`text-xs font-semibold text-slate-800 ${
-                          !n.read && "pr-3"
+                        className={`text-xs font-semibold text-slate-800 dark:text-slate-100 ${
+                          !n.read ? "pr-2" : ""
                         }`}
                       >
                         {n.title}
                       </p>
                       {!n.read && (
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${colors.dot} shrink-0 mt-1.5`}
+                          className={`w-2 h-2 rounded-full ${colors.dot} shrink-0 mt-1`}
                         />
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
                       {n.message}
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
+                    <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-400">
+                      <span>{formatRelativeTime(n.createdAt)}</span>
+                      {n.link && (
+                        <span className="text-[#0284c7] hover:underline flex items-center gap-0.5 font-medium">
+                          View details <ChevronRight size={10} />
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               );
@@ -254,23 +437,28 @@ export default function NotificationBell() {
         </div>
 
         {/* Footer */}
-        {notifications.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50">
+          {notifications.length > 0 ? (
             <button
               onClick={clearAll}
-              className="text-[11px] font-medium text-slate-500 hover:text-red-500 transition flex items-center gap-1"
+              className="text-[11px] font-medium text-slate-500 hover:text-rose-500 transition flex items-center gap-1"
             >
               <X size={12} />
               Clear all
             </button>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-[11px] font-medium text-[#0284c7] hover:underline"
-            >
-              View all →
-            </button>
-          </div>
-        )}
+          ) : (
+            <span />
+          )}
+          <button
+            onClick={() => {
+              setOpen(false);
+              navigate("/notifications");
+            }}
+            className="text-xs font-semibold text-[#0284c7] hover:text-[#0369a1] hover:underline flex items-center gap-1"
+          >
+            View all →
+          </button>
+        </div>
       </div>
     </div>
   );

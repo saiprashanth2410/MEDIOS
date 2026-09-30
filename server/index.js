@@ -10,6 +10,7 @@ import Prescription from "./models/Prescription.js";
 import Batch from "./models/Batch.js";
 import Pharmacist from "./models/Pharmacist.js";
 import Sale from "./models/Sale.js";
+import Notification from "./models/Notification.js";
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ const MONGODB_URI =
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
+      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -723,6 +724,234 @@ app.get("/api/sales/stats", async (req, res) => {
       totalSales,
       totalRevenue: totalRevenueAgg[0]?.total || 0,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =====================================================
+   NOTIFICATIONS
+===================================================== */
+
+const SEED_NOTIFICATIONS = [
+  {
+    id: "NOTIF-1",
+    type: "expiry",
+    title: "Medicine Expiring Soon",
+    message: "Safedox (BATCH-1000) expires in 15 days",
+    read: false,
+    color: "amber",
+    priority: "high",
+    link: "/expiry",
+  },
+  {
+    id: "NOTIF-2",
+    type: "stock",
+    title: "Low Stock Alert",
+    message: "Flucret stock is below 10 units",
+    read: false,
+    color: "red",
+    priority: "high",
+    link: "/medicines",
+  },
+  {
+    id: "NOTIF-3",
+    type: "expiry",
+    title: "Batch Expired",
+    message: "BATCH-0998 expired yesterday — remove from shelf immediately",
+    read: false,
+    color: "red",
+    priority: "critical",
+    link: "/batches",
+  },
+  {
+    id: "NOTIF-4",
+    type: "prescription",
+    title: "New Prescription Pending",
+    message: "Prescription RX-2024-001 awaiting pharmacist dispensing",
+    read: false,
+    color: "blue",
+    priority: "medium",
+    link: "/prescriptions",
+  },
+  {
+    id: "NOTIF-5",
+    type: "order",
+    title: "Purchase Order Pending",
+    message: "PO-2026-045 waiting for supplier Sun Pharma confirmation",
+    read: true,
+    color: "blue",
+    priority: "low",
+    link: "/suppliers",
+  },
+  {
+    id: "NOTIF-6",
+    type: "system",
+    title: "System Backup Complete",
+    message: "Automatic database and inventory backup completed successfully",
+    read: true,
+    color: "emerald",
+    priority: "low",
+    link: "/dashboard",
+  },
+];
+
+async function ensureSeedNotifications() {
+  try {
+    if (!mongoose.connection.db) return;
+    const settingsColl = mongoose.connection.db.collection("settings");
+    const existing = await settingsColl.findOne({
+      key: { $in: ["notifications_seeded", "notifications_cleared"] },
+    });
+    if (existing) {
+      return;
+    }
+
+    const count = await Notification.countDocuments();
+    if (count === 0) {
+      await Notification.insertMany(SEED_NOTIFICATIONS);
+    }
+    await settingsColl.updateOne(
+      { key: "notifications_seeded" },
+      { $set: { key: "notifications_seeded", value: true } },
+      { upsert: true }
+    );
+  } catch (err) {
+    console.debug("Notification seed error:", err.message);
+  }
+}
+
+app.get("/api/notifications", async (req, res) => {
+  try {
+    await ensureSeedNotifications();
+
+    const {
+      page = 1,
+      limit = 50,
+      search = "",
+      status = "all",
+      type = "all",
+    } = req.query;
+
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { message: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (status === "unread") query.read = false;
+    else if (status === "read") query.read = true;
+
+    if (type !== "all") query.type = type;
+
+    const [total, unreadCount, notifications] = await Promise.all([
+      Notification.countDocuments(query),
+      Notification.countDocuments({ read: false }),
+      Notification.find(query)
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit))
+        .lean(),
+    ]);
+
+    res.json({
+      notifications,
+      total,
+      unreadCount,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)) || 1,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/notifications/stats", async (req, res) => {
+  try {
+    await ensureSeedNotifications();
+
+    const [total, unread, stockCount, expiryCount, prescriptionCount] =
+      await Promise.all([
+        Notification.countDocuments(),
+        Notification.countDocuments({ read: false }),
+        Notification.countDocuments({ type: "stock" }),
+        Notification.countDocuments({ type: "expiry" }),
+        Notification.countDocuments({ type: "prescription" }),
+      ]);
+
+    res.json({
+      total,
+      unread,
+      stockCount,
+      expiryCount,
+      prescriptionCount,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/notifications", async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (!data.id) {
+      data.id = `NOTIF-${Date.now()}`;
+    }
+    const notif = new Notification(data);
+    await notif.save();
+    res.status(201).json(notif);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put("/api/notifications/read-all", async (req, res) => {
+  try {
+    await Notification.updateMany({}, { $set: { read: true } });
+    res.json({ success: true, message: "All notifications marked as read" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/notifications/:id", async (req, res) => {
+  try {
+    const notif = await Notification.findOneAndUpdate(
+      { id: req.params.id },
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!notif) return res.status(404).json({ error: "Notification not found" });
+    res.json(notif);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete("/api/notifications/clear-all", async (req, res) => {
+  try {
+    await Notification.deleteMany({});
+    if (mongoose.connection.db) {
+      await mongoose.connection.db.collection("settings").updateOne(
+        { key: "notifications_cleared" },
+        { $set: { key: "notifications_cleared", value: true, clearedAt: new Date() } },
+        { upsert: true }
+      );
+    }
+    res.json({ success: true, message: "All notifications cleared" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/notifications/:id", async (req, res) => {
+  try {
+    const result = await Notification.findOneAndDelete({ id: req.params.id });
+    if (!result) return res.status(404).json({ error: "Notification not found" });
+    res.json({ success: true, deleted: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

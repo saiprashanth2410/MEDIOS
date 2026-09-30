@@ -20,6 +20,7 @@ import ComingSoon from "./pages/ComingSoon";
 import Batches from "./pages/Batches";
 import ExpiryManagement from "./pages/ExpiryManagement";
 import Suppliers from "./pages/Suppliers"; // ✅ NEW
+import Notifications from "./pages/Notifications"; // ✅ NEW
 
 function App() {
   return (
@@ -50,6 +51,9 @@ function App() {
 
             {/* ✅ Suppliers */}
             <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+
+            {/* ✅ Notifications */}
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
             {/* Coming Soon */}
             <Route path="/reorder" element={<ProtectedRoute><ComingSoon title="Auto-Reorder" /></ProtectedRoute>} />

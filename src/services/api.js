@@ -233,4 +233,56 @@ export const analyticsAPI = {
   },
 };
 
+/* =====================================================
+   NOTIFICATIONS API
+===================================================== */
+export const notificationsAPI = {
+  list: async ({
+    page = 1,
+    limit = 50,
+    search = "",
+    status = "all",
+    type = "all",
+  } = {}) => {
+    const params = new URLSearchParams({ page, limit, search, status, type });
+    const res = await api.get(`/notifications?${params}`);
+    return res.data;
+  },
+
+  stats: async () => {
+    const res = await api.get("/notifications/stats");
+    return res.data;
+  },
+
+  markAllRead: async () => {
+    const res = await api.put("/notifications/read-all");
+    return res.data;
+  },
+
+  markRead: async (id) => {
+    const res = await api.put(`/notifications/${id}`, { read: true });
+    return res.data;
+  },
+
+  update: async (id, data) => {
+    const res = await api.put(`/notifications/${id}`, data);
+    return res.data;
+  },
+
+  clearAll: async () => {
+    const res = await api.delete("/notifications/clear-all");
+    return res.data;
+  },
+
+  delete: async (id) => {
+    const res = await api.delete(`/notifications/${id}`);
+    return res.data;
+  },
+
+  create: async (data) => {
+    const res = await api.post("/notifications", data);
+    return res.data;
+  },
+};
+
 export default api;
