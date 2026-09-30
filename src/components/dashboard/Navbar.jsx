@@ -17,8 +17,11 @@ import {
   ClipboardList,
   ChevronDown,
   ShieldCheck,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 import { useScan } from "../../context/ScanContext";
 import { medicinesAPI } from "../../services/api";
 import BarcodeScanner from "../scanner/BarcodeScanner";
@@ -53,6 +56,7 @@ const NAV_GROUPS = [
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { actualTheme, setTheme } = useTheme();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -195,7 +199,25 @@ export default function Navbar() {
               <span className="hidden sm:inline">Scan</span>
             </button>
 
-            {/* Notifications — NEW component */}
+            {/* Quick Theme Toggle */}
+            <button
+              onClick={() => {
+                const nextTheme = actualTheme === "dark" ? "light" : "dark";
+                setTheme(nextTheme);
+                toast.success(`Switched to ${nextTheme} mode`, { duration: 1500 });
+              }}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-md flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              title={actualTheme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label="Toggle theme"
+            >
+              {actualTheme === "dark" ? (
+                <Sun size={17} className="text-amber-300" />
+              ) : (
+                <Moon size={17} className="text-white" />
+              )}
+            </button>
+
+            {/* Notifications */}
             <NotificationBell />
 
             {/* USER MENU DROPDOWN */}
@@ -229,49 +251,72 @@ export default function Navbar() {
 
               {/* Dropdown */}
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-fade-up">
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-50 animate-fade-up">
                   {/* User info header */}
-                  <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-sky-50 to-white">
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-sky-50 to-white dark:from-slate-800 dark:to-slate-900">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0">
                         {userName[0]?.toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-slate-800 truncate">
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
                           {userName}
                         </p>
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                           {userEmail}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sky-100 text-[#0284c7] text-[10px] font-medium">
+                    <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950/60 text-[#0284c7] dark:text-sky-300 text-[10px] font-medium">
                       <ShieldCheck size={10} />
                       {userRole}
                     </div>
                   </div>
 
-                  {/* Menu items — View Profile REMOVED */}
-                  <div className="p-2">
+                  {/* Menu items */}
+                  <div className="p-2 space-y-1">
                     <button
                       onClick={() => handleNavClick("/settings")}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-700 hover:bg-sky-50 hover:text-[#0284c7] transition"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-[#0284c7] dark:hover:text-sky-300 transition"
                     >
-                      <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center">
-                        <Settings size={14} className="text-slate-600" />
+                      <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                        <Settings size={14} className="text-slate-600 dark:text-slate-300" />
                       </div>
                       Settings
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const next = actualTheme === "dark" ? "light" : "dark";
+                        setTheme(next);
+                        toast.success(`Switched to ${next} mode`, { duration: 1500 });
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-[#0284c7] dark:hover:text-sky-300 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                          {actualTheme === "dark" ? (
+                            <Sun size={14} className="text-amber-400" />
+                          ) : (
+                            <Moon size={14} className="text-slate-600 dark:text-slate-300" />
+                          )}
+                        </div>
+                        <span>Theme</span>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {actualTheme}
+                      </span>
                     </button>
                   </div>
 
                   {/* Logout */}
-                  <div className="p-2 border-t border-slate-100">
+                  <div className="p-2 border-t border-slate-100 dark:border-slate-800">
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-rose-600 hover:bg-rose-50 transition"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
                     >
-                      <div className="w-8 h-8 rounded-md bg-rose-50 flex items-center justify-center">
-                        <LogOut size={14} className="text-rose-600" />
+                      <div className="w-8 h-8 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center">
+                        <LogOut size={14} className="text-rose-600 dark:text-rose-400" />
                       </div>
                       Logout
                     </button>
@@ -303,31 +348,31 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          <div className="absolute right-0 top-0 h-full w-[280px] bg-white shadow-2xl overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+          <div className="absolute right-0 top-0 h-full w-[280px] bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xl overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-full bg-[#0284c7] flex items-center justify-center">
                   <Pill size={18} className="text-white" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-slate-800">Menu</h2>
-                  <p className="text-[10px] text-slate-500">{userName}</p>
+                  <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Menu</h2>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">{userName}</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded-md hover:bg-slate-100 transition"
+                className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition"
                 aria-label="Close menu"
               >
-                <X size={18} className="text-slate-500" />
+                <X size={18} />
               </button>
             </div>
 
             <div className="p-3">
               {NAV_GROUPS.map((group) => (
                 <div key={group.label} className="mb-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold px-3 mb-2">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold px-3 mb-2">
                     {group.label}
                   </p>
                   {group.items.map((item) => {
@@ -339,8 +384,8 @@ export default function Navbar() {
                         onClick={() => handleNavClick(item.path)}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition mb-1 ${
                           isActive
-                            ? "bg-sky-50 text-[#0284c7]"
-                            : "text-slate-600 hover:bg-slate-50"
+                            ? "bg-sky-50 dark:bg-sky-950/60 text-[#0284c7] dark:text-sky-300"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                         }`}
                       >
                         <Icon size={16} />
@@ -351,19 +396,40 @@ export default function Navbar() {
                 </div>
               ))}
 
-              {/* Bottom actions — Profile REMOVED */}
-              <div className="border-t border-slate-100 pt-3 mt-3">
+              {/* Bottom actions */}
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-3 mt-3 space-y-1">
                 <button
                   onClick={() => handleNavClick("/settings")}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition mb-1"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition mb-1"
                 >
                   <Settings size={16} />
                   Settings
                 </button>
 
                 <button
+                  onClick={() => {
+                    const next = actualTheme === "dark" ? "light" : "dark";
+                    setTheme(next);
+                    toast.success(`Switched to ${next} mode`, { duration: 1500 });
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition mb-1"
+                >
+                  <div className="flex items-center gap-3">
+                    {actualTheme === "dark" ? (
+                      <Sun size={16} className="text-amber-400" />
+                    ) : (
+                      <Moon size={16} className="text-slate-600 dark:text-slate-300" />
+                    )}
+                    <span>Theme</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {actualTheme}
+                  </span>
+                </button>
+
+                <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-rose-600 hover:bg-rose-50 transition"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
                 >
                   <LogOut size={16} />
                   Logout

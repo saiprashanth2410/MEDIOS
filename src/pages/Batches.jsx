@@ -10,9 +10,9 @@ import { batchesAPI } from '../services/api';
 import { toast } from 'sonner';
 
 const BATCH_STATUS_STYLES = {
-  'Active': 'bg-green-100 text-green-700 border-green-200',
-  'Expiring Soon': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  'Expired': 'bg-red-100 text-red-700 border-red-200',
+  'Active': 'bg-green-100 dark:bg-emerald-950/50 text-green-700 dark:text-emerald-300 border-green-200 dark:border-emerald-800',
+  'Expiring Soon': 'bg-yellow-100 dark:bg-amber-950/50 text-yellow-700 dark:text-amber-300 border-yellow-200 dark:border-amber-800',
+  'Expired': 'bg-red-100 dark:bg-rose-950/50 text-red-700 dark:text-rose-300 border-red-200 dark:border-rose-800',
 };
 
 function StatusBadge({ status }) {
@@ -31,12 +31,12 @@ function StatusBadge({ status }) {
 function SortableHeader({ label, sortKey, sortConfig, onSort }) {
   return (
     <th
-      className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
+      className="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800/80 transition-colors"
       onClick={() => onSort(sortKey)}
     >
       <div className="flex items-center gap-1">
         {label}
-        <ArrowUpDown size={14} className={sortConfig.key === sortKey ? 'text-blue-500' : 'text-gray-400'} />
+        <ArrowUpDown size={14} className={sortConfig.key === sortKey ? 'text-blue-500 dark:text-sky-400' : 'text-gray-400 dark:text-slate-500'} />
       </div>
     </th>
   );
@@ -195,7 +195,7 @@ const Batches = () => {
   const currentBatches = processedBatches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar />
 
       <div className="p-6">
@@ -204,19 +204,19 @@ const Batches = () => {
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Batch Management</h1>
-              <p className="text-gray-500 text-sm mt-1">Track medicine batches, expiry dates, and stock levels.</p>
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Batch Management</h1>
+              <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Track medicine batches, expiry dates, and stock levels.</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={exportToCSV}
-                className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
               >
                 <Download size={18} /> Export CSV
               </button>
               <button
                 onClick={handleAddClick}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                className="flex items-center gap-2 bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
               >
                 <Plus size={18} /> Add New Batch
               </button>
@@ -225,40 +225,40 @@ const Batches = () => {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-xs font-medium uppercase">Total Batches</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
+                <p className="text-gray-500 dark:text-slate-400 text-xs font-medium uppercase">Total Batches</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-slate-100 mt-1">{stats.total}</p>
               </div>
-              <Package className="text-blue-500" size={24} />
+              <Package className="text-blue-500 dark:text-sky-400" size={24} />
             </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-xs font-medium uppercase">Expiring Soon</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.expiringSoon}</p>
+                <p className="text-gray-500 dark:text-slate-400 text-xs font-medium uppercase">Expiring Soon</p>
+                <p className="text-2xl font-bold text-yellow-600 dark:text-amber-400 mt-1">{stats.expiringSoon}</p>
               </div>
-              <AlertTriangle className="text-yellow-500" size={24} />
+              <AlertTriangle className="text-yellow-500 dark:text-amber-400" size={24} />
             </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-xs font-medium uppercase">Expired</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">{stats.expired}</p>
+                <p className="text-gray-500 dark:text-slate-400 text-xs font-medium uppercase">Expired</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-rose-400 mt-1">{stats.expired}</p>
               </div>
-              <XCircle className="text-red-500" size={24} />
+              <XCircle className="text-red-500 dark:text-rose-400" size={24} />
             </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-xs font-medium uppercase">Low Stock</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{stats.lowStock}</p>
+                <p className="text-gray-500 dark:text-slate-400 text-xs font-medium uppercase">Low Stock</p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-amber-400 mt-1">{stats.lowStock}</p>
               </div>
-              <AlertTriangle className="text-orange-500" size={24} />
+              <AlertTriangle className="text-orange-500 dark:text-amber-400" size={24} />
             </div>
           </div>
 
           {/* Filters & Search */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={18} />
               <input
                 type="text"
                 placeholder="Search by medicine or batch no..."
@@ -267,19 +267,19 @@ const Batches = () => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0284c7] text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <Filter size={18} className="text-gray-400" />
+              <Filter size={18} className="text-gray-400 dark:text-slate-500" />
               <select
                 value={filterStatus}
                 onChange={(e) => {
                   setFilterStatus(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7] bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200"
               >
                 <option value="All">All Status</option>
                 <option value="Active">Active</option>
@@ -291,15 +291,15 @@ const Batches = () => {
 
           {/* Table */}
           {loading ? (
-            <div className="flex justify-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
-              <Loader2 size={40} className="text-blue-600 animate-spin" />
+            <div className="flex justify-center py-20 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
+              <Loader2 size={40} className="text-[#0284c7] animate-spin" />
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
+                    <tr className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-100 dark:border-slate-800 text-xs uppercase text-gray-500 dark:text-slate-400 font-semibold">
                       <SortableHeader label="Medicine Name" sortKey="medicineName" sortConfig={sortConfig} onSort={handleSort} />
                       <SortableHeader label="Batch No" sortKey="batchNumber" sortConfig={sortConfig} onSort={handleSort} />
                       <SortableHeader label="Quantity" sortKey="quantity" sortConfig={sortConfig} onSort={handleSort} />
@@ -309,19 +309,19 @@ const Batches = () => {
                       <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                     {currentBatches.length > 0 ? (
                       currentBatches.map((batch) => (
-                        <tr key={batch.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 font-medium text-gray-800">{batch.medicineName}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600 font-mono">{batch.batchNumber}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            <span className={batch.quantity < 30 ? 'text-red-600 font-bold' : ''}>
+                        <tr key={batch.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="px-6 py-4 font-medium text-gray-800 dark:text-slate-100">{batch.medicineName}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300 font-mono">{batch.batchNumber}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300">
+                            <span className={batch.quantity < 30 ? 'text-red-600 dark:text-rose-400 font-bold' : ''}>
                               {batch.quantity} units
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{batch.expiryDate}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{batch.supplier || 'N/A'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300">{batch.expiryDate}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300">{batch.supplier || 'N/A'}</td>
                           <td className="px-6 py-4">
                             <StatusBadge status={batch.status} />
                           </td>
@@ -329,14 +329,14 @@ const Batches = () => {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleEditClick(batch)}
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                className="p-1.5 text-blue-600 dark:text-sky-400 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-md transition-colors"
                                 title="Edit"
                               >
                                 <Edit size={16} />
                               </button>
                               <button
                                 onClick={() => handleDelete(batch.id)}
-                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                className="p-1.5 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-slate-800 rounded-md transition-colors"
                                 title="Delete"
                               >
                                 <Trash2 size={16} />
@@ -347,11 +347,11 @@ const Batches = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
                           <div className="flex flex-col items-center justify-center">
-                            <Package size={48} className="text-gray-300 mb-4" />
-                            <p className="text-lg font-medium text-gray-600">No batches found</p>
-                            <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filter, or add your first batch.</p>
+                            <Package size={48} className="text-gray-300 dark:text-slate-600 mb-4" />
+                            <p className="text-lg font-medium text-gray-600 dark:text-slate-300">No batches found</p>
+                            <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">Try adjusting your search or filter, or add your first batch.</p>
                           </div>
                         </td>
                       </tr>
@@ -362,25 +362,25 @@ const Batches = () => {
 
               {/* Pagination */}
               {processedBatches.length > 0 && (
-                <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                  <p className="text-sm text-gray-500">
+                <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-300">
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
                     Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, processedBatches.length)}</span> of <span className="font-medium">{processedBatches.length}</span> results
                   </p>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                       disabled={currentPage === 1}
-                      className="p-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-1.5 rounded-md border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft size={16} />
                     </button>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-slate-300">
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
                       onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="p-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-1.5 rounded-md border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronRight size={16} />
                     </button>

@@ -13,9 +13,11 @@ import {
   Monitor,
   Package,
   X,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
 
 /* =====================================================
@@ -103,14 +105,14 @@ const CATEGORIES = [
     id: "appearance",
     label: "Appearance",
     icon: Palette,
-    header: "Appearance",
-    description: "Customize how MediTrack looks",
+    header: "Appearance & Theme",
+    description: "Customize how MediTrack looks on your screen",
     items: [
       {
         id: "theme-light",
         icon: Sun,
         label: "Light Mode",
-        desc: "Bright theme",
+        desc: "Bright, clean appearance for daytime usage",
         type: "theme",
         themeValue: "light",
       },
@@ -118,15 +120,17 @@ const CATEGORIES = [
         id: "theme-dark",
         icon: Moon,
         label: "Dark Mode",
-        desc: "Coming soon",
-        type: "coming-soon",
+        desc: "Deep slate theme designed to reduce eye strain in low light",
+        type: "theme",
+        themeValue: "dark",
       },
       {
         id: "theme-system",
         icon: Monitor,
         label: "System Default",
-        desc: "Coming soon",
-        type: "coming-soon",
+        desc: "Automatically adapts to your device operating system theme",
+        type: "theme",
+        themeValue: "system",
       },
     ],
   },
@@ -168,7 +172,7 @@ function ToggleSwitch({ checked, onChange }) {
         onChange(!checked);
       }}
       className={`relative w-11 h-6 rounded-full transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7]/40 ${
-        checked ? "bg-[#0284c7]" : "bg-slate-300"
+        checked ? "bg-[#0284c7]" : "bg-slate-300 dark:bg-slate-700"
       }`}
     >
       <span
@@ -187,6 +191,7 @@ function ToggleSwitch({ checked, onChange }) {
 export default function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { theme, actualTheme, setTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialCategory = searchParams.get("category") || "account";
@@ -238,14 +243,14 @@ export default function Settings() {
   ===================================================== */
 
   const handleToggle = useCallback((item) => {
-    setToggles((prev) => {
-      const next = { ...prev, [item.storageKey]: !prev[item.storageKey] };
-      localStorage.setItem(item.storageKey, String(next[item.storageKey]));
-      toast.success(
-        `${item.label} ${next[item.storageKey] ? "enabled" : "disabled"}`
-      );
-      return next;
-    });
+    const current = localStorage.getItem(item.storageKey) === "true";
+    const nextVal = !current;
+    localStorage.setItem(item.storageKey, String(nextVal));
+    setToggles((prev) => ({ ...prev, [item.storageKey]: nextVal }));
+    toast.success(
+      `${item.label} ${nextVal ? "enabled" : "disabled"}`,
+      { id: `setting-${item.storageKey}` }
+    );
   }, []);
 
   const handleItemClick = useCallback(
@@ -259,7 +264,8 @@ export default function Settings() {
         return;
       }
       if (item.type === "theme") {
-        toast.success(`${item.label} is already active`);
+        setTheme(item.themeValue);
+        toast.success(`Theme set to ${item.label}`);
         return;
       }
       if (item.type === "link" && item.action?.startsWith("/")) {
@@ -271,7 +277,7 @@ export default function Settings() {
       }
       toast.info(`${item.label} — coming soon`);
     },
-    [navigate, handleToggle]
+    [navigate, handleToggle, setTheme]
   );
 
   const clearSearch = useCallback(() => setSearchQuery(""), []);
@@ -281,16 +287,16 @@ export default function Settings() {
   ===================================================== */
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] text-slate-900">
+    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar onScanClick={() => {}} />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           {/* LEFT SIDEBAR */}
-          <aside className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-fit shadow-sm">
+          <aside className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden h-fit shadow-sm">
             {/* User header */}
-            <div className="px-5 py-4 border-b border-slate-100">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div
                   className="w-11 h-11 rounded-full bg-[#0284c7] flex items-center justify-center text-white font-semibold text-base shrink-0"
@@ -299,10 +305,10 @@ export default function Settings() {
                   {(user?.name || "P").charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
                     {user?.name || "Pharmacist"}
                   </p>
-                  <p className="text-xs text-slate-500 truncate">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {user?.email || "user@example.com"}
                   </p>
                 </div>
@@ -310,11 +316,11 @@ export default function Settings() {
             </div>
 
             {/* Search */}
-            <div className="px-3 py-3 border-b border-slate-100">
+            <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800">
               <div className="relative">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
                   aria-hidden="true"
                 />
                 <input
@@ -323,15 +329,15 @@ export default function Settings() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search settings..."
                   aria-label="Search settings"
-                  className="w-full h-9 pl-9 pr-8 rounded-lg bg-slate-100 text-sm outline-none focus:ring-2 focus:ring-[#0284c7]/30 placeholder:text-slate-400 transition"
+                  className="w-full h-9 pl-9 pr-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-[#0284c7]/30 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
                 />
                 {searchQuery && (
                   <button
                     onClick={clearSearch}
                     aria-label="Clear search"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full hover:bg-slate-200 flex items-center justify-center transition"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition"
                   >
-                    <X size={12} className="text-slate-500" />
+                    <X size={12} className="text-slate-500 dark:text-slate-400" />
                   </button>
                 )}
               </div>
@@ -340,7 +346,7 @@ export default function Settings() {
             {/* Categories */}
             <nav className="p-2" aria-label="Settings categories">
               {filteredCategories.length === 0 ? (
-                <p className="px-3 py-6 text-center text-xs text-slate-400">
+                <p className="px-3 py-6 text-center text-xs text-slate-400 dark:text-slate-500">
                   No settings match "{searchQuery}"
                 </p>
               ) : (
@@ -356,19 +362,19 @@ export default function Settings() {
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7]/40 ${
                         isActive
                           ? "bg-[#0284c7] text-white shadow-sm"
-                          : "hover:bg-slate-100"
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
                       }`}
                     >
                       <Icon
                         size={16}
                         className={`shrink-0 ${
-                          isActive ? "text-white" : "text-slate-500"
+                          isActive ? "text-white" : "text-slate-500 dark:text-slate-400"
                         }`}
                         aria-hidden="true"
                       />
                       <span
                         className={`text-sm font-medium truncate ${
-                          isActive ? "text-white" : "text-slate-700"
+                          isActive ? "text-white" : "text-slate-700 dark:text-slate-200"
                         }`}
                       >
                         <HighlightText text={cat.label} query={trimmedQuery} />
@@ -384,28 +390,170 @@ export default function Settings() {
 
           {/* RIGHT PANEL */}
           <main
-            className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-fit shadow-sm"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden h-fit shadow-sm"
             aria-live="polite"
           >
             {currentCategory ? (
               <>
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-slate-100">
-                  <h2 className="text-lg font-bold text-slate-800">
+                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                     {currentCategory.header}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-0.5">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                     {currentCategory.description}
                   </p>
                 </div>
 
+                {/* THEME VISUAL SELECTOR (Only in Appearance tab) */}
+                {currentCategory.id === "appearance" && (
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+                      Theme Mode Selection
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        {
+                          id: "light",
+                          label: "Light Mode",
+                          desc: "Bright & crisp",
+                          icon: Sun,
+                          previewBg: "bg-white border-slate-200",
+                          previewHeader: "bg-[#0284c7]",
+                        },
+                        {
+                          id: "dark",
+                          label: "Dark Mode",
+                          desc: "Reduced eye strain",
+                          icon: Moon,
+                          previewBg: "bg-slate-900 border-slate-700",
+                          previewHeader: "bg-slate-800",
+                        },
+                        {
+                          id: "system",
+                          label: "System Default",
+                          desc: "Syncs with device",
+                          icon: Monitor,
+                          previewBg: "bg-gradient-to-r from-white to-slate-900 border-slate-300 dark:border-slate-700",
+                          previewHeader: "bg-gradient-to-r from-[#0284c7] to-slate-800",
+                        },
+                      ].map((t) => {
+                        const isSelected = theme === t.id;
+                        const Icon = t.icon;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              setTheme(t.id);
+                              toast.success(`Theme changed to ${t.label}`);
+                            }}
+                            className={`flex flex-col text-left p-4 rounded-xl border-2 transition-all relative ${
+                              isSelected
+                                ? "border-[#0284c7] bg-white dark:bg-slate-900 ring-2 ring-[#0284c7]/20 shadow-sm"
+                                : "border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700"
+                            }`}
+                          >
+                            {isSelected && (
+                              <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-sm">
+                                <Check size={12} strokeWidth={3} />
+                              </span>
+                            )}
+                            {/* Visual Mini Mockup */}
+                            <div
+                              className={`w-full h-14 rounded-lg border ${t.previewBg} overflow-hidden mb-3 p-1.5 flex flex-col gap-1 shadow-inner`}
+                            >
+                              <div className={`w-full h-2 rounded ${t.previewHeader}`} />
+                              <div className="flex gap-1 flex-1">
+                                <div className="w-1/3 h-full rounded bg-slate-200 dark:bg-slate-700/60" />
+                                <div className="flex-1 h-full rounded bg-slate-100 dark:bg-slate-800 flex flex-col gap-1 p-1">
+                                  <div className="w-3/4 h-1.5 rounded bg-slate-300 dark:bg-slate-700" />
+                                  <div className="w-1/2 h-1.5 rounded bg-slate-200 dark:bg-slate-700/50" />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mb-1">
+                              <Icon
+                                size={15}
+                                className={isSelected ? "text-[#0284c7]" : "text-slate-500 dark:text-slate-400"}
+                              />
+                              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                                {t.label}
+                              </span>
+                            </div>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {t.desc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      <span>
+                        Active appearance: <strong className="text-slate-700 dark:text-slate-200 capitalize">{actualTheme}</strong> mode
+                        {theme === "system" && " (detected from system)"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Items */}
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {currentCategory.items.map((item) => {
                     const ItemIcon = item.icon;
                     const isToggleOn =
                       item.type === "toggle" && toggles[item.storageKey];
                     const isComingSoon = item.type === "coming-soon";
+                    const isThemeItem = item.type === "theme";
+                    const isCurrentTheme = isThemeItem && theme === item.themeValue;
+
+                    if (item.type === "toggle") {
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => handleToggle(item)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleToggle(item);
+                            }
+                          }}
+                          className="w-full flex items-center gap-4 px-6 py-4 transition text-left group hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer select-none"
+                        >
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 group-hover:bg-[#0284c7]/10 dark:group-hover:bg-[#0284c7]/20 transition">
+                            <ItemIcon
+                              size={16}
+                              className="text-slate-600 dark:text-slate-300 group-hover:text-[#0284c7] dark:group-hover:text-sky-400 transition"
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              <HighlightText
+                                text={item.label}
+                                query={trimmedQuery}
+                              />
+                            </p>
+                            {item.desc && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                <HighlightText
+                                  text={item.desc}
+                                  query={trimmedQuery}
+                                />
+                              </p>
+                            )}
+                          </div>
+                          <ToggleSwitch
+                            checked={isToggleOn}
+                            onChange={() => handleToggle(item)}
+                          />
+                        </div>
+                      );
+                    }
 
                     return (
                       <button
@@ -415,25 +563,31 @@ export default function Settings() {
                         className={`w-full flex items-center gap-4 px-6 py-4 transition text-left group focus-visible:outline-none ${
                           isComingSoon
                             ? "opacity-50 cursor-not-allowed"
-                            : "hover:bg-slate-50 focus-visible:bg-slate-50"
+                            : isCurrentTheme
+                            ? "bg-[#0284c7]/[0.05] dark:bg-sky-950/20 hover:bg-[#0284c7]/10 dark:hover:bg-sky-950/30"
+                            : "hover:bg-slate-50 dark:hover:bg-slate-800/40 focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800/40"
                         }`}
                       >
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-[#0284c7]/10 transition">
+                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 group-hover:bg-[#0284c7]/10 dark:group-hover:bg-[#0284c7]/20 transition">
                           <ItemIcon
                             size={16}
-                            className="text-slate-600 group-hover:text-[#0284c7] transition"
+                            className={`transition ${
+                              isCurrentTheme
+                                ? "text-[#0284c7] dark:text-sky-400"
+                                : "text-slate-600 dark:text-slate-300 group-hover:text-[#0284c7] dark:group-hover:text-sky-400"
+                            }`}
                             aria-hidden="true"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                             <HighlightText
                               text={item.label}
                               query={trimmedQuery}
                             />
                           </p>
                           {item.desc && (
-                            <p className="text-xs text-slate-500 mt-0.5 truncate">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                               <HighlightText
                                 text={item.desc}
                                 query={trimmedQuery}
@@ -442,20 +596,24 @@ export default function Settings() {
                           )}
                         </div>
 
-                        {/* Right side control */}
-                        {item.type === "toggle" ? (
-                          <ToggleSwitch
-                            checked={isToggleOn}
-                            onChange={() => handleToggle(item)}
-                          />
-                        ) : isComingSoon ? (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-slate-100 text-slate-500 shrink-0">
+                        {isComingSoon ? (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
                             Soon
                           </span>
+                        ) : isThemeItem ? (
+                          isCurrentTheme ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#0284c7]/10 dark:bg-sky-500/20 text-[#0284c7] dark:text-sky-300 shrink-0">
+                              <Check size={12} strokeWidth={2.5} /> Active
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 shrink-0 group-hover:text-[#0284c7] dark:group-hover:text-sky-400 transition">
+                              Select
+                            </span>
+                          )
                         ) : (
                           <ChevronRight
                             size={16}
-                            className="text-slate-300 group-hover:text-[#0284c7] transition shrink-0"
+                            className="text-slate-300 dark:text-slate-600 group-hover:text-[#0284c7] dark:group-hover:text-sky-400 transition shrink-0"
                             aria-hidden="true"
                           />
                         )}
@@ -468,7 +626,7 @@ export default function Settings() {
               </>
             ) : (
               <div className="px-6 py-16 text-center">
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   No matching settings found.
                 </p>
               </div>

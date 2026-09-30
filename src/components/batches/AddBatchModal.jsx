@@ -327,9 +327,9 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all">
-        <h2 className="text-xl font-bold mb-4 text-gray-800">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 transform transition-all text-slate-800 dark:text-slate-100">
+        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-slate-100">
           {editBatch ? 'Edit Batch' : 'Add New Batch'}
         </h2>
 
@@ -345,7 +345,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
              MEDICINE NAME — Strict Mode
           ===================================================== */}
           <div className="relative" ref={suggestionsRef}>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
               Medicine Name *
             </label>
             <div className="relative mt-1">
@@ -356,7 +356,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
                     ? "text-rose-500"
                     : selectedMaster
                     ? "text-emerald-500"
-                    : "text-gray-400"
+                    : "text-gray-400 dark:text-slate-500"
                 }`}
               />
               <input
@@ -378,12 +378,12 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
                   }, 100);
                 }}
                 onKeyDown={handleKeyDown}
-                className={`w-full pl-9 pr-10 p-2 border rounded-md focus:ring-2 outline-none ${
+                className={`w-full pl-9 pr-10 p-2 border rounded-md focus:ring-2 outline-none bg-white dark:bg-slate-800 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                   nameError
-                    ? "border-rose-300 focus:ring-rose-500"
+                    ? "border-rose-300 dark:border-rose-800 focus:ring-rose-500"
                     : selectedMaster
-                    ? "border-emerald-300 focus:ring-emerald-500"
-                    : "border-gray-200 focus:ring-blue-500"
+                    ? "border-emerald-300 dark:border-emerald-800 focus:ring-emerald-500"
+                    : "border-gray-200 dark:border-slate-700 focus:ring-blue-500"
                 }`}
                 placeholder="Type to search CDCI medicines..."
                 autoComplete="off"
@@ -400,7 +400,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
               {loadingMaster && (
                 <Loader2
                   size={16}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 animate-spin"
                 />
               )}
               {!loadingMaster && selectedMaster && (
@@ -419,7 +419,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
 
             {/* Error message */}
             {nameError && (
-              <div className="mt-1.5 flex items-start gap-1.5 text-rose-600">
+              <div className="mt-1.5 flex items-start gap-1.5 text-rose-600 dark:text-rose-400">
                 <AlertCircle size={12} className="mt-0.5 shrink-0" />
                 <p className="text-[11px] font-medium">{nameError}</p>
               </div>
@@ -427,7 +427,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
 
             {/* Success message */}
             {selectedMaster && !nameError && (
-              <div className="mt-1.5 flex items-center gap-1.5 text-emerald-600">
+              <div className="mt-1.5 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 size={12} />
                 <p className="text-[11px] font-medium">
                   ✓ Selected: <strong>{selectedMaster.brandName}</strong>{" "}
@@ -438,11 +438,11 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
 
             {/* SUGGESTIONS DROPDOWN */}
             {showSuggestions && formData.medicineName.length >= 2 && !selectedMaster && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-20 max-h-72 overflow-y-auto">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg shadow-xl z-20 max-h-72 overflow-y-auto">
                 {loadingMaster ? (
                   <div className="flex items-center justify-center py-6">
-                    <Loader2 size={18} className="text-blue-600 animate-spin" />
-                    <span className="ml-2 text-xs text-gray-500">
+                    <Loader2 size={18} className="text-blue-600 dark:text-sky-400 animate-spin" />
+                    <span className="ml-2 text-xs text-gray-500 dark:text-slate-400">
                       Loading master data...
                     </span>
                   </div>
@@ -452,10 +452,10 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
                       size={20}
                       className="text-rose-400 mx-auto mb-2"
                     />
-                    <p className="text-sm font-semibold text-gray-700">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                       Medicine not found in CDCI
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       Only CDCI-registered medicines can be added
                     </p>
                   </div>
@@ -466,20 +466,20 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
                       type="button"
                       onClick={() => handleSelectSuggestion(med)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition border-b border-gray-100 last:border-b-0 ${
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition border-b border-gray-100 dark:border-slate-800 last:border-b-0 ${
                         highlightedIndex === idx
-                          ? "bg-blue-50"
-                          : "hover:bg-gray-50"
+                          ? "bg-blue-50 dark:bg-sky-950/40"
+                          : "hover:bg-gray-50 dark:hover:bg-slate-800/60"
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
-                        <Pill size={14} className="text-blue-600" />
+                      <div className="w-8 h-8 rounded-md bg-blue-50 dark:bg-sky-950/60 flex items-center justify-center shrink-0">
+                        <Pill size={14} className="text-blue-600 dark:text-sky-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-800 truncate">
+                        <p className="text-sm font-bold text-gray-800 dark:text-slate-100 truncate">
                           {med.genericName || med.brandName}
                         </p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                           {med.brandName}
                           {med.dosage ? ` · ${med.dosage}` : ""}
                         </p>
@@ -497,13 +497,13 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
           ===================================================== */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Batch No *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Batch No *</label>
               <input
                 type="text"
                 name="batchNumber"
                 value={formData.batchNumber}
                 onChange={handleChange}
-                className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                className="mt-1 w-full p-2 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-800 dark:text-white rounded-md focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="PCM2024A"
                 disabled={submitting}
                 autoComplete="off"
@@ -513,13 +513,13 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Quantity *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Quantity *</label>
               <input
                 type="number"
                 name="quantity"
                 value={formData.quantity}
                 onChange={handleChange}
-                className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                className="mt-1 w-full p-2 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-800 dark:text-white rounded-md focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="100"
                 disabled={submitting}
                 autoComplete="off"
@@ -532,26 +532,26 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
 
           {/* Expiry */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Expiry Date *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Expiry Date *</label>
             <input
               type="date"
               name="expiryDate"
               value={formData.expiryDate}
               onChange={handleChange}
-              className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+              className="mt-1 w-full p-2 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-800 dark:text-white rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
               disabled={submitting}
             />
           </div>
 
           {/* Supplier */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Supplier</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Supplier</label>
             <input
               type="text"
               name="supplier"
               value={formData.supplier}
               onChange={handleChange}
-              className="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+              className="mt-1 w-full p-2 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-800 dark:text-white rounded-md focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500"
               placeholder="Supplier Name"
               disabled={submitting}
               autoComplete="off"
@@ -567,7 +567,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-md hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -576,7 +576,7 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
               disabled={submitting || (!selectedMaster && !editBatch)}
               className={`px-4 py-2 text-white rounded-md transition-colors shadow-md flex items-center gap-2 ${
                 submitting || (!selectedMaster && !editBatch)
-                  ? "bg-gray-300 cursor-not-allowed"
+                  ? "bg-gray-300 dark:bg-slate-700 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
@@ -592,9 +592,9 @@ const AddBatchModal = ({ isOpen, onClose, onAdd, editBatch }) => {
           </div>
 
           {/* Info banner for strict mode */}
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100">
-            <AlertCircle size={14} className="text-blue-600 shrink-0" />
-            <p className="text-[11px] text-blue-700">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-sky-950/30 border border-blue-100 dark:border-sky-900/50">
+            <AlertCircle size={14} className="text-blue-600 dark:text-sky-400 shrink-0" />
+            <p className="text-[11px] text-blue-700 dark:text-sky-300">
               Only CDCI-registered medicines can be added. Select from the suggestions list.
             </p>
           </div>

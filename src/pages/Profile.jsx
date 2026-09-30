@@ -159,7 +159,7 @@ export default function Profile() {
 
   const handlePreferenceToggle = (key) => {
     setPreferences((p) => ({ ...p, [key]: !p[key] }));
-    toast.success("Preferences saved");
+    toast.success("Preferences saved", { id: "profile-preferences" });
   };
 
   const handleThemeChange = (newTheme) => {
