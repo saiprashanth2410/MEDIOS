@@ -153,9 +153,7 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
           {/* Info note */}
           <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-3 flex items-start gap-2.5 text-xs text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
             <AlertCircle size={15} className="text-[#0284c7] shrink-0 mt-0.5" />
-            <p>
-              Changes are immediately synced and stored in the backend MongoDB database.
-            </p>
+            
           </div>
 
           {/* Action buttons */}
