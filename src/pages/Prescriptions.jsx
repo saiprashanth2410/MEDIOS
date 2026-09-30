@@ -172,40 +172,40 @@ export default function Prescriptions() {
         <div className="grid sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-sky-50 flex items-center justify-center">
-                <ClipboardList size={18} className="text-[#0284c7]" />
+              <div className="w-10 h-10 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center">
+                <ClipboardList size={18} className="text-[#0284c7] dark:text-sky-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 Total
               </span>
             </div>
-            <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total.toLocaleString()}</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-emerald-50 flex items-center justify-center">
-                <FileText size={18} className="text-emerald-600" />
+              <div className="w-10 h-10 rounded-md bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center">
+                <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 Dispensed
               </span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {stats.dispensed.toLocaleString()}
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-50 flex items-center justify-center">
-                <Clock size={18} className="text-amber-600" />
+              <div className="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center">
+                <Clock size={18} className="text-amber-600 dark:text-amber-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 Pending
               </span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
               {stats.pending.toLocaleString()}
             </p>
           </div>
@@ -223,7 +223,7 @@ export default function Prescriptions() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by ID, patient, or doctor..."
-              className="w-full h-11 pl-10 pr-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 text-sm outline-none transition focus:border-[#0284c7] focus:bg-white dark:bg-slate-900 focus:ring-4 focus:ring-[#0284c7]/10"
+              className="w-full h-11 pl-10 pr-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition focus:border-[#0284c7] focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-[#0284c7]/10"
             />
           </div>
         </div>
@@ -326,8 +326,8 @@ export default function Prescriptions() {
                                   key={i}
                                   className={`text-[11px] px-2 py-1 rounded-md font-medium ${
                                     isOutOfStock
-                                      ? "bg-rose-50 text-rose-800 border border-rose-200"
-                                      : "bg-sky-50 text-sky-800"
+                                      ? "bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50"
+                                      : "bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-100 dark:border-sky-900/40"
                                   }`}
                                 >
                                   {med.name}

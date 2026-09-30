@@ -209,46 +209,46 @@ export default function Suppliers() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-sky-50 flex items-center justify-center">
-                <Factory size={18} className="text-[#0284c7]" />
+              <div className="w-10 h-10 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center">
+                <Factory size={18} className="text-[#0284c7] dark:text-sky-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">Total</span>
             </div>
-            <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total.toLocaleString()}</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-emerald-50 flex items-center justify-center">
-                <CheckCircle2 size={18} className="text-emerald-600" />
+              <div className="w-10 h-10 rounded-md bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center">
+                <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">Active</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {stats.active.toLocaleString()}
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-50 flex items-center justify-center">
-                <Clock size={18} className="text-amber-600" />
+              <div className="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center">
+                <Clock size={18} className="text-amber-600 dark:text-amber-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">Pending</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
               {stats.pending.toLocaleString()}
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-violet-50 flex items-center justify-center">
-                <Package size={18} className="text-violet-600" />
+              <div className="w-10 h-10 rounded-md bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center">
+                <Package size={18} className="text-violet-600 dark:text-violet-400" />
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">Products</span>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
               {stats.totalProducts.toLocaleString()}
             </p>
           </div>
@@ -267,7 +267,7 @@ export default function Suppliers() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search suppliers..."
-                className="w-full h-11 pl-10 pr-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 text-sm outline-none focus:border-[#0284c7] focus:bg-white focus:ring-4 focus:ring-[#0284c7]/10"
+                className="w-full h-11 pl-10 pr-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-[#0284c7] focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-[#0284c7]/10 transition-colors"
               />
             </div>
             <div className="flex items-center gap-2 overflow-x-auto">
@@ -277,8 +277,8 @@ export default function Suppliers() {
                   onClick={() => setStatusFilter(status)}
                   className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition capitalize ${
                     statusFilter === status
-                      ? "bg-[#0284c7] text-white"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      ? "bg-[#0284c7] text-white shadow-sm"
+                      : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                 >
                   {status}
@@ -364,7 +364,7 @@ export default function Suppliers() {
                           <p className="text-[10px] text-slate-400 mb-0.5">
                             Products
                           </p>
-                          <p className="text-sm font-bold">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
                             {supplier.productsCount || 0}
                           </p>
                         </div>
@@ -372,7 +372,7 @@ export default function Suppliers() {
                           <p className="text-[10px] text-slate-400 mb-0.5">
                             Orders
                           </p>
-                          <p className="text-sm font-bold">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
                             {supplier.totalOrders || 0}
                           </p>
                         </div>

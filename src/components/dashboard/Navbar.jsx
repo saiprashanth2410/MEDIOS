@@ -17,11 +17,8 @@ import {
   ClipboardList,
   ChevronDown,
   ShieldCheck,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
 import { useScan } from "../../context/ScanContext";
 import { medicinesAPI } from "../../services/api";
 import BarcodeScanner from "../scanner/BarcodeScanner";
@@ -56,7 +53,6 @@ const NAV_GROUPS = [
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { actualTheme, setTheme } = useTheme();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -199,24 +195,6 @@ export default function Navbar() {
               <span className="hidden sm:inline">Scan</span>
             </button>
 
-            {/* Quick Theme Toggle */}
-            <button
-              onClick={() => {
-                const nextTheme = actualTheme === "dark" ? "light" : "dark";
-                setTheme(nextTheme);
-                toast.success(`Switched to ${nextTheme} mode`, { duration: 1500 });
-              }}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-md flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-              title={actualTheme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              aria-label="Toggle theme"
-            >
-              {actualTheme === "dark" ? (
-                <Sun size={17} className="text-amber-300" />
-              ) : (
-                <Moon size={17} className="text-white" />
-              )}
-            </button>
-
             {/* Notifications */}
             <NotificationBell />
 
@@ -283,29 +261,6 @@ export default function Navbar() {
                         <Settings size={14} className="text-slate-600 dark:text-slate-300" />
                       </div>
                       Settings
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const next = actualTheme === "dark" ? "light" : "dark";
-                        setTheme(next);
-                        toast.success(`Switched to ${next} mode`, { duration: 1500 });
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-[#0284c7] dark:hover:text-sky-300 transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                          {actualTheme === "dark" ? (
-                            <Sun size={14} className="text-amber-400" />
-                          ) : (
-                            <Moon size={14} className="text-slate-600 dark:text-slate-300" />
-                          )}
-                        </div>
-                        <span>Theme</span>
-                      </div>
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {actualTheme}
-                      </span>
                     </button>
                   </div>
 
@@ -404,27 +359,6 @@ export default function Navbar() {
                 >
                   <Settings size={16} />
                   Settings
-                </button>
-
-                <button
-                  onClick={() => {
-                    const next = actualTheme === "dark" ? "light" : "dark";
-                    setTheme(next);
-                    toast.success(`Switched to ${next} mode`, { duration: 1500 });
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition mb-1"
-                >
-                  <div className="flex items-center gap-3">
-                    {actualTheme === "dark" ? (
-                      <Sun size={16} className="text-amber-400" />
-                    ) : (
-                      <Moon size={16} className="text-slate-600 dark:text-slate-300" />
-                    )}
-                    <span>Theme</span>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    {actualTheme}
-                  </span>
                 </button>
 
                 <button

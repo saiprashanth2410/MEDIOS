@@ -534,42 +534,42 @@ export default function Medicines() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-sky-50 flex items-center justify-center">
-                <Pill size={18} className="text-[#0284c7]" />
+              <div className="w-10 h-10 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center">
+                <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
               </div>
-              <span className="text-xs text-slate-500">Total</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Total</span>
             </div>
-            <p className="text-2xl font-bold">{stats.total}</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-rose-50 flex items-center justify-center">
-                <AlertTriangle size={18} className="text-rose-600" />
+              <div className="w-10 h-10 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center">
+                <AlertTriangle size={18} className="text-rose-600 dark:text-rose-400" />
               </div>
-              <span className="text-xs text-slate-500">Low Stock</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Low Stock</span>
             </div>
-            <p className="text-2xl font-bold text-rose-600">{stats.lowStock}</p>
+            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{stats.lowStock}</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-50 flex items-center justify-center">
-                <CalendarClock size={18} className="text-amber-600" />
+              <div className="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center">
+                <CalendarClock size={18} className="text-amber-600 dark:text-amber-400" />
               </div>
-              <span className="text-xs text-slate-500">Expiring</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Expiring</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{stats.expiring}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.expiring}</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-violet-50 flex items-center justify-center">
-                <Package size={18} className="text-violet-600" />
+              <div className="w-10 h-10 rounded-md bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center">
+                <Package size={18} className="text-violet-600 dark:text-violet-400" />
               </div>
-              <span className="text-xs text-slate-500">Categories</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Categories</span>
             </div>
-            <p className="text-2xl font-bold">{stats.categories}</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.categories}</p>
           </div>
         </div>
 
@@ -586,12 +586,12 @@ export default function Medicines() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name, generic, manufacturer..."
-                className="w-full h-11 pl-10 pr-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 text-sm outline-none focus:border-[#0284c7] focus:bg-white focus:ring-4 focus:ring-[#0284c7]/10"
+                className="w-full h-11 pl-10 pr-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-[#0284c7] focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-[#0284c7]/10 transition-colors"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 >
                   <X size={16} />
                 </button>
@@ -606,8 +606,8 @@ export default function Medicines() {
                   onClick={() => setActiveCategory(cat)}
                   className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition flex items-center gap-1.5 ${
                     activeCategory === cat
-                      ? "bg-[#0284c7] text-white"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      ? "bg-[#0284c7] text-white shadow-sm"
+                      : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                 >
                   <span>{cat}</span>
@@ -615,7 +615,7 @@ export default function Medicines() {
                     className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                       activeCategory === cat
                         ? "bg-white/20 text-white"
-                        : "bg-slate-200 text-slate-600"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {categoryCounts[cat] || 0}
@@ -624,13 +624,13 @@ export default function Medicines() {
               ))}
             </div>
 
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-50 shrink-0">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-50 dark:bg-slate-800 shrink-0">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded-md transition ${
                   viewMode === "grid"
-                    ? "bg-white shadow-sm text-[#0284c7]"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white dark:bg-slate-700 shadow-sm text-[#0284c7] dark:text-sky-300"
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 }`}
                 aria-label="Grid view"
               >
@@ -640,8 +640,8 @@ export default function Medicines() {
                 onClick={() => setViewMode("list")}
                 className={`p-2 rounded-md transition ${
                   viewMode === "list"
-                    ? "bg-white shadow-sm text-[#0284c7]"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white dark:bg-slate-700 shadow-sm text-[#0284c7] dark:text-sky-300"
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 }`}
                 aria-label="List view"
               >
@@ -691,34 +691,34 @@ export default function Medicines() {
         ) : (
           <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 overflow-hidden shadow-sm">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-100 dark:border-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     Medicine
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide hidden md:table-cell">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide hidden md:table-cell">
                     Category
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     Stock
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide hidden sm:table-cell">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide hidden sm:table-cell">
                     Expiry
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     Price
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.map((med) => (
-                  <tr key={med.id} className="hover:bg-sky-50 transition">
+                  <tr key={med.id} className="hover:bg-sky-50 dark:hover:bg-slate-800/60 transition">
                     <td className="px-4 py-3">
-                      <p className="text-sm font-semibold">{med.name}</p>
-                      <p className="text-xs text-slate-500">{med.generic}</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{med.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{med.generic}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <CategoryBadge category={med.category} />
@@ -736,15 +736,15 @@ export default function Medicines() {
                       <span
                         className={`text-xs ${
                           isExpiringSoon(med.expiry)
-                            ? "text-rose-600 font-semibold"
-                            : "text-slate-600"
+                            ? "text-rose-600 dark:text-rose-400 font-semibold"
+                            : "text-slate-600 dark:text-slate-300"
                         }`}
                       >
                         {med.expiry}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm font-semibold text-[#0284c7]">
+                      <span className="text-sm font-semibold text-[#0284c7] dark:text-sky-400">
                         ₹{Number(med.price || 0).toFixed(2)}
                       </span>
                     </td>
@@ -752,14 +752,14 @@ export default function Medicines() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setEditingMedicine(med)}
-                          className="p-1.5 text-slate-400 hover:text-[#0284c7] hover:bg-sky-100 rounded-md transition"
+                          className="p-1.5 text-slate-400 hover:text-[#0284c7] hover:bg-sky-100 dark:hover:bg-slate-800 rounded-md transition"
                           title="Edit Stock"
                         >
                           <Edit3 size={15} />
                         </button>
                         <button
                           onClick={() => handleDeleteMedicine(med.id, med.name)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition"
                           title="Delete Medicine"
                         >
                           <Trash2 size={15} />
@@ -799,14 +799,14 @@ export default function Medicines() {
 
 function CategoryBadge({ category }) {
   const colors = {
-    Antibiotic: "bg-blue-50 text-blue-700",
-    Analgesic: "bg-orange-50 text-orange-700",
-    Antidiabetic: "bg-purple-50 text-purple-700",
-    Antihistamine: "bg-pink-50 text-pink-700",
-    Antiseptic: "bg-teal-50 text-teal-700",
-    Cardiac: "bg-red-50 text-red-700",
-    Other: "bg-slate-100 text-slate-600",
-    "Detecting...": "bg-violet-50 text-violet-700",
+    Antibiotic: "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900/50",
+    Analgesic: "bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/50 dark:border-orange-900/50",
+    Antidiabetic: "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-900/50",
+    Antihistamine: "bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 border border-pink-200/50 dark:border-pink-900/50",
+    Antiseptic: "bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/50 dark:border-teal-900/50",
+    Cardiac: "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200/50 dark:border-red-900/50",
+    Other: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50",
+    "Detecting...": "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/50 dark:border-violet-900/50",
   };
 
   return (
@@ -832,9 +832,9 @@ function MedicineCard({ med, onEdit, onDelete }) {
   };
 
   const getStockColor = (stock) => {
-    if (stock < 50) return "text-rose-600 bg-rose-50";
-    if (stock < 100) return "text-amber-600 bg-amber-50";
-    return "text-emerald-600 bg-emerald-50";
+    if (stock < 50) return "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60";
+    if (stock < 100) return "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60";
+    return "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60";
   };
 
   const getStockLabel = (stock) => {
@@ -846,8 +846,8 @@ function MedicineCard({ med, onEdit, onDelete }) {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition">
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-11 h-11 rounded-md bg-sky-50 flex items-center justify-center shrink-0">
-          <Pill size={18} className="text-[#0284c7]" />
+        <div className="w-11 h-11 rounded-md bg-sky-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
+          <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
         </div>
         <div className="min-w-0 flex-1">
           <p
@@ -882,18 +882,18 @@ function MedicineCard({ med, onEdit, onDelete }) {
 
       <div className="flex flex-wrap gap-1.5 mb-3">
         <CategoryBadge category={med.category} />
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
           Schedule {med.schedule}
         </span>
         {isExpiringSoon(med.expiry) && (
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 flex items-center gap-1">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/50 dark:border-rose-900/50 flex items-center gap-1">
             <CalendarClock size={10} />
             Expiring
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-3 mb-3 text-xs text-slate-500">
+      <div className="flex items-center gap-3 mb-3 text-xs text-slate-500 dark:text-slate-400">
         <span className="flex items-center gap-1">
           <Package size={11} />
           <span className="font-mono">{med.batch}</span>
@@ -904,18 +904,18 @@ function MedicineCard({ med, onEdit, onDelete }) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5 mb-3 text-xs text-slate-500">
+      <div className="flex items-center gap-1.5 mb-3 text-xs text-slate-500 dark:text-slate-400">
         <Building2 size={11} />
         <span className="truncate">{med.manufacturer}</span>
       </div>
 
-      <div className="border-t border-slate-100 my-3" />
+      <div className="border-t border-slate-100 dark:border-slate-800 my-3" />
 
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] text-slate-400 mb-0.5">Stock</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">Stock</p>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold">{med.stock}</span>
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{med.stock}</span>
             <span
               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${getStockColor(
                 med.stock
@@ -926,26 +926,26 @@ function MedicineCard({ med, onEdit, onDelete }) {
             <button
               type="button"
               onClick={onEdit}
-              className="text-[11px] font-semibold text-[#0284c7] hover:text-[#0369a1] hover:underline cursor-pointer ml-1"
+              className="text-[11px] font-semibold text-[#0284c7] dark:text-sky-400 hover:text-[#0369a1] hover:underline cursor-pointer ml-1"
             >
               Edit
             </button>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-slate-400 mb-0.5">Price</p>
-          <p className="text-sm font-bold text-[#0284c7]">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">Price</p>
+          <p className="text-sm font-bold text-[#0284c7] dark:text-sky-400">
             ₹{Number(med.price || 0).toFixed(2)}
           </p>
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-        <span className="text-slate-500">Expires</span>
+      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+        <span className="text-slate-500 dark:text-slate-400">Expires</span>
         <span
           className={`font-semibold ${
             isExpiringSoon(med.expiry)
-              ? "text-rose-600"
+              ? "text-rose-600 dark:text-rose-400"
               : "text-slate-700 dark:text-slate-300"
           }`}
         >
