@@ -3,16 +3,11 @@
   "services": {
     "app": {
       "root": ".",
-      "framework": "vite",
-      "buildCommand": "npm run build",
-      "outputDirectory": "dist",
-      "installCommand": "npm install"
+      "framework": "vite"
     },
     "server": {
       "root": "server",
-      "runtime": "nodejs22.x",
-      "entrypoint": "index.js",
-      "installCommand": "npm install"
+      "framework": "express"
     }
   },
   "rewrites": [
