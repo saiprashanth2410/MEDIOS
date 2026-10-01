@@ -285,4 +285,29 @@ export const notificationsAPI = {
   },
 };
 
+/* =====================================================
+   SETTINGS & PROFILE API
+===================================================== */
+export const settingsAPI = {
+  get: async () => {
+    const res = await api.get("/settings");
+    return res.data;
+  },
+
+  update: async (data) => {
+    const res = await api.put("/settings", data);
+    return res.data;
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const res = await api.post("/profile/change-password", {
+      currentPassword,
+      newPassword,
+    });
+    return res.data;
+  },
+};
+
+export const profileAPI = settingsAPI;
+
 export default api;

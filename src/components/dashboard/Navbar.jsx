@@ -215,8 +215,16 @@ export default function Navbar() {
                   </p>
                 </div>
 
-                <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
-                  {userName[0]?.toUpperCase()}
+                <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0 overflow-hidden ring-2 ring-white/30">
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    userName[0]?.toUpperCase()
+                  )}
                 </div>
 
                 <ChevronDown
@@ -233,8 +241,16 @@ export default function Navbar() {
                   {/* User info header */}
                   <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-sky-50 to-white dark:from-slate-800 dark:to-slate-900">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0">
-                        {userName[0]?.toUpperCase()}
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0 overflow-hidden ring-2 ring-[#0284c7]/20">
+                        {user?.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt={userName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          userName[0]?.toUpperCase()
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">

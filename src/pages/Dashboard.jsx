@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -37,7 +37,7 @@ import Navbar from "../components/dashboard/Navbar";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import usePerformanceData from "../hooks/usePerformanceData";
 import { useExpiryData } from "../utils/expiryStore";
-import { medicinesAPI, prescriptionsAPI } from "../services/api";
+import { medicinesAPI, prescriptionsAPI, suppliersAPI, notificationsAPI } from "../services/api";
 
 /* =====================================================
    DATA
@@ -118,6 +118,99 @@ export default function Dashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
   const [showAddPrescription, setShowAddPrescription] = useState(false);
+
+  const [reorderAlerts, setReorderAlerts] = useState(REORDER_ALERTS);
+  const [topSuppliers, setTopSuppliers] = useState(TOP_SUPPLIERS);
+  const [recentActivity, setRecentActivity] = useState(ACTIVITY);
+
+  // Live MongoDB data sync for alerts, suppliers, and recent activity
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Fetch real low stock medicines
+    medicinesAPI
+      .list({ limit: 100 })
+      .then((res) => {
+        if (!isMounted || !res?.medicines) return;
+        const lowStockMeds = res.medicines
+          .filter((m) => (m.stock ?? 100) <= (m.reorderLevel || 50))
+          .slice(0, 4)
+          .map((m) => {
+            const current = m.stock ?? 0;
+            const min = m.reorderLevel || 50;
+            const suggested = Math.max(100, min * 4 - current);
+            const unitPrice = m.price || m.sellingPrice || 45;
+            return {
+              name: m.name || m.fullName,
+              current,
+              min,
+              suggested,
+              supplier: m.supplierName || "Direct Supplier",
+              unitPrice,
+              estimatedCost: suggested * unitPrice,
+            };
+          });
+        if (lowStockMeds.length > 0) {
+          setReorderAlerts(lowStockMeds);
+        }
+      })
+      .catch((err) => console.debug("Dashboard low stock sync:", err));
+
+    // 2. Fetch real top suppliers
+    suppliersAPI
+      .list({ limit: 4 })
+      .then((res) => {
+        if (!isMounted || !res?.suppliers || res.suppliers.length === 0) return;
+        const mapped = res.suppliers.map((s) => ({
+          name: s.name,
+          onTime: s.metrics?.onTimeDelivery || 95,
+          quality: s.metrics?.qualityScore || 98,
+          leadTime: s.leadTime || "3 days",
+          risk: s.status === "active" ? "low" : "medium",
+          rating: s.rating || 4.8,
+          riskReason:
+            s.status === "active" ? "Verified active partner" : "Verification pending",
+        }));
+        setTopSuppliers(mapped);
+      })
+      .catch((err) => console.debug("Dashboard suppliers sync:", err));
+
+    // 3. Fetch real notifications for recent activity
+    notificationsAPI
+      .list({ limit: 5 })
+      .then((res) => {
+        if (!isMounted || !res?.notifications || res.notifications.length === 0)
+          return;
+        const mapped = res.notifications.map((n) => {
+          let icon = Package;
+          if (n.type === "prescription") icon = ClipboardList;
+          if (n.type === "expiry") icon = AlertTriangle;
+          if (n.type === "system") icon = ShieldCheck;
+
+          let tone = "blue";
+          if (n.color === "red" || n.color === "amber") tone = "amber";
+          if (n.color === "emerald") tone = "green";
+
+          const date = new Date(n.createdAt);
+          const timeStr = !isNaN(date)
+            ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "Recently";
+
+          return {
+            icon,
+            text: n.message || n.title,
+            time: timeStr,
+            tone,
+          };
+        });
+        setRecentActivity(mapped);
+      })
+      .catch((err) => console.debug("Dashboard activity sync:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const userName = user?.name || "Pharmacist";
 
@@ -304,7 +397,7 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                {REORDER_ALERTS.map((item, i) => (
+                {reorderAlerts.map((item, i) => (
                   <div
                     key={i}
                     className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition"
@@ -318,7 +411,10 @@ export default function Dashboard() {
                           {item.supplier}
                         </p>
                       </div>
-                      <button className="px-3 py-1.5 rounded-md bg-[#0284c7] dark:bg-sky-600 hover:bg-[#0369a1] dark:hover:bg-sky-700 text-white text-[11px] font-semibold transition shrink-0">
+                      <button 
+                        onClick={() => navigate("/reorder")}
+                        className="px-3 py-1.5 rounded-md bg-[#0284c7] dark:bg-sky-600 hover:bg-[#0369a1] dark:hover:bg-sky-700 text-white text-[11px] font-semibold transition shrink-0 shadow-2xs"
+                      >
                         Order
                       </button>
                     </div>
@@ -359,13 +455,16 @@ export default function Dashboard() {
                 <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
                   Recent activity
                 </h3>
-                <button className="text-[10px] sm:text-xs font-medium text-[#0284c7] dark:text-sky-400 hover:underline flex items-center gap-1">
+                <button 
+                  onClick={() => navigate("/notifications")}
+                  className="text-[10px] sm:text-xs font-medium text-[#0284c7] dark:text-sky-400 hover:underline flex items-center gap-1"
+                >
                   View all <ArrowUpRight size={12} />
                 </button>
               </div>
 
               <div className="space-y-4">
-                {ACTIVITY.map((item, i) => {
+                {recentActivity.map((item, i) => {
                   const Icon = item.icon;
                   const toneBg = {
                     blue: "bg-sky-50 dark:bg-sky-950/40 text-[#0284c7] dark:text-sky-400",
@@ -530,7 +629,7 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                {TOP_SUPPLIERS.map((supplier) => (
+                {topSuppliers.map((supplier) => (
                   <div
                     key={supplier.name}
                     className="p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"

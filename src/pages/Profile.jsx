@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,8 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
 import { detectLocation } from "../services/locationService";
+import { profileAPI } from "../services/api";
+import AvatarModal from "../components/profile/AvatarModal";
 
 const FIELD_BASE =
   "w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 disabled:bg-slate-50 dark:disabled:bg-slate-800/50 disabled:text-slate-500 dark:text-white disabled:cursor-not-allowed";
@@ -44,6 +46,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState(location.state?.tab || "profile");
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   const [form, setForm] = useState({
     name: user?.name || "Pharmacist",
@@ -55,6 +58,7 @@ export default function Profile() {
     pharmacyId: user?.pharmacyId || "PH-MT-220022",
     branch: user?.branch || "Anna Nagar, Chennai",
     joinDate: user?.joinDate || "24 Sep 2024",
+    avatar: user?.avatar || "",
   });
 
   const [security, setSecurity] = useState({
@@ -71,9 +75,71 @@ export default function Profile() {
     language: "en",
   });
 
-  const userName = user?.name || "Pharmacist";
+  // Load live settings from MongoDB on mount
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSettings = async () => {
+      try {
+        const data = await profileAPI.get();
+        if (cancelled || !data) return;
 
-  const handleSave = () => {
+        if (data.personal) {
+          setForm((prev) => ({
+            ...prev,
+            name: data.personal.name || prev.name,
+            email: data.personal.email || prev.email,
+            phone: data.personal.phone || prev.phone,
+            role: data.personal.role || prev.role,
+            license: data.personal.license || prev.license,
+            joinDate: data.personal.joinDate || prev.joinDate,
+            avatar: data.personal.avatar || prev.avatar,
+            pharmacy: data.pharmacy?.name || prev.pharmacy,
+            branch: data.pharmacy?.address || prev.branch,
+            pharmacyId: data.pharmacy?.licenseNumber || prev.pharmacyId,
+          }));
+          if (data.personal.avatar && !user?.avatar) {
+            updateUser({ avatar: data.personal.avatar });
+          }
+        }
+        if (data.preferences) {
+          setPreferences((prev) => ({ ...prev, ...data.preferences }));
+        }
+      } catch (err) {
+        console.debug("Profile load fallback:", err);
+      }
+    };
+
+    fetchSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const userName = user?.name || form.name || "Pharmacist";
+
+  const handleAvatarSave = async (newAvatar) => {
+    setForm((prev) => ({ ...prev, avatar: newAvatar }));
+    updateUser({ avatar: newAvatar });
+    try {
+      await profileAPI.update({
+        personal: {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          role: form.role,
+          license: form.license,
+          joinDate: form.joinDate,
+          avatar: newAvatar,
+        },
+      });
+      toast.success(newAvatar ? "Avatar updated successfully!" : "Avatar reset to initials");
+    } catch (err) {
+      console.debug("Avatar sync fallback:", err);
+      toast.success("Avatar updated!");
+    }
+  };
+
+  const handleSave = async () => {
     if (!form.name.trim()) {
       toast.error("Name is required");
       return;
@@ -93,10 +159,34 @@ export default function Profile() {
       pharmacyId: form.pharmacyId,
       branch: form.branch,
       joinDate: form.joinDate,
+      avatar: form.avatar || user?.avatar || "",
     });
 
+    try {
+      await profileAPI.update({
+        personal: {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          role: form.role,
+          license: form.license,
+          joinDate: form.joinDate,
+          avatar: form.avatar || user?.avatar || "",
+        },
+        pharmacy: {
+          name: form.pharmacy,
+          licenseNumber: form.pharmacyId,
+          address: form.branch,
+        },
+        preferences,
+      });
+      toast.success("Profile saved and synced to database!");
+    } catch (err) {
+      console.debug("Backend profile update fallback:", err);
+      toast.success("Profile updated locally!");
+    }
+
     setEditing(false);
-    toast.success("Profile updated successfully!");
   };
 
   const handleCancel = () => {
@@ -110,6 +200,7 @@ export default function Profile() {
       pharmacyId: user?.pharmacyId || "PH-MT-220022",
       branch: user?.branch || "Anna Nagar, Chennai",
       joinDate: user?.joinDate || "24 Sep 2024",
+      avatar: user?.avatar || "",
     });
     setEditing(false);
   };
@@ -139,7 +230,7 @@ export default function Profile() {
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (!security.currentPassword) {
       toast.error("Enter current password");
       return;
@@ -153,13 +244,27 @@ export default function Profile() {
       return;
     }
 
-    toast.success("Password changed successfully!");
-    setSecurity({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    try {
+      await profileAPI.changePassword(security.currentPassword, security.newPassword);
+      toast.success("Password updated successfully in database!");
+      setSecurity({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to update password");
+    }
   };
 
-  const handlePreferenceToggle = (key) => {
-    setPreferences((p) => ({ ...p, [key]: !p[key] }));
-    toast.success("Preferences saved", { id: "profile-preferences" });
+  const handlePreferenceToggle = async (key) => {
+    const updated = {
+      ...preferences,
+      [key]: !preferences[key],
+    };
+    setPreferences(updated);
+    toast.success("Preferences updated", { id: "profile-preferences" });
+    try {
+      await profileAPI.update({ preferences: updated });
+    } catch (err) {
+      console.debug("Preference sync fallback:", err);
+    }
   };
 
   const handleThemeChange = (newTheme) => {
@@ -195,13 +300,23 @@ export default function Profile() {
             {/* User Card */}
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs text-center transition-colors">
               <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 rounded-full bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-200/60 dark:border-sky-800/40 text-[#0284c7] dark:text-sky-400 flex items-center justify-center text-3xl font-bold">
-                  {userName[0]?.toUpperCase()}
+                <div className="w-24 h-24 rounded-full bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-200/60 dark:border-sky-800/40 text-[#0284c7] dark:text-sky-400 flex items-center justify-center text-3xl font-bold overflow-hidden shadow-sm">
+                  {user?.avatar || form.avatar ? (
+                    <img
+                      src={user?.avatar || form.avatar}
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    userName[0]?.toUpperCase()
+                  )}
                 </div>
                 <button
-                  onClick={() => toast.info("Avatar upload coming soon")}
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-[#0284c7] dark:text-sky-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-xs"
+                  type="button"
+                  onClick={() => setShowAvatarModal(true)}
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-[#0284c7] dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-700 transition shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
                   aria-label="Change avatar"
+                  title="Change avatar photo"
                 >
                   <Camera size={14} />
                 </button>
@@ -727,6 +842,15 @@ export default function Profile() {
           </div>
         </div>
       </main>
+
+      {showAvatarModal && (
+        <AvatarModal
+          currentAvatar={user?.avatar || form.avatar}
+          userName={userName}
+          onClose={() => setShowAvatarModal(false)}
+          onSave={handleAvatarSave}
+        />
+      )}
     </div>
   );
 }
