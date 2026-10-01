@@ -21,14 +21,19 @@ const PORT = process.env.PORT || 5001;
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/meditrack";
 
-/* =====================================================
-   CORS — Allow any localhost port
-===================================================== */
+// Allowed origins: localhost (dev) + the Vercel production domain.
+// Set ALLOWED_ORIGIN in your Vercel project environment variables to your
+// custom domain if you use one (e.g. https://meditrack.example.com).
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "";
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      if (!origin) return callback(null, true); // server-to-server / curl
+      const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const isVercel = origin.endsWith(".vercel.app");
+      const isCustom = ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN;
+      if (isLocalhost || isVercel || isCustom) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));

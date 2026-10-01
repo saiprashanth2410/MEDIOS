@@ -1,7 +1,10 @@
 import axios from "axios";
 
+// On Vercel, the rewrite rule `/api/(.*)` → server service means we can use
+// a relative base URL ("/api") and Vercel handles routing internally.
+// In local dev, `VITE_API_URL` (set in .env) points to localhost:5001/api.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5001/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
