@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  User as UserIcon,
   Zap,
 } from "lucide-react";
 
@@ -29,14 +30,11 @@ import { useAuth } from "../context/AuthContext";
 
 const SPARK_HEIGHTS = [42, 30, 55, 38, 68, 50, 82, 62, 90, 74, 96, 88];
 
-const FIELD_BASE =
-  "w-full h-[58px] pl-11 pr-4 rounded-xl border text-sm outline-none transition-all duration-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-400 dark:text-slate-500";
+const LEET_INPUT =
+  "w-full h-11 px-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition duration-150 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-600";
 
-const FIELD_LIGHT =
-  "border-slate-200 dark:border-slate-700 bg-slate-50/50 focus:bg-white dark:bg-slate-900 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10";
-
-const FIELD_DARK =
-  "dark:border-slate-700 dark:bg-slate-900/60 dark:text-white dark:focus:bg-slate-900 dark:focus:border-teal-500 dark:focus:ring-teal-500/20";
+const LEET_BTN =
+  "w-full h-11 rounded-lg bg-[#596273] hover:bg-[#4b5362] active:scale-[0.99] text-white font-medium text-sm flex items-center justify-center transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed";
 
 /* =====================================================
    STYLES
@@ -162,19 +160,27 @@ function StatBadge({ icon: Icon, label, value, tone = "teal" }) {
 
 function Login() {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
+  const { user, login, loginWithGoogle, register } = useAuth();
 
+  const nameId = useId();
+  const roleId = useId();
+  const pharmacyId = useId();
   const emailId = useId();
   const passwordId = useId();
   const rememberId = useId();
 
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("Chief Pharmacist");
+  const [pharmacy, setPharmacy] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState({ email: false, password: false });
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [touched, setTouched] = useState({ name: false, email: false, password: false, pharmacy: false });
 
   /* =====================================================
      AUTO REDIRECT ON LOGIN SUCCESS
@@ -200,19 +206,46 @@ function Login() {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const passwordValid = password.length >= 6;
+  const nameValid = !isSignUp || name.trim().length >= 2;
 
   /* =====================================================
-     HANDLE SUBMIT
+     HANDLE GOOGLE SIGN-IN
+  ===================================================== */
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const result = await loginWithGoogle();
+      if (!result?.ok) {
+        setError(result?.message || "Google sign-in failed.");
+      }
+    } catch (err) {
+      console.error("[Login] Google sign-in error:", err);
+      setError("Google sign-in failed. Please try again.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  /* =====================================================
+     HANDLE SUBMIT (EMAIL / PASSWORD)
   ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setTouched({ email: true, password: true });
+    setTouched({ name: true, email: true, password: true });
     setError("");
 
-    console.log("[Login] Submit triggered");
-    console.log("[Login] Email:", email);
-    console.log("[Login] Password length:", password.length);
-    console.log("[Login] Remember:", remember);
+    if (isSignUp && !name.trim()) {
+      setError("Please enter your full name.");
+      toast.error("Please enter your name");
+      return;
+    }
+
+    if (isSignUp && !pharmacy.trim()) {
+      setError("Please enter your pharmacy or hospital name.");
+      toast.error("Please enter pharmacy name");
+      return;
+    }
 
     if (!email.trim() || !password.trim()) {
       setError("Both email and password are required.");
@@ -233,25 +266,27 @@ function Login() {
     try {
       setLoading(true);
 
-      // ✅ CORRECT CALL — pass email, password, remember
-      console.log("[Login] Calling login() with:", {
-        email,
-        passwordLength: password.length,
-        remember,
-      });
-
-      const result = await login({ email, password, remember });
-
-      console.log("[Login] Result:", result);
-
-      if (!result?.ok) {
-        setError(result?.message || "Login failed");
+      if (isSignUp) {
+        const result = await register({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role,
+          pharmacy: pharmacy.trim(),
+        });
+        if (!result?.ok) {
+          setError(result?.message || "Registration failed");
+        }
+      } else {
+        const result = await login({ email, password, remember });
+        if (!result?.ok) {
+          setError(result?.message || "Login failed");
+        }
       }
-      // ✅ Navigation handled by useEffect
     } catch (err) {
       console.error("[Login] Error:", err);
       setError("Something went wrong. Please try again.");
-      toast.error("Login failed. Please try again.");
+      toast.error("Authentication failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -290,57 +325,99 @@ function Login() {
             }}
           />
 
-          <div className="relative w-full max-w-[440px] z-10 animate-fade-up">
+          <div className="relative w-full max-w-[390px] z-10 animate-fade-up">
 
-            {/* Mobile logo */}
-            <div className="flex items-center gap-3 mb-10 lg:hidden">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center text-white shadow-lg shadow-teal-900/20">
-                <Pill size={22} strokeWidth={2.4} />
+            {/* LEETCODE STYLE CARD */}
+            <div className="w-full rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 sm:p-9 shadow-sm dark:shadow-none">
+
+              {/* LOGO & BRAND */}
+              <div className="flex flex-col items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center text-white shadow-md shadow-teal-900/20 mb-2.5">
+                  <Pill size={24} strokeWidth={2.4} />
+                </div>
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  MediTrack
+                </h1>
               </div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight">MediTrack</h1>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-teal-700/70 dark:text-teal-400/70 font-medium">
-                  Pharmacy OS
-                </p>
-              </div>
-            </div>
 
-            {/* Heading */}
-            <div className="mb-8">
-              <h2 className="text-[30px] sm:text-[36px] font-bold tracking-[-0.035em] text-slate-900 dark:text-white leading-tight">
-                Welcome back to MediTrack
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                Sign in to pick up right where your team left off.
-              </p>
-            </div>
-
-            {/* FORM */}
-            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
+              {/* ERROR ALERT */}
               {error && (
                 <div
                   role="alert"
-                  className="flex items-start gap-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-4 py-3 text-sm text-rose-600 dark:text-rose-300 animate-fade-up"
+                  className="mb-4 flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 text-xs text-rose-600 dark:text-rose-300 animate-fade-up"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                  {error}
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1 shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 
-              {/* EMAIL */}
-              <div>
-                <label
-                  htmlFor={emailId}
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-                >
-                  Work email
-                </label>
-                <div className="relative">
-                  <Mail
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 pointer-events-none"
-                  />
+              {/* FORM */}
+              <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>
+
+                {/* FULL NAME (SIGN UP ONLY) */}
+                {isSignUp && (
+                  <div className="animate-fade-up">
+                    <input
+                      id={nameId}
+                      name="name"
+                      type="text"
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (error) setError("");
+                      }}
+                      onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                      placeholder="Full name"
+                      className={LEET_INPUT}
+                    />
+                  </div>
+                )}
+
+                {/* ROLE SELECTION (SIGN UP ONLY) */}
+                {isSignUp && (
+                  <div className="relative animate-fade-up">
+                    <select
+                      id={roleId}
+                      name="role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className={`${LEET_INPUT} appearance-none cursor-pointer pr-9 text-slate-700 dark:text-slate-200`}
+                    >
+                      <option value="Chief Pharmacist">Chief Pharmacist (Admin)</option>
+                      <option value="Staff Pharmacist">Staff Pharmacist</option>
+                      <option value="Inventory Manager">Inventory / Store Manager</option>
+                      <option value="Billing / POS Cashier">Billing / POS Cashier</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+
+                {/* PHARMACY OR HOSPITAL NAME (SIGN UP ONLY) */}
+                {isSignUp && (
+                  <div className="animate-fade-up">
+                    <input
+                      id={pharmacyId}
+                      name="pharmacy"
+                      type="text"
+                      value={pharmacy}
+                      onChange={(e) => {
+                        setPharmacy(e.target.value);
+                        if (error) setError("");
+                      }}
+                      onBlur={() => setTouched((t) => ({ ...t, pharmacy: true }))}
+                      placeholder="Pharmacy or Hospital name"
+                      className={LEET_INPUT}
+                    />
+                  </div>
+                )}
+
+                {/* USERNAME OR EMAIL */}
+                <div>
                   <input
                     id={emailId}
                     name="email"
@@ -352,130 +429,164 @@ function Login() {
                       if (error) setError("");
                     }}
                     onBlur={() => setTouched((t) => ({ ...t, email: true }))}
-                    placeholder="you@pharmacy.com"
+                    placeholder="Username or E-mail"
                     aria-invalid={touched.email && !emailValid}
-                    className={`${FIELD_BASE} ${FIELD_LIGHT} ${FIELD_DARK} ${
+                    className={`${LEET_INPUT} ${
                       touched.email && email && !emailValid
                         ? "border-rose-300 dark:border-rose-800"
                         : ""
                     }`}
                   />
-                  {touched.email && email && emailValid && (
-                    <CheckCircle2
-                      size={18}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-teal-600 dark:text-teal-400"
-                    />
-                  )}
                 </div>
-              </div>
 
-              {/* PASSWORD */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label
-                    htmlFor={passwordId}
-                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
-                    Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    className="text-sm font-medium text-teal-700 dark:text-teal-400 hover:underline underline-offset-4"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
+                {/* PASSWORD */}
                 <div className="relative">
-                  <Lock
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 pointer-events-none"
-                  />
                   <input
                     id={passwordId}
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
                       if (error) setError("");
                     }}
                     onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-                    placeholder="Enter your password"
+                    placeholder="Password"
                     aria-invalid={touched.password && !passwordValid}
-                    className={`${FIELD_BASE} ${FIELD_LIGHT} ${FIELD_DARK} pr-12`}
+                    className={`${LEET_INPUT} pr-10`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-teal-700 dark:hover:text-teal-400 transition"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-              </div>
 
-              {/* REMEMBER */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-2">
-                  <input
-                    id={rememberId}
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                    className="w-4 h-4 accent-teal-600 cursor-pointer rounded"
-                  />
-                  <label
-                    htmlFor={rememberId}
-                    className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 cursor-pointer select-none"
-                  >
-                    Keep me signed in
-                  </label>
-                </div>
-              </div>
-
-              {/* SUBMIT */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="relative overflow-hidden group w-full h-[58px] mt-2 rounded-xl bg-gradient-to-r from-teal-700 via-teal-600 to-teal-800 animate-gradient disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_8px_20px_rgba(15,118,110,0.30)] hover:shadow-[0_14px_34px_rgba(15,118,110,0.40)] hover:-translate-y-0.5 shimmer-btn"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Login
-                    <ArrowUpRight
-                      size={17}
-                      className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
+                {/* KEEP ME SIGNED IN */}
+                {!isSignUp && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <input
+                      id={rememberId}
+                      type="checkbox"
+                      checked={remember}
+                      onChange={(e) => setRemember(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 accent-slate-700 cursor-pointer"
                     />
-                  </>
+                    <label
+                      htmlFor={rememberId}
+                      className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer select-none"
+                    >
+                      Keep me signed in
+                    </label>
+                  </div>
                 )}
-              </button>
 
-              {/* Trust */}
-              <div className="flex items-center justify-center gap-4 pt-2 text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck size={12} className="text-teal-600 dark:text-teal-400" />
-                  256-bit encryption
-                </span>
-                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                <span className="flex items-center gap-1.5">
-                  <Globe size={12} className="text-teal-600 dark:text-teal-400" />
-                  SSO ready
-                </span>
-              </div>
+                {/* SIGN IN BUTTON */}
+                <button
+                  type="submit"
+                  disabled={loading || googleLoading}
+                  className={LEET_BTN}
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>{isSignUp ? "Signing Up..." : "Signing In..."}</span>
+                    </span>
+                  ) : (
+                    <span>{isSignUp ? "Sign Up" : "Sign In"}</span>
+                  )}
+                </button>
 
-            </form>
+                {/* TERMS & PRIVACY */}
+                <p className="text-[12px] text-center text-slate-500 dark:text-slate-400 pt-1">
+                  By continuing, you agree to{" "}
+                  <span className="text-blue-500 dark:text-blue-400 hover:underline cursor-pointer">
+                    Terms
+                  </span>{" "}
+                  &{" "}
+                  <span className="text-blue-500 dark:text-blue-400 hover:underline cursor-pointer">
+                    Privacy Policy
+                  </span>
+                  .
+                </p>
 
-            <div className="mt-14 flex items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-600 dark:text-slate-300">
-              <Activity size={14} className="text-teal-600 dark:text-teal-400" />
-              <span>MediTrack · Pharmacy Operating System</span>
+                {/* FORGOT PASSWORD? & SIGN UP LINKS */}
+                <div className="flex items-center justify-between text-sm text-slate-800 dark:text-slate-200 pt-2 font-medium">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="hover:underline cursor-pointer font-normal text-slate-700 dark:text-slate-300 text-sm"
+                  >
+                    Forgot Password?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setError("");
+                    }}
+                    className="hover:underline cursor-pointer font-normal text-slate-700 dark:text-slate-300 text-sm"
+                  >
+                    {isSignUp ? "Sign In" : "Sign Up"}
+                  </button>
+                </div>
+
+                {/* OR YOU CAN SIGN IN WITH */}
+                <div className="pt-6 pb-1 text-center">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                    or you can sign in with
+                  </p>
+                  <div className="flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={loading || googleLoading}
+                      title="Sign in with Google"
+                      aria-label="Sign in with Google"
+                      className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center transition shadow-sm hover:scale-105 active:scale-95 disabled:opacity-50"
+                    >
+                      {googleLoading ? (
+                        <span className="w-4 h-4 border-2 border-slate-400 border-t-slate-700 rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path
+                            fill="#4285F4"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          />
+                          <path
+                            fill="#34A853"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          />
+                          <path
+                            fill="#FBBC05"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          />
+                          <path
+                            fill="#EA4335"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+              </form>
+
+            </div>
+
+            {/* Subtle Footer */}
+            <div className="mt-8 flex items-center justify-center gap-3 text-[11px] text-slate-400 dark:text-slate-600">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={12} className="text-teal-600 dark:text-teal-400" />
+                Firebase Auth
+              </span>
+              <span>·</span>
+              <span>Google SSO</span>
             </div>
 
           </div>

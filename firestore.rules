@@ -1,0 +1,187 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches request.auth.uid)
+    // Fields:
+    //   - uid: string (required, immutable) - user id
+    //   - email: string (required) - email address
+    //   - displayName: string (optional, max 100 chars) - user name
+    //   - role: string (required, 'Chief Pharmacist' | 'Staff Pharmacist' | 'Admin' | 'user')
+    //   - photoURL: string (optional, max 500 chars)
+    //   - createdAt: timestamp (optional)
+    //   - updatedAt: timestamp (optional)
+    //
+    // Collection: medicines
+    // Document ID: {medicineId} (alphanumeric string, e.g. MED001)
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - fullName: string (optional, max 150 chars)
+    //   - generic: string (optional, max 150 chars)
+    //   - manufacturer: string (optional, max 100 chars)
+    //   - category: string (required, max 50 chars)
+    //   - stock: number (required, >= 0)
+    //   - price: number (required, >= 0)
+    //   - batch: string (optional, max 50 chars)
+    //   - rack: string (optional, max 50 chars)
+    //   - schedule: string (optional, max 20 chars)
+    //   - expiry: string (optional, max 20 chars)
+    //   - isCustom: bool (optional)
+    //   - updatedAt: timestamp (optional)
+    //   - updatedBy: string (optional, max 100 chars)
+    //
+    // Collection: prescriptions
+    // Document ID: {prescriptionId}
+    // Fields:
+    //   - patientName: string (required, 1-100 chars)
+    //   - doctorName: string (required, 1-100 chars)
+    //   - status: string (required, max 30 chars)
+    //   - date: string (optional, max 30 chars)
+    //   - medicines: list (optional, max 50 items)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: batches
+    // Document ID: {batchId}
+    // Fields:
+    //   - medicineId: string (required, max 100 chars)
+    //   - batchNumber: string (required, max 50 chars)
+    //   - expiryDate: string (required, max 30 chars)
+    //   - quantity: number (required, >= 0)
+    //   - status: string (required, max 30 chars)
+    //
+    // Collection: audit_logs
+    // Document ID: {logId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - action: string (required, max 50 chars)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function validStringLength(str, minLen, maxLen) {
+      return str is string && str.size() >= minLen && str.size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    // Domain Validators
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+        data.uid == request.auth.uid &&
+        isValidEmail(data.email) &&
+        isValidOptionalString('displayName', 1, 100) &&
+        isValidOptionalString('role', 1, 50) &&
+        isValidOptionalString('pharmacy', 1, 100) &&
+        isValidOptionalString('photoURL', 1, 500);
+    }
+
+    function isValidMedicine(data) {
+      return data.keys().hasAll(['name', 'category', 'stock', 'price']) &&
+        validStringLength(data.name, 1, 100) &&
+        validStringLength(data.category, 1, 50) &&
+        data.stock is number && data.stock >= 0 &&
+        data.price is number && data.price >= 0 &&
+        isValidOptionalString('fullName', 0, 150) &&
+        isValidOptionalString('generic', 0, 150) &&
+        isValidOptionalString('manufacturer', 0, 100) &&
+        isValidOptionalString('batch', 0, 50) &&
+        isValidOptionalString('rack', 0, 50) &&
+        isValidOptionalString('schedule', 0, 20) &&
+        isValidOptionalString('expiry', 0, 30) &&
+        (!('isCustom' in data) || data.isCustom is bool);
+    }
+
+    function isValidPrescription(data) {
+      return data.keys().hasAll(['patientName', 'doctorName', 'status']) &&
+        validStringLength(data.patientName, 1, 100) &&
+        validStringLength(data.doctorName, 1, 100) &&
+        validStringLength(data.status, 1, 30) &&
+        isValidOptionalString('date', 0, 30) &&
+        (!('medicines' in data) || (data.medicines is list && data.medicines.size() <= 50));
+    }
+
+    function isValidBatch(data) {
+      return data.keys().hasAll(['medicineId', 'batchNumber', 'expiryDate', 'quantity', 'status']) &&
+        validStringLength(data.medicineId, 1, 100) &&
+        validStringLength(data.batchNumber, 1, 50) &&
+        validStringLength(data.expiryDate, 1, 30) &&
+        validStringLength(data.status, 1, 30) &&
+        data.quantity is number && data.quantity >= 0;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['uid', 'email', 'action']) &&
+        data.uid == request.auth.uid &&
+        isValidEmail(data.email) &&
+        validStringLength(data.action, 1, 50);
+    }
+
+    // Rules Definitions
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
+        request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
+    }
+
+    match /medicines/{medicineId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidMedicine(request.resource.data);
+      allow update: if isAuthenticated() && isValidMedicine(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPrescription(request.resource.data);
+      allow update: if isAuthenticated() && isValidPrescription(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /batches/{batchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidBatch(request.resource.data);
+      allow update: if isAuthenticated() && isValidBatch(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidAuditLog(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

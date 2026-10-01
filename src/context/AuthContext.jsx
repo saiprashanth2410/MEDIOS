@@ -1,5 +1,8 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { toast } from "sonner";
+import { auth, db } from "../config/firebase";
 import { authService } from "../services/authService";
 
 const AuthContext = createContext(null);
@@ -8,49 +11,82 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem("meditrack_user");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log("[AuthContext] Restored session:", parsed);
-        return parsed;
-      }
+      if (saved) return JSON.parse(saved);
     } catch (err) {
       console.error("[AuthContext] Session restore failed:", err);
       localStorage.removeItem("meditrack_user");
     }
     return null;
   });
-  const loading = false;
+
+  const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
 
   /* =====================================================
-     LOGIN — async, handles API + persistence
+     FIREBASE AUTH STATE LISTENER
+  ===================================================== */
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      try {
+        if (fbUser) {
+          let role = "Chief Pharmacist";
+          let pharmacy = "MediTrack Central";
+          try {
+            const userSnap = await getDoc(doc(db, "users", fbUser.uid));
+            if (userSnap.exists()) {
+              const data = userSnap.data();
+              role = data.role || role;
+              pharmacy = data.pharmacy || pharmacy;
+            }
+          } catch {
+            // Keep default role on permission or offline
+          }
+
+          const currentUser = {
+            uid: fbUser.uid,
+            id: fbUser.uid,
+            name: fbUser.displayName || fbUser.email?.split("@")[0].replace(/\./g, " ") || "Pharmacist",
+            email: fbUser.email,
+            role,
+            pharmacy,
+            photoURL: fbUser.photoURL || "",
+            avatar: fbUser.photoURL || "",
+          };
+
+          setUser(currentUser);
+          localStorage.setItem("meditrack_user", JSON.stringify(currentUser));
+        } else {
+          setUser(null);
+          localStorage.removeItem("meditrack_user");
+        }
+      } catch (err) {
+        console.error("[AuthContext] onAuthStateChanged error:", err);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  /* =====================================================
+     LOGIN (EMAIL / PASSWORD)
   ===================================================== */
   const login = useCallback(async ({ email, password, remember }) => {
-    console.log("[AuthContext] login called:", { email, remember });
     setAuthLoading(true);
-
     try {
       const result = await authService.login({ email, password, remember });
-      console.log("[AuthContext] authService result:", result);
-
       if (!result?.ok) {
         throw new Error(result?.message || "Invalid email or password.");
       }
 
-      // ✅ Save to state AND localStorage
       setUser(result.user);
       localStorage.setItem("meditrack_user", JSON.stringify(result.user));
-      if (result.user?.logId) {
-        localStorage.setItem("meditrack_log_id", result.user.logId);
-      }
-
-      console.log("[AuthContext] ✅ User saved:", result.user);
       toast.success(`Welcome back, ${result.user.name || "Pharmacist"}!`);
-
       return { ok: true, user: result.user };
     } catch (err) {
       console.error("[AuthContext] Login error:", err);
-      toast.error(err.message || "Login failed. Please try again.");
+      toast.error(err.message || "Login failed.");
       return { ok: false, message: err.message };
     } finally {
       setAuthLoading(false);
@@ -58,29 +94,47 @@ export function AuthProvider({ children }) {
   }, []);
 
   /* =====================================================
-     REGISTER — creates account + auth log
+     LOGIN WITH GOOGLE
   ===================================================== */
-  const register = useCallback(async ({ name, email, password, role }) => {
-    console.log("[AuthContext] register called:", { name, email, role });
+  const loginWithGoogle = useCallback(async () => {
     setAuthLoading(true);
-
     try {
-      const result = await authService.register({ name, email, password, role });
+      const result = await authService.loginWithGoogle();
+      if (!result?.ok) {
+        throw new Error(result?.message || "Google sign-in failed.");
+      }
+
+      setUser(result.user);
+      localStorage.setItem("meditrack_user", JSON.stringify(result.user));
+      toast.success(`Signed in with Google as ${result.user.name}!`);
+      return { ok: true, user: result.user };
+    } catch (err) {
+      console.error("[AuthContext] Google Login error:", err);
+      toast.error(err.message || "Google sign-in failed.");
+      return { ok: false, message: err.message };
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  /* =====================================================
+     REGISTER
+  ===================================================== */
+  const register = useCallback(async ({ name, email, password, role, pharmacy }) => {
+    setAuthLoading(true);
+    try {
+      const result = await authService.register({ name, email, password, role, pharmacy });
       if (!result?.ok) {
         throw new Error(result?.message || "Registration failed.");
       }
 
       setUser(result.user);
       localStorage.setItem("meditrack_user", JSON.stringify(result.user));
-      if (result.user.logId) {
-        localStorage.setItem("meditrack_log_id", result.user.logId);
-      }
-
       toast.success(`Account created! Welcome, ${result.user.name || "Pharmacist"}`);
       return { ok: true, user: result.user };
     } catch (err) {
       console.error("[AuthContext] Register error:", err);
-      toast.error(err.message || "Registration failed");
+      toast.error(err.message || "Registration failed.");
       return { ok: false, message: err.message };
     } finally {
       setAuthLoading(false);
@@ -88,19 +142,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   /* =====================================================
-     LOGOUT — async, updates MongoDB with logout time & duration
+     LOGOUT
   ===================================================== */
   const logout = useCallback(async () => {
     const currentUser = user;
-    const currentLogId = currentUser?.logId || localStorage.getItem("meditrack_log_id");
-
-    // Fire backend logout log immediately
-    if (currentUser?.email || currentLogId) {
-      try {
-        await authService.logout(currentUser?.email, currentLogId);
-      } catch (e) {
-        console.warn("[AuthContext] Logout recording warning:", e);
-      }
+    if (currentUser?.email) {
+      await authService.logout(currentUser.email);
+    } else {
+      await authService.logout();
     }
 
     setUser(null);
@@ -111,7 +160,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   /* =====================================================
-     UPDATE USER (partial)
+     UPDATE USER
   ===================================================== */
   const updateUser = useCallback((updates) => {
     setUser((prev) => {
@@ -121,49 +170,6 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  /* =====================================================
-     LOGIN WITH OAUTH (Google / GitHub)
-  ===================================================== */
-  const loginWithOAuth = useCallback(
-    async ({ provider = "google", email, name, avatar, credential }) => {
-      console.log("[AuthContext] loginWithOAuth called:", { provider, email, name });
-      setAuthLoading(true);
-
-      try {
-        const result = await authService.oauthLogin({
-          provider,
-          email,
-          name,
-          avatar,
-          credential,
-        });
-
-        if (!result?.ok) {
-          throw new Error(result?.message || `${provider} authentication failed.`);
-        }
-
-        setUser(result.user);
-        localStorage.setItem("meditrack_user", JSON.stringify(result.user));
-        if (result.user?.logId) {
-          localStorage.setItem("meditrack_log_id", result.user.logId);
-        }
-
-        const providerLabel = provider === "google" ? "Google" : "GitHub";
-        toast.success(
-          `Signed in with ${providerLabel} as ${result.user.name || result.user.email}!`
-        );
-        return { ok: true, user: result.user };
-      } catch (err) {
-        console.error("[AuthContext] OAuth error:", err);
-        toast.error(err.message || "OAuth login failed");
-        return { ok: false, message: err.message };
-      } finally {
-        setAuthLoading(false);
-      }
-    },
-    []
-  );
-
   return (
     <AuthContext.Provider
       value={{
@@ -171,8 +177,9 @@ export function AuthProvider({ children }) {
         loading,
         authLoading,
         login,
+        loginWithGoogle,
+        loginWithOAuth: loginWithGoogle,
         register,
-        loginWithOAuth,
         logout,
         updateUser,
         isAuthenticated: !!user,

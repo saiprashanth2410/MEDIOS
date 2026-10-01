@@ -23,6 +23,7 @@ import AddMedicineModal from "../components/dashboard/AddMedicineModal";
 import EditStockModal from "../components/medicines/EditStockModal";
 import Navbar from "../components/dashboard/Navbar";
 import { medicinesAPI } from "../services/api";
+import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import defaultMedicines from "../data/catalogMedicines.json";
 
 
@@ -210,8 +211,27 @@ export default function Medicines() {
     };
 
     syncMedicines();
+
+    // Real-time Firestore sync & seed
+    inventoryFirebaseService.seedCatalogIfEmpty();
+    const unsubFirestore = inventoryFirebaseService.subscribeToMedicines((fbMeds) => {
+      if (!cancelled && fbMeds && fbMeds.length > 0) {
+        setMedicines((prev) => {
+          const map = new Map();
+          fbMeds.forEach((m) => map.set(String(m.id), m));
+          prev.forEach((p) => {
+            if (!map.has(String(p.id))) {
+              map.set(String(p.id), p);
+            }
+          });
+          return Array.from(map.values());
+        });
+      }
+    });
+
     return () => {
       cancelled = true;
+      if (typeof unsubFirestore === "function") unsubFirestore();
     };
   }, []);
 
@@ -256,7 +276,17 @@ export default function Medicines() {
       )
     );
 
-    // 2. Persist to MongoDB Server
+    // 2. Persist to Firestore & Server
+    try {
+      await inventoryFirebaseService.updateMedicine(medId, {
+        stock: updatedStock,
+        batch: updatedBatch,
+        rack: updatedRack,
+      });
+    } catch (fbErr) {
+      console.warn("Firestore stock update warning:", fbErr.message);
+    }
+
     try {
       await medicinesAPI.update(medId, {
         code: medId,
@@ -278,7 +308,7 @@ export default function Medicines() {
       toast.success(`Stock updated for ${target.name}: ${updatedStock} units`);
     } catch (err) {
       console.warn("Server stock update fallback:", err.message);
-      toast.success(`Stock updated locally for ${target.name}`);
+      toast.success(`Stock updated for ${target.name}`);
     }
 
     // 3. Persist to localStorage override
@@ -311,10 +341,16 @@ export default function Medicines() {
     // 1. Immediate UI removal
     setMedicines((prev) => prev.filter((m) => m.id !== medId));
 
-    // 2. Delete on Server
+    // 2. Delete on Firestore & Server
+    try {
+      await inventoryFirebaseService.deleteMedicine(medId);
+    } catch (fbErr) {
+      console.warn("Firestore delete warning:", fbErr.message);
+    }
+
     try {
       await medicinesAPI.delete(medId);
-      toast.success(`${medName} deleted from server`);
+      toast.success(`${medName} deleted successfully`);
     } catch (err) {
       console.warn("Server delete fallback:", err.message);
       toast.success(`${medName} removed`);
@@ -372,7 +408,27 @@ export default function Medicines() {
       console.debug(err);
     }
 
-    // Persist to backend database
+    // Persist to Firestore & backend database
+    try {
+      await inventoryFirebaseService.addMedicine({
+        id: tempId,
+        name: newMedicine.name,
+        fullName: newMedicine.fullName || newMedicine.name,
+        category: localCat !== "Other" ? localCat : "Pharmaceutical",
+        generic: newMedicine.generic || "",
+        manufacturer: newMedicine.manufacturer || "",
+        stock: Number(newMedicine.quantity) || 100,
+        price: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+        batch: newMedicine.batch || `BATCH-${Date.now().toString().slice(-4)}`,
+        rack: newMedicine.rack || "R-1",
+        schedule: newMedicine.schedule || "H",
+        expiry: newMedicine.expiry || DEFAULT_EXPIRY,
+        isCustom: true,
+      });
+    } catch (fbErr) {
+      console.warn("Firestore add medicine warning:", fbErr.message);
+    }
+
     try {
       await medicinesAPI.create({
         code: tempId,
