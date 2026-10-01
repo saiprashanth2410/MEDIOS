@@ -23,6 +23,12 @@ import {
   RotateCcw,
   Sparkles,
   Download,
+  MessageSquare,
+  Send,
+  Copy,
+  ExternalLink,
+  MessageCircle,
+  Check,
 } from "lucide-react";
 import Navbar from "../components/dashboard/Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -157,7 +163,41 @@ export default function Billing() {
   const [dispensing, setDispensing] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
 
+  // Smart Refill Reminders State
+  const [refillReminders, setRefillReminders] = useState([]);
+  const [refillFilter, setRefillFilter] = useState("all");
+  const [selectedPreviewReminder, setSelectedPreviewReminder] = useState(null);
+  const [previewLang, setPreviewLang] = useState("combined");
+
+  // UPI QR Code State
+  const [showUpiQr, setShowUpiQr] = useState(false);
+
+  // Loose Tablet editing: stores itemId → loose qty string being typed
+  const [looseQtyEdit, setLooseQtyEdit] = useState({}); // { [itemId]: "2" }
+
   const searchInputRef = useRef(null);
+
+  /* Load Smart Refill Reminders */
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRefills = async () => {
+      try {
+        const list = await patientsFirebaseService.getRefillReminders();
+        if (!cancelled && Array.isArray(list)) {
+          setRefillReminders(list);
+        }
+      } catch (err) {
+        console.debug("Refill list load error:", err);
+      }
+    };
+    fetchRefills();
+
+    window.addEventListener("meditrack_refills_updated", fetchRefills);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("meditrack_refills_updated", fetchRefills);
+    };
+  }, []);
 
   /* =====================================================
      REAL-TIME INVENTORY STREAM & LOCAL STORAGE SYNC
@@ -366,12 +406,45 @@ export default function Billing() {
 
   const handleRemoveItem = (id) => {
     setCart((prev) => prev.filter((it) => it.id !== id));
+    setLooseQtyEdit((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  /* Loose Tablet Handler — lets pharmacist type exact count (e.g. 3 from a 10-tab strip) */
+  const handleLooseQtyCommit = (id, rawValue) => {
+    const parsed = parseFloat(rawValue);
+    if (isNaN(parsed) || parsed <= 0) {
+      // Revert to 1 if invalid
+      setCart((prev) =>
+        prev.map((it) =>
+          it.id === id ? { ...it, quantity: 1, total: it.price } : it
+        )
+      );
+    } else {
+      setCart((prev) =>
+        prev.map((it) => {
+          if (it.id !== id) return it;
+          const qty = Math.min(parsed, it.maxStock);
+          return { ...it, quantity: qty, total: parseFloat((qty * it.price).toFixed(2)) };
+        })
+      );
+    }
+    // Remove from edit mode
+    setLooseQtyEdit((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   /* Check if any drug in cart requires Schedule H prescription */
   const hasScheduleHDrug = useMemo(() => {
     return cart.some((it) => it.schedule && it.schedule !== "OTC");
   }, [cart]);
+
 
   /* =====================================================
      TAX & TOTALS (INDIAN GST SPEC)
@@ -392,6 +465,28 @@ export default function Billing() {
       grandTotal,
     };
   }, [cart]);
+
+  /* ─── UPI QR Code: generate Google Charts URL for GPay/PhonePe/Paytm ─────
+     Placed AFTER totals so totals.grandTotal is available.
+     UPI deep-link format: upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=INR&tn=NOTE
+  ─────────────────────────────────────────────────────────────────────── */
+  const upiQrUrl = useMemo(() => {
+    if (!totals || totals.grandTotal <= 0) return null;
+    const vpa =
+      pharmacyInfo?.upiId ||
+      user?.upiId ||
+      (typeof window !== "undefined"
+        ? localStorage.getItem("meditrack_upi_id")
+        : "") ||
+      "";
+    if (!vpa) return null;
+    const name = encodeURIComponent(
+      pharmacyInfo?.name || user?.pharmacy || "MediTrack Pharmacy"
+    );
+    const note = encodeURIComponent("Medicine Bill Payment");
+    const upiStr = `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${name}&am=${totals.grandTotal}&cu=INR&tn=${note}`;
+    return `https://chart.googleapis.com/chart?cht=qr&chs=200x200&choe=UTF-8&chl=${encodeURIComponent(upiStr)}`;
+  }, [totals, pharmacyInfo, user]);
 
   /* =====================================================
      DISPENSE & SAVE INVOICE (REAL-TIME CLOUD FIRESTORE)
@@ -445,6 +540,21 @@ export default function Billing() {
           } catch (pErr) {
             console.debug("Patient record error:", pErr);
           }
+
+          // 3. Automatically schedule 1-day-before Refill Reminders (Tamil & English)
+          try {
+            await patientsFirebaseService.recordRefillReminders({
+              patientName: patientName.trim() || "Customer",
+              patientPhone: patientPhone.trim(),
+              items: cart,
+              pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
+              branch: activePharm.branch || user?.branch || "Tiruvannamalai",
+            });
+            const freshRefills = await patientsFirebaseService.getRefillReminders();
+            setRefillReminders(freshRefills);
+          } catch (rErr) {
+            console.debug("Refill schedule error:", rErr);
+          }
         }
 
         setCompletedSale({
@@ -472,6 +582,90 @@ export default function Billing() {
       setDispensing(false);
     }
   };
+
+  /* Refill Reminders Handlers */
+  const handleSendWhatsAppRefill = async (reminder, lang = previewLang) => {
+    try {
+      const msg =
+        lang === "tamil"
+          ? reminder.messages?.tamil
+          : lang === "english"
+          ? reminder.messages?.english
+          : reminder.messages?.combined;
+      const waLink = patientsFirebaseService.getWhatsAppRefillLink(
+        reminder.patientPhone,
+        msg || reminder.messages?.combined
+      );
+      window.open(waLink, "_blank");
+      await patientsFirebaseService.markRefillSent(reminder.id);
+      setRefillReminders((prev) =>
+        prev.map((r) =>
+          r.id === reminder.id ? { ...r, status: "sent", sentAt: new Date().toISOString() } : r
+        )
+      );
+      toast.success(`WhatsApp reminder opened for ${reminder.patientName}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to open WhatsApp reminder");
+    }
+  };
+
+  const handleCopyRefillSMS = (reminder, lang = previewLang) => {
+    try {
+      const msg =
+        lang === "tamil"
+          ? reminder.messages?.tamil
+          : lang === "english"
+          ? reminder.messages?.english
+          : reminder.messages?.combined;
+      navigator.clipboard.writeText(msg);
+      toast.success("Refill reminder message copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy message");
+    }
+  };
+
+  const handleMarkRefilled = async (id) => {
+    try {
+      await patientsFirebaseService.markRefillCompleted(id);
+      setRefillReminders((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, status: "refilled", refilledAt: new Date().toISOString() } : r
+        )
+      );
+      toast.success("Medicine marked as refilled by patient!");
+    } catch {
+      toast.error("Failed to update refill status");
+    }
+  };
+
+  const handleDeleteReminder = async (id) => {
+    try {
+      await patientsFirebaseService.deleteRefill(id);
+      setRefillReminders((prev) => prev.filter((r) => r.id !== id));
+      toast.success("Reminder deleted");
+    } catch {
+      toast.error("Failed to delete reminder");
+    }
+  };
+
+  const dueSoonCount = useMemo(() => {
+    return refillReminders.filter(
+      (r) => r.status === "pending" && (r.isDue || r.daysRemaining <= 1)
+    ).length;
+  }, [refillReminders]);
+
+  const filteredRefills = useMemo(() => {
+    return refillReminders.filter((r) => {
+      if (refillFilter === "all") return true;
+      if (refillFilter === "due_soon")
+        return r.status === "pending" && (r.isDue || r.daysRemaining <= 1);
+      if (refillFilter === "pending") return r.status === "pending";
+      if (refillFilter === "sent") return r.status === "sent";
+      if (refillFilter === "refilled") return r.status === "refilled";
+      return true;
+    });
+  }, [refillReminders, refillFilter]);
 
   /* Print thermal / A4 receipt */
   const handlePrintReceipt = () => {
@@ -533,6 +727,22 @@ export default function Billing() {
             >
               <ShieldCheck size={14} />
               <span>Schedule H Register</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("refills")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                activeTab === "refills"
+                  ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <MessageSquare size={14} />
+              <span>Smart Refills (தமிழ் & EN)</span>
+              {dueSoonCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                  {dueSoonCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -672,17 +882,62 @@ export default function Billing() {
                           </p>
                         </div>
 
-                        {/* Quantity Stepper */}
-                        <div className="flex items-center gap-2 shrink-0">
+                        {/* Quantity Stepper + Loose Tablet Input */}
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => handleUpdateQty(item.id, -1)}
                             className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-600 dark:text-slate-300"
                           >
                             <Minus size={13} />
                           </button>
-                          <span className="w-8 text-center text-sm font-bold text-slate-800 dark:text-slate-100">
-                            {item.quantity}
-                          </span>
+
+                          {/* Click qty to enter loose / fractional amount */}
+                          {looseQtyEdit[item.id] !== undefined ? (
+                            <input
+                              autoFocus
+                              type="number"
+                              min="0.5"
+                              step="0.5"
+                              value={looseQtyEdit[item.id]}
+                              onChange={(e) =>
+                                setLooseQtyEdit((prev) => ({
+                                  ...prev,
+                                  [item.id]: e.target.value,
+                                }))
+                              }
+                              onBlur={(e) =>
+                                handleLooseQtyCommit(item.id, e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  handleLooseQtyCommit(item.id, e.target.value);
+                                if (e.key === "Escape") {
+                                  setLooseQtyEdit((prev) => {
+                                    const n = { ...prev };
+                                    delete n[item.id];
+                                    return n;
+                                  });
+                                }
+                              }}
+                              className="w-14 h-7 text-center text-xs font-bold rounded-lg border-2 border-teal-500 bg-teal-50 dark:bg-teal-950 text-teal-800 dark:text-teal-200 outline-none"
+                            />
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setLooseQtyEdit((prev) => ({
+                                  ...prev,
+                                  [item.id]: String(item.quantity),
+                                }))
+                              }
+                              title="Click to enter loose / partial tablet count"
+                              className="w-12 h-7 text-center text-sm font-bold text-slate-800 dark:text-slate-100 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/40 hover:text-teal-700 dark:hover:text-teal-300 border border-transparent hover:border-teal-300 transition"
+                            >
+                              {Number.isInteger(item.quantity)
+                                ? item.quantity
+                                : item.quantity.toFixed(1)}
+                            </button>
+                          )}
+
                           <button
                             onClick={() => handleUpdateQty(item.id, 1)}
                             className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-600 dark:text-slate-300"
@@ -696,7 +951,9 @@ export default function Billing() {
                           <p className="text-sm font-bold text-slate-900 dark:text-white">
                             ₹{item.total.toFixed(2)}
                           </p>
-                          <p className="text-[10px] text-slate-400">₹{item.price} each</p>
+                          <p className="text-[10px] text-slate-400">
+                            ₹{item.price}/tab
+                          </p>
                         </div>
 
                         <button
@@ -832,6 +1089,107 @@ export default function Billing() {
                     </span>
                   </div>
                 </div>
+
+                {/* ── Dynamic UPI QR Code ─────────────────────────── */}
+                {paymentMethod === "UPI / QR" && cart.length > 0 && (
+                  <div className="border border-teal-200 dark:border-teal-800 rounded-xl overflow-hidden">
+                    {/* Header toggle */}
+                    <button
+                      onClick={() => setShowUpiQr((v) => !v)}
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 text-xs font-bold transition"
+                    >
+                      <span className="flex items-center gap-2">
+                        <QrCode size={15} />
+                        <span>GPay / PhonePe / Paytm QR  — ₹{totals.grandTotal}</span>
+                      </span>
+                      <span className="text-teal-500 text-[11px]">
+                        {showUpiQr ? "▲ Hide" : "▼ Show"}
+                      </span>
+                    </button>
+
+                    {showUpiQr && (
+                      <div className="p-4 bg-white dark:bg-slate-900 flex flex-col items-center gap-3">
+                        {upiQrUrl ? (
+                          <>
+                            <div className="p-2 rounded-xl border-2 border-teal-400 bg-white shadow-md">
+                              <img
+                                src={upiQrUrl}
+                                alt={`UPI QR for ₹${totals.grandTotal}`}
+                                className="w-[160px] h-[160px] block"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                  e.currentTarget.nextSibling.style.display = "flex";
+                                }}
+                              />
+                              <div
+                                style={{ display: "none" }}
+                                className="w-[160px] h-[160px] items-center justify-center text-xs text-slate-400 text-center"
+                              >
+                                QR load failed. Check internet.
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xl font-black text-teal-700 dark:text-teal-300">
+                                ₹{totals.grandTotal}
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Scan with any UPI app to pay exactly
+                              </p>
+                              <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                                {pharmacyInfo?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id")}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 w-full">
+                              <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-[11px] font-bold">
+                                <span>📱</span> GPay
+                              </div>
+                              <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold">
+                                <span>📱</span> PhonePe
+                              </div>
+                              <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-400 text-[11px] font-bold">
+                                <span>📱</span> Paytm
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          /* No UPI ID configured — prompt to add it */
+                          <div className="text-center py-3">
+                            <QrCode size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              UPI ID Not Configured
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                              Add your pharmacy UPI/VPA in{" "}
+                              <strong>Profile → Pharmacy Details → UPI ID</strong>
+                              {" "}to auto-generate scannable QR codes.
+                            </p>
+                            <div className="mt-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2">
+                              <input
+                                type="text"
+                                placeholder="yourpharmacy@upi"
+                                className="flex-1 bg-transparent text-xs outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+                                onBlur={(e) => {
+                                  if (e.target.value.trim()) {
+                                    localStorage.setItem("meditrack_upi_id", e.target.value.trim());
+                                    toast.success("UPI ID saved! QR will appear on next bill.");
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && e.target.value.trim()) {
+                                    localStorage.setItem("meditrack_upi_id", e.target.value.trim());
+                                    toast.success("UPI ID saved!");
+                                    e.target.blur();
+                                  }
+                                }}
+                              />
+                              <span className="text-[10px] text-slate-400">Press Enter</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Dispense & Print Button */}
                 <button
@@ -988,6 +1346,478 @@ export default function Billing() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* =====================================================
+            VIEW 4: SMART BILINGUAL REFILL REMINDERS (1-DAY PRIOR)
+        ====================================================== */}
+        {activeTab === "refills" && (
+          <div className="space-y-6">
+            {/* Top Banner & Quick Overview */}
+            <div className="bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 backdrop-blur-xs tracking-wide">
+                      Automated 1-Day Prior Engine (தானியங்கி நினைவூட்டல்)
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-400/30 text-emerald-100">
+                      Bilingual (English + தமிழ்)
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-extrabold tracking-tight">
+                    Smart Chronic Medicine Refill Tracker
+                  </h2>
+                  <p className="text-xs text-teal-100 mt-1 max-w-2xl leading-relaxed">
+                    Automatically computes medication completion date based on dispensed quantity. Sends bilingual refill alerts 1 day before the patient's medicine runs out to prevent therapy discontinuation.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 text-center border border-white/20 min-w-[110px]">
+                    <span className="block text-2xl font-black text-rose-300">
+                      {dueSoonCount}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-teal-100">
+                      Due Today / Tomorrow
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Due In 24 Hours
+                  </span>
+                  <span className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xs">
+                    !
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-2">
+                  {dueSoonCount}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  1-day alert window active
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Total Tracked Patients
+                  </span>
+                  <Package size={16} className="text-teal-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-2">
+                  {refillReminders.length}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Scheduled refill records
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    WhatsApp Sent
+                  </span>
+                  <MessageCircle size={16} className="text-emerald-500" />
+                </div>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                  {refillReminders.filter((r) => r.status === "sent").length}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Reminders dispatched
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Successfully Refilled
+                  </span>
+                  <CheckCircle2 size={16} className="text-teal-500" />
+                </div>
+                <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-2">
+                  {refillReminders.filter((r) => r.status === "refilled").length}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Retained customer sales
+                </p>
+              </div>
+            </div>
+
+            {/* Main Content & Filter Toolbar */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <MessageSquare size={18} className="text-teal-600 dark:text-teal-400" />
+                    <span>Patient Medication Exhaustion & Refill Registry</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Send 1-click WhatsApp alerts in தமிழ் & English or copy SMS notifications directly.
+                  </p>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <button
+                    onClick={() => setRefillFilter("all")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      refillFilter === "all"
+                        ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    All ({refillReminders.length})
+                  </button>
+                  <button
+                    onClick={() => setRefillFilter("due_soon")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                      refillFilter === "due_soon"
+                        ? "bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>Due Soon (1-Day)</span>
+                    {dueSoonCount > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setRefillFilter("pending")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      refillFilter === "pending"
+                        ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    Pending ({refillReminders.filter((r) => r.status === "pending").length})
+                  </button>
+                  <button
+                    onClick={() => setRefillFilter("sent")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      refillFilter === "sent"
+                        ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    Sent ({refillReminders.filter((r) => r.status === "sent").length})
+                  </button>
+                  <button
+                    onClick={() => setRefillFilter("refilled")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      refillFilter === "refilled"
+                        ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    Refilled ({refillReminders.filter((r) => r.status === "refilled").length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              {filteredRefills.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  <div className="w-12 h-12 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-600 mx-auto flex items-center justify-center mb-3">
+                    <MessageSquare size={22} />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    No Refill Schedules Found
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    When you bill medicines with a customer phone number at the POS counter, 1-day prior refill schedules are automatically created here.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-500 uppercase tracking-wider text-left">
+                      <tr>
+                        <th className="py-3 px-4">Patient & Phone</th>
+                        <th className="py-3 px-4">Dispensed Medicine</th>
+                        <th className="py-3 px-4">Units / Dosage Days</th>
+                        <th className="py-3 px-4">Purchased On</th>
+                        <th className="py-3 px-4">Finishes On</th>
+                        <th className="py-3 px-4">Refill Status</th>
+                        <th className="py-3 px-4 text-right">Quick Dispatch (தமிழ் & EN)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredRefills.map((rem) => {
+                        const isFinishingTomorrow = rem.daysRemaining === 1 || rem.daysRemaining === 0;
+                        const isOverdue = rem.daysRemaining < 0 && rem.status !== "refilled";
+
+                        return (
+                          <tr
+                            key={rem.id}
+                            className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition ${
+                              isFinishingTomorrow && rem.status === "pending"
+                                ? "bg-rose-50/40 dark:bg-rose-950/10"
+                                : ""
+                            }`}
+                          >
+                            {/* Patient Info */}
+                            <td className="py-3 px-4">
+                              <p className="font-bold text-slate-800 dark:text-slate-100">
+                                {rem.patientName}
+                              </p>
+                              <a
+                                href={`tel:${rem.patientPhone}`}
+                                className="font-mono text-[11px] text-teal-600 hover:underline flex items-center gap-1 mt-0.5"
+                              >
+                                <Phone size={10} />
+                                <span>{rem.patientPhone}</span>
+                              </a>
+                            </td>
+
+                            {/* Medicine */}
+                            <td className="py-3 px-4">
+                              <p className="font-semibold text-slate-800 dark:text-slate-200">
+                                {rem.medicineName}
+                              </p>
+                              <span className="text-[10px] text-slate-400">
+                                Regular Chronic Cycle
+                              </span>
+                            </td>
+
+                            {/* Quantity & Estimated Course */}
+                            <td className="py-3 px-4">
+                              <span className="font-bold text-slate-700 dark:text-slate-300">
+                                {rem.quantity} units
+                              </span>
+                              <p className="text-[10px] text-slate-400">
+                                ~{rem.durationDays || rem.quantity} days supply
+                              </p>
+                            </td>
+
+                            {/* Purchased Date */}
+                            <td className="py-3 px-4 text-slate-500">
+                              {rem.purchaseDateStr || "Recent"}
+                            </td>
+
+                            {/* Refill Due Date & Days left */}
+                            <td className="py-3 px-4">
+                              <p className="font-bold text-slate-800 dark:text-slate-200">
+                                {rem.refillDueDateStr}
+                              </p>
+                              <div className="mt-1">
+                                {rem.status === "refilled" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/60 dark:text-teal-400 px-2 py-0.5 rounded-full">
+                                    <Check size={10} />
+                                    <span>Refilled</span>
+                                  </span>
+                                ) : isFinishingTomorrow ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-100 dark:bg-rose-950/80 dark:text-rose-300 px-2 py-0.5 rounded-full animate-pulse">
+                                    Runs out tomorrow! (1-day alert)
+                                  </span>
+                                ) : isOverdue ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-950/80 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                                    Medicine finished ({Math.abs(rem.daysRemaining)}d ago)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                                    In {rem.daysRemaining} days
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3 px-4">
+                              {rem.status === "sent" ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400 px-2.5 py-0.5 rounded-full">
+                                  <MessageCircle size={10} />
+                                  <span>WhatsApp Sent</span>
+                                </span>
+                              ) : rem.status === "refilled" ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 dark:bg-teal-950/60 dark:text-teal-400 px-2.5 py-0.5 rounded-full">
+                                  <Check size={10} />
+                                  <span>Cycle Done</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/60 dark:text-amber-400 px-2.5 py-0.5 rounded-full">
+                                  <span>Awaiting Dispatch</span>
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {/* Send WhatsApp Click */}
+                                <button
+                                  onClick={() => handleSendWhatsAppRefill(rem, "combined")}
+                                  title="Send WhatsApp Alert (Tamil & English)"
+                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-xs cursor-pointer"
+                                >
+                                  <MessageCircle size={12} />
+                                  <span>WhatsApp</span>
+                                </button>
+
+                                {/* Preview & Choose Language */}
+                                <button
+                                  onClick={() => setSelectedPreviewReminder(rem)}
+                                  title="Preview & Customize Tamil/English Message"
+                                  className="h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
+                                >
+                                  <ExternalLink size={13} />
+                                </button>
+
+                                {/* Copy Message */}
+                                <button
+                                  onClick={() => handleCopyRefillSMS(rem, "combined")}
+                                  title="Copy SMS Message"
+                                  className="h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
+                                >
+                                  <Copy size={13} />
+                                </button>
+
+                                {/* Mark Refilled */}
+                                {rem.status !== "refilled" && (
+                                  <button
+                                    onClick={() => handleMarkRefilled(rem.id)}
+                                    title="Mark as Refilled"
+                                    className="h-7 w-7 rounded-lg border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950 text-teal-600 dark:text-teal-400 flex items-center justify-center transition cursor-pointer"
+                                  >
+                                    <Check size={13} />
+                                  </button>
+                                )}
+
+                                {/* Delete */}
+                                <button
+                                  onClick={() => handleDeleteReminder(rem.id)}
+                                  title="Remove reminder"
+                                  className="h-7 w-7 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================
+            BILINGUAL MESSAGE PREVIEW & DISPATCH MODAL
+        ====================================================== */}
+        {selectedPreviewReminder && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+              <button
+                onClick={() => setSelectedPreviewReminder(null)}
+                className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm font-bold"
+              >
+                ✕
+              </button>
+
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <MessageSquare size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Refill Reminder Dispatch (நினைவூட்டல் செய்தி)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Patient: {selectedPreviewReminder.patientName} ({selectedPreviewReminder.patientPhone})
+                  </p>
+                </div>
+              </div>
+
+              {/* Language Selection Tabs */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-4 text-xs font-semibold">
+                <button
+                  onClick={() => setPreviewLang("combined")}
+                  className={`py-1.5 rounded-lg transition ${
+                    previewLang === "combined"
+                      ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  }`}
+                >
+                  English + தமிழ்
+                </button>
+                <button
+                  onClick={() => setPreviewLang("tamil")}
+                  className={`py-1.5 rounded-lg transition ${
+                    previewLang === "tamil"
+                      ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  }`}
+                >
+                  தமிழ் மட்டும்
+                </button>
+                <button
+                  onClick={() => setPreviewLang("english")}
+                  className={`py-1.5 rounded-lg transition ${
+                    previewLang === "english"
+                      ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  }`}
+                >
+                  English Only
+                </button>
+              </div>
+
+              {/* Simulated WhatsApp Chat Bubble */}
+              <div className="bg-[#efeae2] dark:bg-slate-950/80 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mb-4 font-sans">
+                <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg rounded-tl-none p-3 shadow-xs text-xs whitespace-pre-wrap leading-relaxed max-h-[220px] overflow-y-auto font-sans">
+                  {previewLang === "tamil"
+                    ? selectedPreviewReminder.messages?.tamil
+                    : previewLang === "english"
+                    ? selectedPreviewReminder.messages?.english
+                    : selectedPreviewReminder.messages?.combined}
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-slate-500 mt-1 px-1">
+                  <span>Target: +91 {selectedPreviewReminder.patientPhone}</span>
+                  <span>1-Day Prior Alert</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => {
+                    handleSendWhatsAppRefill(selectedPreviewReminder, previewLang);
+                    setSelectedPreviewReminder(null);
+                  }}
+                  className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+                >
+                  <MessageCircle size={15} />
+                  <span>Send on WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleCopyRefillSMS(selectedPreviewReminder, previewLang);
+                  }}
+                  className="px-4 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <Copy size={14} />
+                  <span>Copy Message</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedPreviewReminder(null)}
+                  className="px-3 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

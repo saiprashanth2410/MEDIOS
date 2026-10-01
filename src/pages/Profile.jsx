@@ -67,6 +67,7 @@ export default function Profile() {
       pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
       pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
       branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
+      upiId: savedPharm?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "",
       joinDate: user?.joinDate || "24 Sep 2024",
       avatar: user?.avatar || "",
     };
@@ -181,9 +182,11 @@ export default function Profile() {
       branch: form.branch || "Tiruvannamalai",
       pharmacyId: form.pharmacyId || "DL-TN-CH-2024-0045",
       license: form.license || "TN/PH/2026/0892",
+      upiId: form.upiId || "",
     };
     try {
       localStorage.setItem("meditrack_pharmacy_details", JSON.stringify(updatedPharmacy));
+      if (form.upiId) localStorage.setItem("meditrack_upi_id", form.upiId);
       window.dispatchEvent(new Event("meditrack_pharmacy_updated"));
     } catch (e) {
       console.debug(e);
@@ -198,6 +201,7 @@ export default function Profile() {
       pharmacy: form.pharmacy,
       pharmacyId: form.pharmacyId,
       branch: form.branch,
+      upiId: form.upiId || "",
       joinDate: form.joinDate,
       avatar: form.avatar || user?.avatar || "",
     });
@@ -639,6 +643,33 @@ export default function Profile() {
                       {editing && (
                         <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
                           Click "Detect" to auto-fill using GPS
+                        </p>
+                      )}
+                    </div>
+
+                    {/* UPI ID for GPay/PhonePe/Paytm QR Code */}
+                    <div>
+                      <label className={LABEL_BASE}>
+                        UPI ID / VPA (for POS QR Code)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-500 font-bold text-xs pointer-events-none">
+                          ₹
+                        </span>
+                        <input
+                          type="text"
+                          value={form.upiId}
+                          onChange={(e) =>
+                            setForm({ ...form, upiId: e.target.value })
+                          }
+                          disabled={!editing}
+                          placeholder="yourpharmacy@upi  (e.g. medishop@oksbi)"
+                          className={`${FIELD_BASE} pl-8`}
+                        />
+                      </div>
+                      {editing && (
+                        <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                          GPay / PhonePe / Paytm UPI ID. Once saved, a live QR auto-appears at the POS billing counter for each bill amount.
                         </p>
                       )}
                     </div>

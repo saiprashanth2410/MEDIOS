@@ -195,6 +195,10 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /refill_reminders/{refillId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /audit_logs/{logId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidAuditLog(request.resource.data);
