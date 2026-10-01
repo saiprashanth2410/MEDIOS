@@ -10,9 +10,11 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  FileText,
 } from "lucide-react";
 import Papa from "papaparse";
 import { toast } from "sonner";
+import SmartMedicineImportView from "../medicines/SmartMedicineImportView";
 
 /* =====================================================
    CONSTANTS
@@ -39,7 +41,8 @@ const DRUG_SCHEDULES = [
    MAIN COMPONENT
 ===================================================== */
 
-export default function AddMedicineModal({ onAdd, onClose }) {
+export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual" }) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [brandMaster, setBrandMaster] = useState([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -315,32 +318,78 @@ export default function AddMedicineModal({ onAdd, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 bg-black/50 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl border border-slate-200 dark:border-slate-800 overflow-hidden my-4">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full ${activeTab === "pdf" ? "max-w-5xl" : "max-w-3xl"} border border-slate-200 dark:border-slate-800 overflow-hidden my-4 transition-all duration-200`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-500/15 border border-sky-100 dark:border-sky-500/20 flex items-center justify-center">
-              <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
+              {activeTab === "pdf" ? (
+                <FileText size={18} className="text-[#0284c7] dark:text-sky-400" />
+              ) : (
+                <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
+              )}
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                Add New Medicine
+                {activeTab === "pdf" ? "Invoice / Document Inward" : "Add New Medicine"}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Only CDCI registered medicines allowed
+                {activeTab === "pdf"
+                  ? "Import line items from supplier bills or delivery challans"
+                  : "Register a single medicine batch into inventory"}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition"
           >
-            <X size={18} className="text-slate-500" />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Segmented Pill Control */}
+        <div className="px-6 pt-3 pb-1 border-b border-slate-100 dark:border-slate-800">
+          <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg text-xs font-medium max-w-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab("manual")}
+              className={`py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-2 ${
+                activeTab === "manual"
+                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <Pill size={13} className={activeTab === "manual" ? "text-[#0284c7] dark:text-sky-400" : ""} />
+              <span>Manual Entry</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("pdf")}
+              className={`py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-2 ${
+                activeTab === "pdf"
+                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <FileText size={13} className={activeTab === "pdf" ? "text-[#0284c7] dark:text-sky-400" : ""} />
+              <span>Invoice Import</span>
+            </button>
+          </div>
+        </div>
+
+        {activeTab === "pdf" ? (
+          <div className="p-6">
+            <SmartMedicineImportView
+              onComplete={(summary) => {
+                onAdd?.(summary);
+                onClose();
+              }}
+              onCancel={onClose}
+            />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Medicine Name */}
           <div ref={suggestionsRef} className="relative">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -683,6 +732,7 @@ export default function AddMedicineModal({ onAdd, onClose }) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

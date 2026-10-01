@@ -15,6 +15,7 @@ import {
   X,
   Edit3,
   Trash2,
+  FileUp,
 } from "lucide-react";
 import { detectCategoryLocal } from "../utils/localCategoryRules";
 import { detectCategoryWithAI } from "../utils/aiCategoryDetector";
@@ -93,6 +94,7 @@ function getInitialMedicines() {
 export default function Medicines() {
   const [medicines, setMedicines] = useState(getInitialMedicines);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
+  const [addModalTab, setAddModalTab] = useState("manual");
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -221,8 +223,10 @@ export default function Medicines() {
       setMedicines(getInitialMedicines());
     };
     window.addEventListener("meditrack_stock_updated", handleStockUpdate);
+    window.addEventListener("meditrack_medicines_updated", handleStockUpdate);
     return () => {
       window.removeEventListener("meditrack_stock_updated", handleStockUpdate);
+      window.removeEventListener("meditrack_medicines_updated", handleStockUpdate);
     };
   }, []);
 
@@ -521,13 +525,30 @@ export default function Medicines() {
               Manage your pharmacy inventory
             </p>
           </div>
-          <button
-            onClick={() => setShowAddMedicine(true)}
-            className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
-          >
-            <Plus size={16} />
-            Add Medicine
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => {
+                setAddModalTab("pdf");
+                setShowAddMedicine(true);
+              }}
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition shadow-2xs"
+              title="Import medicines from supplier invoice or document"
+            >
+              <FileUp size={16} className="text-[#0284c7] dark:text-sky-400" />
+              <span>Import Invoice</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setAddModalTab("manual");
+                setShowAddMedicine(true);
+              }}
+              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
+            >
+              <Plus size={16} />
+              <span>Add Medicine</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -776,7 +797,13 @@ export default function Medicines() {
 
       {showAddMedicine && (
         <AddMedicineModal
-          onAdd={handleAddMedicine}
+          initialTab={addModalTab}
+          onAdd={(result) => {
+            setMedicines(getInitialMedicines());
+            if (result && result.name) {
+              handleAddMedicine(result);
+            }
+          }}
           onClose={() => setShowAddMedicine(false)}
         />
       )}
