@@ -75,8 +75,15 @@ function getInitialMedicines() {
         };
       });
 
+    const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
+    const catalogNames = new Set(defaultMedicines.map((m) => (m.name || "").toLowerCase()));
+
     const activeCustom = custom.filter(
-      (m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name)
+      (m) =>
+        !deletedIds.has(String(m.id)) &&
+        !deletedIds.has(m.name) &&
+        !catalogIds.has(String(m.id)) &&
+        !catalogNames.has((m.name || "").toLowerCase())
     );
 
     return [...activeCustom, ...merged];
@@ -100,6 +107,8 @@ export default function Medicines() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [viewMode, setViewMode] = useState("grid");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 30;
 
   /* =====================================================
      BACKGROUND SYNC — SERVER DATABASE & UPDATES
@@ -108,122 +117,22 @@ export default function Medicines() {
   useEffect(() => {
     let cancelled = false;
 
-    const syncMedicines = async () => {
-      try {
-        const deletedIds = new Set();
-        try {
-          const savedDeleted = localStorage.getItem("meditrack_deleted_medicines");
-          if (savedDeleted) {
-            JSON.parse(savedDeleted).forEach((id) => deletedIds.add(String(id)));
-          }
-        } catch (err) {
-          console.debug(err);
-        }
-
-        let overrides = {};
-        try {
-          const savedOverrides = localStorage.getItem("meditrack_medicine_overrides");
-          if (savedOverrides) overrides = JSON.parse(savedOverrides);
-        } catch (err) {
-          console.debug(err);
-        }
-
-        let customMedicines = [];
-        try {
-          const savedCustom = localStorage.getItem("meditrack_custom_medicines");
-          if (savedCustom) {
-            customMedicines = JSON.parse(savedCustom).filter(
-              (m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name)
-            );
-          }
-        } catch (err) {
-          console.debug(err);
-        }
-
-        const dbMedicinesMap = {};
-        try {
-          const apiData = await medicinesAPI.list({ limit: 100 });
-          if (apiData?.medicines) {
-            apiData.medicines.forEach((m) => {
-              const key = String(m.code || m._id || m.name);
-              dbMedicinesMap[key] = m;
-              if (m.name) dbMedicinesMap[m.name] = m;
-
-              if (
-                m.isCustom &&
-                !deletedIds.has(String(m.code || m._id)) &&
-                !deletedIds.has(m.name) &&
-                !customMedicines.some((c) => c.id === (m.code || String(m._id)))
-              ) {
-                customMedicines.push({
-                  id: m.code || String(m._id),
-                  name: m.name || m.fullName,
-                  fullName: m.fullName || m.name,
-                  generic: m.generic || m.composition || "General Formulation",
-                  manufacturer: m.supplierName || "In-House",
-                  category: m.category || "Other",
-                  aiDetected: false,
-                  batch: m.batch || "BATCH-CUSTOM",
-                  rack: m.rack || "R-1",
-                  stock: m.stock ?? 100,
-                  price: m.price ?? m.sellingPrice ?? 50,
-                  schedule: m.schedule || "OTC",
-                  expiry: m.expiry || DEFAULT_EXPIRY,
-                });
-              }
-            });
-          }
-        } catch (apiErr) {
-          console.debug("DB background sync fallback:", apiErr?.message);
-        }
-
-        if (cancelled) return;
-
-        const updated = defaultMedicines
-          .filter((med) => !deletedIds.has(String(med.id)) && !deletedIds.has(med.name))
-          .map((med) => {
-            const dbMatch = dbMedicinesMap[med.id] || dbMedicinesMap[med.name];
-            const override = overrides[med.id] || overrides[med.name];
-
-            const stock =
-              override?.stock !== undefined
-                ? override.stock
-                : dbMatch?.stock !== undefined
-                ? dbMatch.stock
-                : med.stock;
-
-            const batch = override?.batch || dbMatch?.batch || med.batch;
-            const rack = override?.rack || dbMatch?.rack || med.rack;
-
-            return {
-              ...med,
-              stock,
-              batch,
-              rack,
-              price: typeof dbMatch?.price === "number" ? dbMatch.price : med.price,
-            };
-          });
-
-        setMedicines([...customMedicines, ...updated]);
-      } catch (err) {
-        console.debug("Silent sync complete:", err);
-      }
-    };
-
-    syncMedicines();
-
-    // Real-time Firestore sync & seed
-    inventoryFirebaseService.seedCatalogIfEmpty();
+    // Real-time Firestore sync: updates stock/batch/rack in place without count flickering
     const unsubFirestore = inventoryFirebaseService.subscribeToMedicines((fbMeds) => {
-      if (!cancelled && fbMeds && fbMeds.length > 0) {
+      if (!cancelled && Array.isArray(fbMeds) && fbMeds.length > 0) {
         setMedicines((prev) => {
           const map = new Map();
-          fbMeds.forEach((m) => map.set(String(m.id), m));
-          prev.forEach((p) => {
-            if (!map.has(String(p.id))) {
-              map.set(String(p.id), p);
+          prev.forEach((p) => map.set(String(p.id), p));
+
+          fbMeds.forEach((m) => {
+            const existing = map.get(String(m.id));
+            if (existing) {
+              map.set(String(m.id), { ...existing, ...m });
+            } else if (m.isCustom) {
+              map.set(String(m.id), m);
             }
           });
+
           return Array.from(map.values());
         });
       }
@@ -378,24 +287,28 @@ export default function Medicines() {
 
   const handleAddMedicine = async (newMedicine) => {
     const tempId = newMedicine.id || `med-${Date.now()}`;
+    const commonName = String(newMedicine.name || newMedicine.brandName || "").trim();
+    const genericComp = String(newMedicine.generic || "").trim();
 
     const localCat = detectCategoryLocal(
-      newMedicine.name,
-      newMedicine.generic || ""
+      commonName,
+      genericComp
     );
 
     const tempItem = {
       ...newMedicine,
       id: tempId,
-      fullName: newMedicine.fullName || newMedicine.name,
-      category: localCat === "Other" ? "Detecting..." : localCat,
-      aiDetected: localCat !== "Other",
+      name: commonName,
+      brandName: commonName,
+      generic: genericComp,
+      fullName: newMedicine.fullName || (genericComp ? `${commonName} (${genericComp})` : commonName),
+      category: localCat === "Other" ? "Pharmaceutical" : localCat,
       schedule: newMedicine.schedule || "H",
       expiry: newMedicine.expiry || DEFAULT_EXPIRY,
     };
 
     setMedicines((prev) => [tempItem, ...prev]);
-    toast.success(`${newMedicine.name} added!`);
+    toast.success(`${commonName} added!`);
 
     // Persist to custom medicines list in localStorage
     try {
@@ -408,17 +321,23 @@ export default function Medicines() {
       console.debug(err);
     }
 
+    // Notify all active tabs and POS Billing counter
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("meditrack_medicines_updated"));
+      window.dispatchEvent(new Event("meditrack_stock_updated"));
+    }
+
     // Persist to Firestore & backend database
     try {
       await inventoryFirebaseService.addMedicine({
         id: tempId,
-        name: newMedicine.name,
-        fullName: newMedicine.fullName || newMedicine.name,
-        category: localCat !== "Other" ? localCat : "Pharmaceutical",
-        generic: newMedicine.generic || "",
-        manufacturer: newMedicine.manufacturer || "",
-        stock: Number(newMedicine.quantity) || 100,
-        price: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+        name: commonName,
+        fullName: tempItem.fullName,
+        category: tempItem.category,
+        generic: genericComp,
+        manufacturer: newMedicine.manufacturer || "Standard Pharma",
+        stock: Number(newMedicine.quantity || newMedicine.stock) || 100,
+        price: Number(newMedicine.sellingPrice || newMedicine.unitPrice || newMedicine.price) || 50,
         batch: newMedicine.batch || `BATCH-${Date.now().toString().slice(-4)}`,
         rack: newMedicine.rack || "R-1",
         schedule: newMedicine.schedule || "H",
@@ -546,6 +465,17 @@ export default function Medicines() {
     });
   }, [medicines, searchQuery, activeCategory]);
 
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeCategory]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedMedicines = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
   /* =====================================================
      HELPERS
   ===================================================== */
@@ -592,9 +522,6 @@ export default function Medicines() {
             >
               <FileUp size={16} className="text-[#0284c7] dark:text-sky-400" />
               <span>Import via PDF / Bill</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                AI
-              </span>
             </button>
 
             <button
@@ -759,7 +686,7 @@ export default function Medicines() {
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((med) => (
+            {paginatedMedicines.map((med) => (
               <MedicineCard
                 key={med.id}
                 med={med}
@@ -794,11 +721,25 @@ export default function Medicines() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((med) => (
+                {paginatedMedicines.map((med) => (
                   <tr key={med.id} className="hover:bg-sky-50 dark:hover:bg-slate-800/60 transition">
                     <td className="px-4 py-3">
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{med.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{med.generic}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{med.generic}</span>
+                        {med.schedule && med.schedule !== "OTC" ? (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300/60">
+                            Rx · Sched {med.schedule}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60">
+                            OTC
+                          </span>
+                        )}
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">
+                          HSN:{med.hsn || "3004"}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <CategoryBadge category={med.category} />
@@ -850,6 +791,46 @@ export default function Medicines() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 px-1 flex-wrap gap-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Showing{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {(currentPage - 1) * pageSize + 1}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {Math.min(currentPage * pageSize, filtered.length)}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {filtered.length}
+              </span>{" "}
+              medicines
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
+              >
+                Previous
+              </button>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300 px-1">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -968,8 +949,21 @@ function MedicineCard({ med, onEdit, onDelete }) {
 
       <div className="flex flex-wrap gap-1.5 mb-3">
         <CategoryBadge category={med.category} />
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
-          Schedule {med.schedule}
+        {med.schedule && med.schedule !== "OTC" ? (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60 flex items-center gap-1" title="Schedule H drug - requires valid registered medical practitioner prescription">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Rx · Sched {med.schedule}
+          </span>
+        ) : (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/60">
+            OTC
+          </span>
+        )}
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60">
+          HSN: {med.hsn || "3004"}
+        </span>
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60">
+          GST: {med.gstRate || 12}%
         </span>
         {isExpiringSoon(med.expiry) && (
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/50 dark:border-rose-900/50 flex items-center gap-1">

@@ -13,10 +13,10 @@ import {
   Factory,
   Truck,
   Settings,
-  Package,
   ClipboardList,
   ChevronDown,
   ShieldCheck,
+  Receipt,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useScan } from "../../context/ScanContext";
@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
       { icon: Pill, label: "Medicines", path: "/medicines" },
+      { icon: Receipt, label: "Billing", path: "/billing" },
       { icon: ClipboardList, label: "Prescriptions", path: "/prescriptions" },
     ],
   },
@@ -38,7 +39,6 @@ const NAV_GROUPS = [
     items: [
       { icon: Boxes, label: "Batches", path: "/batches" },
       { icon: AlertTriangle, label: "Expiry", path: "/expiry" },
-      { icon: Package, label: "Reorder", path: "/reorder" },
     ],
   },
   {
@@ -161,7 +161,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1.5 xl:gap-2">
             {NAV_GROUPS.flatMap((group) => group.items).map((item) => {
               const Icon = item.icon;
               const isActive = currentPath === item.path;

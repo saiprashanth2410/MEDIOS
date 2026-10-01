@@ -4,132 +4,119 @@ import {
   Pill,
   ClipboardList,
   TrendingUp,
-  TrendingDown,
   Package,
   Download,
   Calendar,
   DollarSign,
   Activity,
+  Receipt,
 } from "lucide-react";
 import Navbar from "../components/dashboard/Navbar";
-import { prescriptionsAPI, medicinesAPI, notificationsAPI } from "../services/api";
+import { billingFirebaseService } from "../services/billingFirebaseService";
+import { prescriptionsFirebaseService } from "../services/prescriptionsFirebaseService";
+import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
+import defaultMedicines from "../data/catalogMedicines.json";
 
-const DEFAULT_STATS = [
-  { label: "Revenue (This Month)", value: "₹2,45,000", change: "+18.2%", trend: "up", icon: DollarSign },
-  { label: "Prescriptions Filled", value: "1,247", change: "+12.5%", trend: "up", icon: ClipboardList },
-  { label: "Medicines Sold", value: "8,450", change: "+22.4%", trend: "up", icon: Pill },
-  { label: "Expired Stock Value", value: "₹12,500", change: "-8.2%", trend: "down", icon: Package },
-];
-
-const DEFAULT_TOP_MEDICINES = [
-  { name: "Paracetamol 650mg", sold: 1240, revenue: "₹15,500" },
-  { name: "Amoxicillin 500mg", sold: 890, revenue: "₹40,050" },
-  { name: "Pantoprazole 40mg", sold: 720, revenue: "₹90,000" },
-  { name: "Cetirizine 10mg", sold: 650, revenue: "₹14,300" },
-  { name: "Metformin 500mg", sold: 540, revenue: "₹22,680" },
-];
-
-const CHART_DATA = [45, 62, 48, 75, 58, 82, 70, 91, 78, 95, 88, 76];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const DEFAULT_ACTIVITY = [
-  { text: "Prescription #RX-4821 dispensed", time: "2 min ago", tone: "green" },
-  { text: "New medicine added: Amoxicillin 500mg", time: "18 min ago", tone: "blue" },
-  { text: "Low stock alert: Insulin Glargine", time: "1 hr ago", tone: "amber" },
-  { text: "Drug license renewal completed", time: "3 hrs ago", tone: "green" },
-  { text: "Batch BT-9921 flagged for expiry", time: "5 hrs ago", tone: "amber" },
-];
-
 export default function Reports() {
-  const [stats, setStats] = useState(DEFAULT_STATS);
-  const [topMedicines, setTopMedicines] = useState(DEFAULT_TOP_MEDICINES);
-  const [activity, setActivity] = useState(DEFAULT_ACTIVITY);
-  const [chartData, setChartData] = useState(CHART_DATA);
+  const [stats, setStats] = useState([
+    { label: "Revenue (Live)", value: "₹0", change: "Live sync", trend: "up", icon: DollarSign },
+    { label: "Prescriptions Filled", value: "0", change: "Verified", trend: "up", icon: ClipboardList },
+    { label: "Medicines Sold", value: "0", change: "Real-time", trend: "up", icon: Pill },
+    { label: "Catalog Medicines", value: `${defaultMedicines.length} Items`, change: "In Stock", trend: "up", icon: Package },
+  ]);
+  const [topMedicines, setTopMedicines] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [chartData, setChartData] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
-  // Live database calculation for reports
+  // Live calculation from real transactions and inventory
   useEffect(() => {
     let isMounted = true;
 
     const fetchReportData = async () => {
       try {
-        const [prescRes, medRes, notifRes] = await Promise.allSettled([
-          prescriptionsAPI.list({ limit: 100 }),
-          medicinesAPI.list({ limit: 100 }),
-          notificationsAPI.list({ limit: 5 }),
+        const [sales, rxStats, catalogMeds] = await Promise.all([
+          billingFirebaseService.getRecentInvoices(100).catch(() => []),
+          prescriptionsFirebaseService.stats().catch(() => ({ total: 0, dispensed: 0 })),
+          Promise.resolve(inventoryFirebaseService.getMedicines()),
         ]);
 
         if (!isMounted) return;
 
-        let filledPrescriptions = 0;
         let totalRevenue = 0;
-        let totalSold = 0;
+        let totalUnitsSold = 0;
         const medicineCounts = {};
+        const monthRevenue = new Array(12).fill(0);
 
-        if (prescRes.status === "fulfilled" && prescRes.value?.prescriptions) {
-          const list = prescRes.value.prescriptions;
-          list.forEach((p) => {
-            const isDispensed =
-              p.status === "dispensed" || p.status === "DISPENSED";
-            if (isDispensed) {
-              filledPrescriptions++;
-              if (Array.isArray(p.medicines)) {
-                p.medicines.forEach((m) => {
-                  const qty = Number(m.quantity) || 1;
-                  const price = Number(m.price) || 45;
-                  totalSold += qty;
-                  totalRevenue += qty * price;
+        (sales || []).forEach((s) => {
+          const grandTotal = Number(s.totals?.grandTotal || s.total) || 0;
+          totalRevenue += grandTotal;
 
-                  const name = m.name || "Medicine";
-                  if (!medicineCounts[name]) {
-                    medicineCounts[name] = { sold: 0, revenue: 0 };
-                  }
-                  medicineCounts[name].sold += qty;
-                  medicineCounts[name].revenue += qty * price;
-                });
+          // Parse month if date exists
+          if (s.date) {
+            const parts = s.date.split("/");
+            if (parts.length === 3) {
+              const monthIdx = Number(parts[1]) - 1;
+              if (monthIdx >= 0 && monthIdx < 12) {
+                monthRevenue[monthIdx] += grandTotal;
               }
             }
-          });
-        }
+          }
 
-        let totalMeds = 0;
-        if (medRes.status === "fulfilled" && medRes.value?.medicines) {
-          totalMeds = medRes.value.medicines.length;
-        }
+          if (Array.isArray(s.items)) {
+            s.items.forEach((item) => {
+              const qty = Number(item.quantity) || 1;
+              const unitPrice = Number(item.unitPrice || item.price) || 0;
+              totalUnitsSold += qty;
 
-        // Update stats
+              const name = item.name || "Medicine";
+              if (!medicineCounts[name]) {
+                medicineCounts[name] = { sold: 0, revenue: 0 };
+              }
+              medicineCounts[name].sold += qty;
+              medicineCounts[name].revenue += qty * unitPrice;
+            });
+          }
+        });
+
+        const activeCatalogCount = catalogMeds?.length || defaultMedicines.length;
+        const filledPrescriptions = rxStats?.dispensed || 0;
+
+        // Update real stats
         setStats([
           {
             label: "Revenue (Live)",
-            value: totalRevenue > 0 ? `₹${totalRevenue.toLocaleString("en-IN")}` : "₹2,45,000",
-            change: "+18.2%",
+            value: `₹${totalRevenue.toLocaleString("en-IN")}`,
+            change: totalRevenue > 0 ? "+100% live" : "Active counter",
             trend: "up",
             icon: DollarSign,
           },
           {
             label: "Prescriptions Filled",
-            value: filledPrescriptions > 0 ? filledPrescriptions.toString() : "1,247",
-            change: "+12.5%",
+            value: filledPrescriptions.toString(),
+            change: `${rxStats?.total || 0} total`,
             trend: "up",
             icon: ClipboardList,
           },
           {
             label: "Medicines Sold",
-            value: totalSold > 0 ? totalSold.toString() : "8,450",
-            change: "+22.4%",
+            value: totalUnitsSold.toString(),
+            change: "POS Units",
             trend: "up",
             icon: Pill,
           },
           {
-            label: "Total Catalog Items",
-            value: totalMeds > 0 ? `${totalMeds} Items` : "48 Items",
-            change: "+5 verified",
+            label: "Catalog Medicines",
+            value: `${activeCatalogCount} Items`,
+            change: "Live inventory",
             trend: "up",
             icon: Package,
           },
         ]);
 
-        // Update top medicines if we have dispensed ones
-        const topSorted = Object.entries(medicineCounts)
+        // Top selling medicines
+        const sortedTop = Object.entries(medicineCounts)
           .map(([name, data]) => ({
             name,
             sold: data.sold,
@@ -138,204 +125,223 @@ export default function Reports() {
           .sort((a, b) => b.sold - a.sold)
           .slice(0, 5);
 
-        if (topSorted.length > 0) {
-          setTopMedicines(topSorted);
-        }
+        setTopMedicines(sortedTop);
 
-        // Update activity if notifications exist
-        if (
-          notifRes.status === "fulfilled" &&
-          notifRes.value?.notifications?.length > 0
-        ) {
-          const mappedAct = notifRes.value.notifications.map((n) => {
-            const date = new Date(n.createdAt);
-            const timeStr = !isNaN(date)
-              ? date.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Recently";
-            return {
-              text: n.message || n.title,
-              time: timeStr,
-              tone:
-                n.color === "red" || n.color === "amber" ? "amber" : "green",
-            };
-          });
-          setActivity(mappedAct);
-        }
+        // Chart data
+        const maxVal = Math.max(...monthRevenue, 1);
+        const normalizedChart = monthRevenue.map((val) =>
+          val > 0 ? Math.round((val / maxVal) * 100) : 10
+        );
+        setChartData(normalizedChart);
+
+        // Live recent activities
+        const saleActivities = (sales || []).slice(0, 6).map((s) => ({
+          text: `Invoice #${s.invoiceNumber} — dispensed to ${s.customer?.name || "Patient"} (₹${Number(s.totals?.grandTotal || s.total || 0).toFixed(0)})`,
+          time: s.time || s.date || "Today",
+          tone: "green",
+        }));
+        setActivity(saleActivities);
       } catch (err) {
-        console.debug("Reports live data fallback:", err);
+        console.debug("Reports live data calculation error:", err);
       }
     };
 
     fetchReportData();
 
+    const handleUpdate = () => fetchReportData();
+    window.addEventListener("meditrack_sales_updated", handleUpdate);
+    window.addEventListener("meditrack_prescriptions_updated", handleUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("meditrack_sales_updated", handleUpdate);
+      window.removeEventListener("meditrack_prescriptions_updated", handleUpdate);
     };
   }, []);
 
   const handleExport = () => {
     const headers = ["Medicine Name", "Units Sold", "Revenue Generated"];
-    const rows = topMedicines.map((m) => [m.name, m.sold, m.revenue]);
+    const rows =
+      topMedicines.length > 0
+        ? topMedicines.map((m) => [m.name, m.sold, m.revenue])
+        : [["No sales recorded yet", "0", "₹0"]];
     const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute(
       "download",
-      `meditrack_report_${new Date().toISOString().split("T")[0]}.csv`
+      `meditrack_sales_report_${new Date().toISOString().split("T")[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Pharmacy report exported to CSV!");
+    toast.success("Sales report exported successfully");
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-
-      {/* =====================================================
-          TOP NAVBAR — Using shared component
-      ====================================================== */}
-
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar onScanClick={() => {}} />
 
-      {/* =====================================================
-          MAIN
-      ====================================================== */}
-
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports & Analytics</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track your pharmacy performance</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              Reports &amp; Analytics
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Live dispensing metrics, catalog stock values, and tax invoices
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => toast.info("Date range selector ready")}
-              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
-            >
-              <Calendar size={16} />
-              This Month
-            </button>
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#0369a1] transition shadow-xs"
-            >
-              <Download size={16} />
-              Export CSV
-            </button>
-          </div>
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm self-start sm:self-auto cursor-pointer"
+          >
+            <Download size={16} />
+            Export CSV Report
+          </button>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {stats.map((stat) => {
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {stats.map((stat, idx) => {
             const Icon = stat.icon;
-            const trendColor = stat.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400";
             return (
-              <div key={stat.label} className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center text-[#0284c7] dark:text-sky-400">
-                    <Icon size={18} />
+              <div
+                key={idx}
+                className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/50 dark:border-sky-800/40 flex items-center justify-center text-[#0284c7] dark:text-sky-400">
+                    <Icon size={20} />
                   </div>
-                  <span className={`text-[11px] font-semibold flex items-center gap-1 ${trendColor}`}>
-                    {stat.trend === "up" ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/40">
+                    <TrendingUp size={12} />
                     {stat.change}
                   </span>
                 </div>
-                <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{stat.value}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{stat.label}</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                  {stat.label}
+                </p>
               </div>
             );
           })}
         </div>
 
-        <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Revenue Trend</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Last 12 months</p>
+        {/* Two-column layout: Chart + Top Medicines */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Revenue Chart */}
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-[#0284c7] dark:text-sky-400" />
+                <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
+                  Monthly Revenue Trends
+                </h3>
               </div>
-              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
-                +22.4% growth
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                FY 2026
               </span>
             </div>
-            <div className="flex items-end gap-2 h-48">
-              {CHART_DATA.map((height, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+
+            {/* Bar chart */}
+            <div className="h-52 flex items-end gap-2 sm:gap-3 pt-6 pb-2 px-2">
+              {chartData.map((val, idx) => (
+                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
                   <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-[#0284c7] to-[#38bdf8] hover:opacity-85 transition cursor-pointer"
-                    style={{ height: `${height}%` }}
-                    title={`${MONTHS[i]}: ₹${height},000`}
-                  />
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{MONTHS[i]}</span>
+                    className="w-full rounded-t-md bg-[#0284c7] dark:bg-sky-500 group-hover:bg-[#0369a1] transition-all relative"
+                    style={{ height: `${Math.max(val, 6)}%` }}
+                  >
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-1.5 rounded pointer-events-none whitespace-nowrap z-10 shadow-lg">
+                      {MONTHS[idx]}: {val}%
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                    {MONTHS[idx].slice(0, 3)}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Top Medicines</h3>
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
-                This Month
-              </span>
+          {/* Top Selling Medicines */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <div className="flex items-center gap-2 mb-4">
+              <Pill size={16} className="text-[#0284c7] dark:text-sky-400" />
+              <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
+                Top Dispensed Medicines
+              </h3>
             </div>
-            <div className="space-y-4">
-              {topMedicines.map((med, i) => {
-                const maxSold = topMedicines[0]?.sold || 1000;
-                const percent = Math.min(100, Math.max(12, Math.round((med.sold / maxSold) * 100)));
-                return (
-                  <div key={med.name}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-5 h-5 rounded-md bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center text-[10px] font-bold text-[#0284c7] dark:text-sky-400 shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{med.name}</span>
-                      </div>
-                      <span className="text-sm font-semibold text-[#0284c7] dark:text-sky-400 shrink-0 ml-2">{med.revenue}</span>
+
+            {topMedicines.length > 0 ? (
+              <div className="space-y-3">
+                {topMedicines.map((med, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30"
+                  >
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                        {med.name}
+                      </p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                        {med.sold} units dispensed
+                      </p>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#0284c7] to-[#38bdf8]"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
+                    <span className="text-xs font-bold text-teal-600 dark:text-teal-400">
+                      {med.revenue}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                <Receipt className="mx-auto text-slate-300 dark:text-slate-600 mb-2" size={28} />
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  No sales recorded yet
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Dispense items in Billing to see live top medicines.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Recent activity</h3>
+        {/* Recent Audit / Sales Log */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={16} className="text-[#0284c7] dark:text-sky-400" />
+            <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
+              Recent Transactions &amp; Audit Log
+            </h3>
           </div>
-          <div className="space-y-4">
-            {activity.map((item, i) => {
-              const toneBg = {
-                green: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40",
-                blue: "bg-sky-50 dark:bg-sky-950/40 text-[#0284c7] dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/40",
-                amber: "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40",
-              }[item.tone];
-              return (
-                <div key={i} className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80 last:border-0 last:pb-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${toneBg}`}>
-                    <Activity size={15} />
+
+          {activity.length > 0 ? (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {activity.map((act, idx) => (
+                <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-slate-700 dark:text-slate-300 font-medium">
+                      {act.text}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-800 dark:text-slate-200">{item.text}</p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{item.time}</p>
-                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {act.time}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 py-3 text-center">
+              No recent transaction activity recorded yet.
+            </p>
+          )}
         </div>
       </main>
     </div>

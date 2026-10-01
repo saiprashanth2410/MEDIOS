@@ -177,7 +177,14 @@ export const authService = {
   /* =====================================================
      REGISTER WITH EMAIL / PASSWORD
   ===================================================== */
-  async register({ name, email, password, role = "Chief Pharmacist", pharmacy = "MediTrack Central" }) {
+  async register({
+    name,
+    email,
+    password,
+    role = "Chief Pharmacist",
+    pharmacy = "MediTrack Central",
+    license = "",
+  }) {
     if (!email || !password) {
       return { ok: false, message: "Email and password required" };
     }
@@ -203,6 +210,8 @@ export const authService = {
             displayName: name || fbUser.email.split("@")[0],
             role,
             pharmacy: pharmacy.trim(),
+            license: license.trim(),
+            updatedAt: serverTimestamp(),
           },
           { merge: true }
         );
@@ -217,6 +226,7 @@ export const authService = {
         email: fbUser.email,
         role,
         pharmacy: pharmacy.trim(),
+        license: license.trim(),
       };
 
       return {

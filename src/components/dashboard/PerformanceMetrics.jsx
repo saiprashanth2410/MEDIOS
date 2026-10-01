@@ -8,36 +8,11 @@ import {
   calculateTrend,
 } from "../../utils/calculateMetrics";
 
-/* =====================================================
-   MOCK DATA — Later replace with API calls
-===================================================== */
-
-const MOCK_DATA = {
-  sales: [
-    { actualQty: 103, forecastedQty: 100 },
-    { actualQty: 95, forecastedQty: 98 },
-    { actualQty: 120, forecastedQty: 118 },
-    { actualQty: 88, forecastedQty: 90 },
-  ],
-  medicines: [
-    { stock: 50, price: 10, lastSoldDate: "2026-09-01" },
-    { stock: 30, price: 23, lastSoldDate: "2026-08-10" }, // overstock
-    { stock: 64, price: 36, lastSoldDate: "2026-09-20" },
-    { stock: 20, price: 15, lastSoldDate: "2026-07-15" }, // overstock
-  ],
-  orders: [
-    { status: "fulfilled" },
-    { status: "fulfilled" },
-    { status: "out_of_stock" },
-    { status: "fulfilled" },
-    { status: "fulfilled" },
-    { status: "fulfilled" },
-  ],
-  shipments: [
-    { expectedAt: "2026-09-01", deliveredAt: "2026-09-05" },
-    { expectedAt: "2026-09-10", deliveredAt: "2026-09-18" },
-    { expectedAt: "2026-09-15", deliveredAt: "2026-09-20" },
-  ],
+const DEFAULT_METRIC_DATA = {
+  sales: [],
+  medicines: [],
+  orders: [],
+  shipments: [],
 };
 
 /* =====================================================
@@ -95,7 +70,7 @@ const METRIC_CONFIG = [
    MAIN COMPONENT
 ===================================================== */
 
-export default function PerformanceMetrics({ data = MOCK_DATA }) {
+export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
   /* =====================================================
      COMPUTE METRICS FROM DATA
   ===================================================== */

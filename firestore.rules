@@ -95,10 +95,11 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'email']) &&
         data.uid == request.auth.uid &&
         isValidEmail(data.email) &&
-        isValidOptionalString('displayName', 1, 100) &&
-        isValidOptionalString('role', 1, 50) &&
-        isValidOptionalString('pharmacy', 1, 100) &&
-        isValidOptionalString('photoURL', 1, 500);
+        isValidOptionalString('displayName', 0, 100) &&
+        isValidOptionalString('role', 0, 50) &&
+        isValidOptionalString('pharmacy', 0, 100) &&
+        isValidOptionalString('license', 0, 100) &&
+        isValidOptionalString('photoURL', 0, 500);
     }
 
     function isValidMedicine(data) {
@@ -113,6 +114,7 @@ service cloud.firestore {
         isValidOptionalString('batch', 0, 50) &&
         isValidOptionalString('rack', 0, 50) &&
         isValidOptionalString('schedule', 0, 20) &&
+        isValidOptionalString('hsn', 0, 20) &&
         isValidOptionalString('expiry', 0, 30) &&
         (!('isCustom' in data) || data.isCustom is bool);
     }
@@ -171,6 +173,26 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidBatch(request.resource.data);
       allow update: if isAuthenticated() && isValidBatch(request.resource.data);
       allow delete: if isAuthenticated();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /pharmacists/{pharmacistId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /sales/{saleId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /schedule_h_register/{regId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /patients/{patientId} {
+      allow read, write: if isAuthenticated();
     }
 
     match /audit_logs/{logId} {

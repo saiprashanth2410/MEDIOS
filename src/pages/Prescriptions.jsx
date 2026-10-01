@@ -17,6 +17,7 @@ import {
 import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionModal";
 import PrescriptionDetailModal from "../components/prescriptions/PrescriptionDetailModal";
 import Navbar from "../components/dashboard/Navbar";
+import { prescriptionsFirebaseService } from "../services/prescriptionsFirebaseService";
 import { prescriptionsAPI } from "../services/api";
 import { checkMedicineStock } from "../utils/inventoryDeduction";
 
@@ -40,10 +41,15 @@ export default function Prescriptions() {
   ===================================================== */
   const fetchStats = useCallback(async () => {
     try {
-      const data = await prescriptionsAPI.stats();
+      const data = await prescriptionsFirebaseService.stats();
       setStats(data);
-    } catch (err) {
-      console.error("Stats error:", err);
+    } catch {
+      try {
+        const data = await prescriptionsAPI.stats();
+        setStats(data);
+      } catch (err) {
+        console.error("Stats error:", err);
+      }
     }
   }, []);
 
@@ -53,16 +59,25 @@ export default function Prescriptions() {
   const fetchPrescriptions = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await prescriptionsAPI.list({
+      const data = await prescriptionsFirebaseService.list({
         page: 1,
         limit: PAGE_SIZE,
         search: searchQuery,
         status: "all",
       });
-      setPrescriptions(data.prescriptions);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      toast.error("Failed to load prescriptions");
+      setPrescriptions(data?.prescriptions || []);
+    } catch {
+      try {
+        const data = await prescriptionsAPI.list({
+          page: 1,
+          limit: PAGE_SIZE,
+          search: searchQuery,
+          status: "all",
+        });
+        setPrescriptions(data?.prescriptions || []);
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -72,10 +87,15 @@ export default function Prescriptions() {
     let cancelled = false;
     const run = async () => {
       try {
-        const data = await prescriptionsAPI.stats();
+        const data = await prescriptionsFirebaseService.stats();
         if (!cancelled && data) setStats(data);
-      } catch (err) {
-        console.error("Stats error:", err);
+      } catch {
+        try {
+          const data = await prescriptionsAPI.stats();
+          if (!cancelled && data) setStats(data);
+        } catch (err) {
+          console.error("Stats error:", err);
+        }
       }
     };
     run();
@@ -93,42 +113,51 @@ export default function Prescriptions() {
      HANDLERS
   ===================================================== */
 
-  // ✅ Add — backend la save aagum (PERMANENT)
+  // ✅ Add — Firebase & backend la save aagum (PERMANENT)
   const handleAddPrescription = async (newPrescription) => {
     try {
-      const created = await prescriptionsAPI.create(newPrescription);
+      const created = await prescriptionsFirebaseService.create(newPrescription);
       setPrescriptions((prev) => [created, ...prev]);
       toast.success(`Prescription ${created.id} saved!`);
       setShowAddPrescription(false);
       fetchStats();
+      try {
+        await prescriptionsAPI.create(newPrescription);
+      } catch (_) {}
     } catch (err) {
       toast.error(err.message || "Failed to save prescription");
     }
   };
 
-  // ✅ Delete — backend la irundhu remove aagum
+  // ✅ Delete — backend & Firebase la irundhu remove aagum
   const handleDeletePrescription = async (id) => {
     try {
-      await prescriptionsAPI.delete(id);
+      await prescriptionsFirebaseService.delete(id);
       setPrescriptions((prev) => prev.filter((rx) => rx.id !== id));
       setSelectedPrescription(null);
       toast.success("Prescription deleted");
       fetchStats();
+      try {
+        await prescriptionsAPI.delete(id);
+      } catch (_) {}
     } catch (err) {
       toast.error(err.message || "Failed to delete");
     }
   };
 
-  // ✅ Update — backend la update aagum
+  // ✅ Update — backend & Firebase la update aagum
   const handleUpdatePrescription = async (updatedRx) => {
     try {
-      const saved = await prescriptionsAPI.update(updatedRx.id, updatedRx);
+      const saved = await prescriptionsFirebaseService.update(updatedRx.id, updatedRx);
       setPrescriptions((prev) =>
         prev.map((rx) => (rx.id === saved.id ? saved : rx))
       );
       setSelectedPrescription(saved);
       toast.success("Updated");
       fetchStats();
+      try {
+        await prescriptionsAPI.update(updatedRx.id, updatedRx);
+      } catch (_) {}
     } catch (err) {
       toast.error(err.message || "Failed to update");
     }

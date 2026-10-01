@@ -28,6 +28,7 @@ import {
   ShoppingCart,
   Info,
   Star,
+  Receipt,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import BarcodeScanner from "../components/scanner/BarcodeScanner";
@@ -37,36 +38,10 @@ import Navbar from "../components/dashboard/Navbar";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import usePerformanceData from "../hooks/usePerformanceData";
 import { useExpiryData } from "../utils/expiryStore";
+import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
+import { billingFirebaseService } from "../services/billingFirebaseService";
+import { pharmacistsFirebaseService } from "../services/pharmacistsFirebaseService";
 import { medicinesAPI, prescriptionsAPI, suppliersAPI, notificationsAPI } from "../services/api";
-
-/* =====================================================
-   DATA
-===================================================== */
-
-
-const REORDER_ALERTS = [
-  { name: "Insulin Glargine 100IU", current: 18, min: 50, suggested: 200, supplier: "Novo Nordisk", unitPrice: 850, estimatedCost: 170000 },
-  { name: "Cetirizine 10mg", current: 42, min: 100, suggested: 400, supplier: "Dr. Reddy's", unitPrice: 22, estimatedCost: 8800 },
-  { name: "Amoxicillin 500mg", current: 45, min: 50, suggested: 200, supplier: "Cipla Ltd", unitPrice: 45, estimatedCost: 9000 },
-];
-
-const SHIPMENTS = [
-  { id: "SHIP-2026-042", from: "Cipla Mumbai", to: "MediTrack Chennai", status: "In Transit", eta: "2 hours", temp: 4.2, humidity: 45, route: "Mumbai → Chennai", progress: 65 },
-  { id: "SHIP-2026-041", from: "Sun Pharma Hyderabad", to: "MediTrack Chennai", status: "Delivered", eta: "Done", temp: 5.1, humidity: 48, route: "Hyderabad → Chennai", progress: 100 },
-];
-
-const TOP_SUPPLIERS = [
-  { name: "Cipla Ltd", onTime: 95, quality: 98, leadTime: "3 days", risk: "low", rating: 4.8, riskReason: "Consistent on-time delivery, zero quality issues" },
-  { name: "Sun Pharma", onTime: 92, quality: 96, leadTime: "4 days", risk: "low", rating: 4.6, riskReason: "Strong delivery record" },
-  { name: "Alkem Labs", onTime: 78, quality: 88, leadTime: "6 days", risk: "medium", rating: 4.0, riskReason: "3 delayed deliveries in last quarter" },
-];
-
-const ACTIVITY = [
-  { icon: Package, text: "Amoxicillin 500mg — 240 strips received", time: "2 min ago", tone: "blue" },
-  { icon: ClipboardList, text: "Prescription #RX-4821 dispensed to patient", time: "18 min ago", tone: "green" },
-  { icon: AlertTriangle, text: "Insulin Glargine — below reorder level", time: "1 hr ago", tone: "amber" },
-  { icon: ShieldCheck, text: "Drug license renewal completed", time: "3 hrs ago", tone: "green" },
-];
 
 /* =====================================================
    COLOR STYLES
@@ -119,53 +94,27 @@ export default function Dashboard() {
   const [showAddMedicine, setShowAddMedicine] = useState(false);
   const [showAddPrescription, setShowAddPrescription] = useState(false);
 
-  const [reorderAlerts, setReorderAlerts] = useState(REORDER_ALERTS);
-  const [topSuppliers, setTopSuppliers] = useState(TOP_SUPPLIERS);
-  const [recentActivity, setRecentActivity] = useState(ACTIVITY);
+  const [topSuppliers, setTopSuppliers] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [shipments, setShipments] = useState([]);
+  const [pharmacistCount, setPharmacistCount] = useState(1);
+  const [todayDispensedCount, setTodayDispensedCount] = useState(0);
+  const [todaySalesSum, setTodaySalesSum] = useState(0);
 
-  // Live MongoDB data sync for alerts, suppliers, and recent activity
+  // Live Firebase & local database data sync
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Fetch real low stock medicines
-    medicinesAPI
-      .list({ limit: 100 })
-      .then((res) => {
-        if (!isMounted || !res?.medicines) return;
-        const lowStockMeds = res.medicines
-          .filter((m) => (m.stock ?? 100) <= (m.reorderLevel || 50))
-          .slice(0, 4)
-          .map((m) => {
-            const current = m.stock ?? 0;
-            const min = m.reorderLevel || 50;
-            const suggested = Math.max(100, min * 4 - current);
-            const unitPrice = m.price || m.sellingPrice || 45;
-            return {
-              name: m.name || m.fullName,
-              current,
-              min,
-              suggested,
-              supplier: m.supplierName || "Direct Supplier",
-              unitPrice,
-              estimatedCost: suggested * unitPrice,
-            };
-          });
-        if (lowStockMeds.length > 0) {
-          setReorderAlerts(lowStockMeds);
-        }
-      })
-      .catch((err) => console.debug("Dashboard low stock sync:", err));
-
-    // 2. Fetch real top suppliers
-    suppliersAPI
+    // 1. Fetch real top suppliers
+    suppliersFirebaseService
       .list({ limit: 4 })
       .then((res) => {
-        if (!isMounted || !res?.suppliers || res.suppliers.length === 0) return;
-        const mapped = res.suppliers.map((s) => ({
+        if (!isMounted || !res?.suppliers) return;
+        const mapped = res.suppliers.slice(0, 4).map((s) => ({
           name: s.name,
           onTime: s.metrics?.onTimeDelivery || 95,
           quality: s.metrics?.qualityScore || 98,
-          leadTime: s.leadTime || "3 days",
+          leadTime: s.deliveryTime || s.leadTime || "24-48 hrs",
           risk: s.status === "active" ? "low" : "medium",
           rating: s.rating || 4.8,
           riskReason:
@@ -173,39 +122,63 @@ export default function Dashboard() {
         }));
         setTopSuppliers(mapped);
       })
-      .catch((err) => console.debug("Dashboard suppliers sync:", err));
+      .catch(() => {
+        suppliersAPI.list({ limit: 4 }).then((res) => {
+          if (!isMounted || !res?.suppliers) return;
+          const mapped = res.suppliers.slice(0, 4).map((s) => ({
+            name: s.name,
+            onTime: s.metrics?.onTimeDelivery || 95,
+            quality: s.metrics?.qualityScore || 98,
+            leadTime: s.leadTime || "3 days",
+            risk: s.status === "active" ? "low" : "medium",
+            rating: s.rating || 4.8,
+            riskReason: "Active verified partner",
+          }));
+          setTopSuppliers(mapped);
+        }).catch((err) => console.debug("Suppliers sync fallback:", err));
+      });
 
-    // 3. Fetch real notifications for recent activity
-    notificationsAPI
-      .list({ limit: 5 })
-      .then((res) => {
-        if (!isMounted || !res?.notifications || res.notifications.length === 0)
-          return;
-        const mapped = res.notifications.map((n) => {
-          let icon = Package;
-          if (n.type === "prescription") icon = ClipboardList;
-          if (n.type === "expiry") icon = AlertTriangle;
-          if (n.type === "system") icon = ShieldCheck;
+    // 2. Fetch real recent dispensing activity and sales
+    billingFirebaseService
+      .getRecentInvoices(10)
+      .then((sales) => {
+        if (!isMounted || !sales) return;
+        const todayStr = new Date().toLocaleDateString("en-IN");
+        const todaySales = sales.filter((s) => s.date === todayStr);
 
-          let tone = "blue";
-          if (n.color === "red" || n.color === "amber") tone = "amber";
-          if (n.color === "emerald") tone = "green";
+        const dispensedItemsCount = todaySales.reduce(
+          (sum, s) => sum + (s.items?.reduce((isum, it) => isum + (Number(it.quantity) || 1), 0) || 1),
+          0
+        );
+        const billedSum = todaySales.reduce(
+          (sum, s) => sum + (Number(s.totals?.grandTotal || s.total) || 0),
+          0
+        );
 
-          const date = new Date(n.createdAt);
-          const timeStr = !isNaN(date)
-            ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-            : "Recently";
+        setTodayDispensedCount(dispensedItemsCount);
+        setTodaySalesSum(billedSum);
 
-          return {
-            icon,
-            text: n.message || n.title,
-            time: timeStr,
-            tone,
-          };
-        });
-        setRecentActivity(mapped);
+        const saleActivities = sales.slice(0, 4).map((s) => ({
+          icon: Receipt,
+          text: `Invoice #${s.invoiceNumber} — dispensed to ${s.customer?.name || "Patient"} (₹${(s.totals?.grandTotal || s.total || 0).toFixed(0)})`,
+          time: s.time || s.date || "Today",
+          tone: "green",
+        }));
+        if (saleActivities.length > 0) {
+          setRecentActivity(saleActivities);
+        }
       })
-      .catch((err) => console.debug("Dashboard activity sync:", err));
+      .catch((err) => console.debug("Billing activity sync fallback:", err));
+
+    // 3. Fetch active staff count
+    pharmacistsFirebaseService
+      .list()
+      .then((list) => {
+        if (isMounted && Array.isArray(list)) {
+          setPharmacistCount(list.length || 1);
+        }
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -270,7 +243,7 @@ export default function Dashboard() {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Real-time pharmacy inventory, dispensing, and supplier escalation dashboard.
+              Real-time pharmacy inventory, dispensing dashboard.
             </p>
           </div>
 
@@ -369,85 +342,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* AUTO-REORDER */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 mb-4 sm:mb-6 shadow-2xs">
-              <div className="flex items-center justify-between mb-4 sm:mb-5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
-                    <ShoppingCart
-                      size={16}
-                      className="text-emerald-600 dark:text-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100">
-                      Auto-Reorder Alerts
-                    </h3>
-                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
-                      Intelligent purchase suggestions
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => navigate("/reorder")}
-                  className="text-[10px] sm:text-xs font-medium text-[#0284c7] dark:text-sky-400 hover:underline flex items-center gap-1"
-                >
-                  View all <ArrowUpRight size={12} />
-                </button>
-              </div>
 
-              <div className="space-y-3">
-                {reorderAlerts.map((item, i) => (
-                  <div
-                    key={i}
-                    className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition"
-                  >
-                    <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                          {item.name}
-                        </p>
-                        <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
-                          {item.supplier}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => navigate("/reorder")}
-                        className="px-3 py-1.5 rounded-md bg-[#0284c7] dark:bg-sky-600 hover:bg-[#0369a1] dark:hover:bg-sky-700 text-white text-[11px] font-semibold transition shrink-0 shadow-2xs"
-                      >
-                        Order
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                          Stock / Min
-                        </p>
-                        <p className="font-semibold text-rose-600 dark:text-rose-400">
-                          {item.current} / {item.min}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                          Suggested
-                        </p>
-                        <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {item.suggested} units
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                          Est. Cost
-                        </p>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
-                          ₹{item.estimatedCost.toLocaleString("en-IN")}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* RECENT ACTIVITY */}
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 mb-4 sm:mb-6 shadow-2xs">
@@ -509,7 +404,7 @@ export default function Dashboard() {
                   { icon: Pill, label: "Add medicine", action: "medicine" },
                   { icon: ScanLine, label: "Scan medicine", action: "scan" },
                   { icon: ClipboardList, label: "New prescription", action: "prescription" },
-                  { icon: Package, label: "Reorder stock", action: "reorder" },
+                  { icon: Receipt, label: "POS Billing", action: "billing" },
                 ].map((action) => {
                   const Icon = action.icon;
                   return (
@@ -519,7 +414,7 @@ export default function Dashboard() {
                         if (action.action === "scan") setShowScanner(true);
                         if (action.action === "medicine") setShowAddMedicine(true);
                         if (action.action === "prescription") setShowAddPrescription(true);
-                        if (action.action === "reorder") navigate("/reorder");
+                        if (action.action === "billing") navigate("/billing");
                       }}
                       className="flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition text-left text-sm font-medium text-slate-700 dark:text-slate-200"
                     >
@@ -561,53 +456,38 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                {SHIPMENTS.map((shipment) => (
-                  <div
-                    key={shipment.id}
-                    className="p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-mono font-semibold text-[#0284c7] dark:text-sky-400">
-                        {shipment.id}
-                      </span>
-                      <span
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                          shipment.status === "Delivered"
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40"
-                            : "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/40"
-                        }`}
-                      >
-                        {shipment.status}
-                      </span>
+                {shipments.length > 0 ? (
+                  shipments.map((shipment) => (
+                    <div
+                      key={shipment.id}
+                      className="p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-mono font-semibold text-[#0284c7] dark:text-sky-400">
+                          {shipment.id}
+                        </span>
+                        <span
+                          className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            shipment.status === "Delivered"
+                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40"
+                              : "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/40"
+                          }`}
+                        >
+                          {shipment.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 mb-2 truncate font-medium">
+                        {shipment.route}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 mb-2 truncate font-medium">
-                      {shipment.route}
+                  ))
+                ) : (
+                  <div className="p-4 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      All supplier consignments received. No pending transit shipments.
                     </p>
-                    <div className="h-1 bg-slate-200 dark:bg-slate-700 rounded-full mb-2 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#0284c7] to-[#38bdf8] rounded-full transition-all"
-                        style={{ width: `${shipment.progress}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2">
-                      {shipment.progress}% complete
-                    </p>
-                    <div className="flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <Thermometer size={10} />
-                        {shipment.temp}°C
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Droplets size={10} />
-                        {shipment.humidity}%
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={10} />
-                        {shipment.eta}
-                      </span>
-                    </div>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -706,22 +586,22 @@ export default function Dashboard() {
                 <InfoRow
                   icon={Building2}
                   label="Pharmacy ID"
-                  value={user?.pharmacyId || "PH-MT-220022"}
+                  value={user?.pharmacyId || "DL-TN-CH-2024-0045"}
                 />
                 <InfoRow
                   icon={BadgeCheck}
                   label="License No."
-                  value={user?.license || "TN/PH/2026/4821"}
+                  value={user?.license || "TN/PH/2026/0892"}
                 />
                 <InfoRow
                   icon={MapPin}
                   label="Branch"
-                  value={user?.branch || "Anna Nagar, Chennai"}
+                  value={user?.branch || "Tiruvannamalai"}
                 />
                 <InfoRow
                   icon={Stethoscope}
                   label="On-duty Staff"
-                  value="4 pharmacists"
+                  value={`${pharmacistCount} pharmacist${pharmacistCount === 1 ? "" : "s"}`}
                 />
               </div>
 
@@ -740,11 +620,11 @@ export default function Dashboard() {
               <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
                 <div className="flex items-center gap-1.5">
                   <ArrowUp size={12} className="text-emerald-500" />
-                  <span>+128 dispensed</span>
+                  <span>+{todayDispensedCount} items dispensed</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <ArrowDown size={12} className="text-rose-500" />
-                  <span>-42 sold</span>
+                  <ArrowDown size={12} className="text-teal-600 dark:text-teal-400" />
+                  <span>₹{todaySalesSum.toFixed(0)} billed</span>
                 </div>
               </div>
             </div>

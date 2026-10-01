@@ -17,6 +17,7 @@ import {
 import AddSupplierModal from "../components/suppliers/AddSupplierModal";
 import SupplierDetailModal from "../components/suppliers/SupplierDetailModal";
 import Navbar from "../components/dashboard/Navbar";
+import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
 import { suppliersAPI } from "../services/api";
 
 const PAGE_SIZE = 50;
@@ -42,10 +43,15 @@ export default function Suppliers() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const data = await suppliersAPI.stats();
+      const data = await suppliersFirebaseService.stats();
       setStats(data);
-    } catch (err) {
-      console.error("Stats error:", err);
+    } catch {
+      try {
+        const data = await suppliersAPI.stats();
+        setStats(data);
+      } catch (err) {
+        console.error("Stats error:", err);
+      }
     }
   }, []);
 
@@ -55,21 +61,31 @@ export default function Suppliers() {
         if (append) setLoadingMore(true);
         else setLoading(true);
 
-        const data = await suppliersAPI.list({
-          page: pageNum,
-          limit: PAGE_SIZE,
-          search: searchQuery,
-          status: statusFilter,
-        });
-
-        if (append) {
-          setSuppliers((prev) => [...prev, ...data.suppliers]);
-        } else {
-          setSuppliers(data.suppliers);
+        let data;
+        try {
+          data = await suppliersFirebaseService.list({
+            page: pageNum,
+            limit: PAGE_SIZE,
+            search: searchQuery,
+            status: statusFilter,
+          });
+        } catch {
+          data = await suppliersAPI.list({
+            page: pageNum,
+            limit: PAGE_SIZE,
+            search: searchQuery,
+            status: statusFilter,
+          });
         }
 
-        setTotal(data.total);
-        setTotalPages(data.totalPages);
+        if (append) {
+          setSuppliers((prev) => [...prev, ...(data.suppliers || [])]);
+        } else {
+          setSuppliers(data.suppliers || []);
+        }
+
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
         setPage(pageNum);
       } catch (err) {
         console.error("Fetch error:", err);
@@ -83,20 +99,8 @@ export default function Suppliers() {
   );
 
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const data = await suppliersAPI.stats();
-        if (!cancelled && data) setStats(data);
-      } catch (err) {
-        console.error("Stats error:", err);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    fetchStats();
+  }, [fetchStats]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -139,23 +143,29 @@ export default function Suppliers() {
 
   const handleAddSupplier = async (newSupplier) => {
     try {
-      const created = await suppliersAPI.create(newSupplier);
+      const created = await suppliersFirebaseService.create(newSupplier);
       setSuppliers((prev) => [created, ...prev]);
       toast.success(`${created.name} added!`);
       setShowAddModal(false);
       fetchStats();
     } catch (err) {
-      toast.error(err.message);
+      try {
+        const created = await suppliersAPI.create(newSupplier);
+        setSuppliers((prev) => [created, ...prev]);
+        setShowAddModal(false);
+      } catch (e) {
+        toast.error(err.message || e.message);
+      }
     }
   };
 
   const handleUpdateSupplier = async (updated) => {
     try {
-      const saved = await suppliersAPI.update(updated.code, updated);
+      await suppliersFirebaseService.update(updated.code, updated);
       setSuppliers((prev) =>
-        prev.map((s) => (s.code === saved.code ? saved : s))
+        prev.map((s) => (s.code === updated.code ? updated : s))
       );
-      setSelectedSupplier(saved);
+      setSelectedSupplier(updated);
       toast.success("Updated");
       fetchStats();
     } catch (err) {
@@ -165,7 +175,7 @@ export default function Suppliers() {
 
   const handleDeleteSupplier = async (code) => {
     try {
-      await suppliersAPI.delete(code);
+      await suppliersFirebaseService.delete(code);
       setSuppliers((prev) => prev.filter((s) => s.code !== code));
       setSelectedSupplier(null);
       toast.success("Deleted");

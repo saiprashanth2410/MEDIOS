@@ -21,6 +21,7 @@ import Batches from "./pages/Batches";
 import ExpiryManagement from "./pages/ExpiryManagement";
 import Suppliers from "./pages/Suppliers"; // ✅ NEW
 import Notifications from "./pages/Notifications"; // ✅ NEW
+import Billing from "./pages/Billing"; // ✅ NEW POS & GST Billing
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
             {/* Protected Routes */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/medicines" element={<ProtectedRoute><Medicines /></ProtectedRoute>} />
+            <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
 
             {/* Prescriptions */}
             <Route path="/prescriptions" element={<ProtectedRoute><Prescriptions /></ProtectedRoute>} />
@@ -57,7 +59,6 @@ function App() {
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
             {/* Coming Soon */}
-            <Route path="/reorder" element={<ProtectedRoute><ComingSoon title="Auto-Reorder" /></ProtectedRoute>} />
             <Route path="/shipments" element={<ProtectedRoute><ComingSoon title="Shipments" /></ProtectedRoute>} />
             <Route path="/forecast" element={<ProtectedRoute><ComingSoon title="AI Forecast" /></ProtectedRoute>} />
 

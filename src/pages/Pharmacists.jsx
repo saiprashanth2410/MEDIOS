@@ -24,14 +24,8 @@ import {
   EyeOff,
 } from "lucide-react";
 import Navbar from "../components/dashboard/Navbar";
+import { pharmacistsFirebaseService } from "../services/pharmacistsFirebaseService";
 import { pharmacistsAPI } from "../services/api";
-
-const INITIAL_PHARMACISTS = [
-  { id: "PH-001", name: "Dr. Rajesh Kumar", email: "rajesh@meditrack.ai", phone: "+91 98765 43210", license: "TN/PH/2020/1234", role: "Chief Pharmacist", shift: "Morning (9AM - 5PM)", status: "active", joinDate: "15 Jan 2020" },
-  { id: "PH-002", name: "Priya Sharma", email: "priya@meditrack.ai", phone: "+91 98765 43211", license: "TN/PH/2021/5678", role: "Senior Pharmacist", shift: "Evening (5PM - 11PM)", status: "active", joinDate: "20 Mar 2021" },
-  { id: "PH-003", name: "Karthik R", email: "karthik@meditrack.ai", phone: "+91 98765 43212", license: "TN/PH/2022/9012", role: "Pharmacist", shift: "Morning (9AM - 5PM)", status: "on-leave", joinDate: "10 Jun 2022" },
-  { id: "PH-004", name: "Anita Menon", email: "anita@meditrack.ai", phone: "+91 98765 43213", license: "TN/PH/2023/3456", role: "Pharmacist", shift: "Night (11PM - 8AM)", status: "active", joinDate: "05 Sep 2023" },
-];
 
 const ROLES = ["Chief Pharmacist", "Senior Pharmacist", "Pharmacist", "Trainee", "Intern"];
 const SHIFTS = ["Morning (9AM - 5PM)", "Evening (5PM - 11PM)", "Night (11PM - 8AM)", "Flexible"];
@@ -43,7 +37,7 @@ const FIELD_BASE =
 const LABEL_BASE = "block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5";
 
 export default function Pharmacists() {
-  const [pharmacists, setPharmacists] = useState(INITIAL_PHARMACISTS);
+  const [pharmacists, setPharmacists] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
@@ -57,12 +51,21 @@ export default function Pharmacists() {
     let cancelled = false;
     const fetchTeam = async () => {
       try {
+        const data = await pharmacistsFirebaseService.list();
+        if (!cancelled && Array.isArray(data)) {
+          setPharmacists(data);
+          return;
+        }
+      } catch {
+        // Fallback
+      }
+      try {
         const data = await pharmacistsAPI.list();
-        if (!cancelled && Array.isArray(data) && data.length > 0) {
+        if (!cancelled && Array.isArray(data)) {
           setPharmacists(data);
         }
       } catch (err) {
-        console.warn("Could not fetch pharmacists from API, using initial list:", err.message);
+        console.debug("Could not fetch pharmacists from API:", err.message);
       }
     };
     fetchTeam();
@@ -77,10 +80,15 @@ export default function Pharmacists() {
 
   const handleAddPharmacist = async (newPharmacist) => {
     try {
-      const created = await pharmacistsAPI.create(newPharmacist);
+      const created = await pharmacistsFirebaseService.create(newPharmacist);
       setPharmacists((prev) => [created || newPharmacist, ...prev]);
     } catch {
-      setPharmacists((prev) => [newPharmacist, ...prev]);
+      try {
+        const created = await pharmacistsAPI.create(newPharmacist);
+        setPharmacists((prev) => [created || newPharmacist, ...prev]);
+      } catch {
+        setPharmacists((prev) => [newPharmacist, ...prev]);
+      }
     }
     toast.success(`${newPharmacist.name} added to team!`);
     setShowAddModal(false);
@@ -88,9 +96,13 @@ export default function Pharmacists() {
 
   const handleEditPharmacist = async (updated) => {
     try {
-      await pharmacistsAPI.update(updated.id, updated);
-    } catch (err) {
-      console.debug("Update error:", err);
+      await pharmacistsFirebaseService.update(updated.id, updated);
+    } catch {
+      try {
+        await pharmacistsAPI.update(updated.id, updated);
+      } catch (err) {
+        console.debug("Update error:", err);
+      }
     }
     setPharmacists((prev) =>
       prev.map((p) => (p.id === updated.id ? updated : p))
@@ -103,9 +115,13 @@ export default function Pharmacists() {
     const pharmacist = pharmacists.find((p) => p.id === id);
     if (window.confirm(`Delete ${pharmacist?.name}?`)) {
       try {
-        await pharmacistsAPI.delete(id);
-      } catch (err) {
-        console.debug("Delete error:", err);
+        await pharmacistsFirebaseService.delete(id);
+      } catch {
+        try {
+          await pharmacistsAPI.delete(id);
+        } catch (err) {
+          console.debug("Delete error:", err);
+        }
       }
       setPharmacists((prev) => prev.filter((p) => p.id !== id));
       toast.success("Pharmacist removed");

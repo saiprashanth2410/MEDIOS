@@ -51,17 +51,25 @@ export default function Profile() {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-  const [form, setForm] = useState({
-    name: user?.name || "Pharmacist",
-    email: user?.email || "",
-    phone: user?.phone || "+91 98765 43210",
-    role: user?.role || "Chief Pharmacist",
-    license: user?.license || "TN/PH/2026/4821",
-    pharmacy: user?.pharmacy || "MediTrack Pharmacy",
-    pharmacyId: user?.pharmacyId || "PH-MT-220022",
-    branch: user?.branch || "Anna Nagar, Chennai",
-    joinDate: user?.joinDate || "24 Sep 2024",
-    avatar: user?.avatar || "",
+  const [form, setForm] = useState(() => {
+    let savedPharm = null;
+    try {
+      const raw = localStorage.getItem("meditrack_pharmacy_details");
+      if (raw) savedPharm = JSON.parse(raw);
+    } catch (_) {}
+
+    return {
+      name: user?.name || "Pharmacist",
+      email: user?.email || "",
+      phone: user?.phone || "+91 98765 43210",
+      role: user?.role || "Chief Pharmacist",
+      license: savedPharm?.license || user?.license || "TN/PH/2026/0892",
+      pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
+      pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
+      branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
+      joinDate: user?.joinDate || "24 Sep 2024",
+      avatar: user?.avatar || "",
+    };
   });
 
   const [security, setSecurity] = useState({
@@ -100,6 +108,22 @@ export default function Profile() {
             branch: data.pharmacy?.address || prev.branch,
             pharmacyId: data.pharmacy?.licenseNumber || prev.pharmacyId,
           }));
+          if (data.pharmacy?.name) {
+            try {
+              localStorage.setItem(
+                "meditrack_pharmacy_details",
+                JSON.stringify({
+                  name: data.pharmacy.name,
+                  branch: data.pharmacy.address || "Tiruvannamalai",
+                  pharmacyId: data.pharmacy.licenseNumber || "DL-TN-CH-2024-0045",
+                  license: data.personal?.license || "TN/PH/2026/0892",
+                })
+              );
+              window.dispatchEvent(new Event("meditrack_pharmacy_updated"));
+            } catch (e) {
+              console.debug(e);
+            }
+          }
           if (data.personal.avatar && !user?.avatar) {
             updateUser({ avatar: data.personal.avatar });
           }
@@ -152,6 +176,19 @@ export default function Profile() {
       return;
     }
 
+    const updatedPharmacy = {
+      name: form.pharmacy || "MediTrack Pharmacy & Health Store",
+      branch: form.branch || "Tiruvannamalai",
+      pharmacyId: form.pharmacyId || "DL-TN-CH-2024-0045",
+      license: form.license || "TN/PH/2026/0892",
+    };
+    try {
+      localStorage.setItem("meditrack_pharmacy_details", JSON.stringify(updatedPharmacy));
+      window.dispatchEvent(new Event("meditrack_pharmacy_updated"));
+    } catch (e) {
+      console.debug(e);
+    }
+
     updateUser({
       name: form.name,
       email: form.email,
@@ -193,15 +230,21 @@ export default function Profile() {
   };
 
   const handleCancel = () => {
+    let savedPharm = null;
+    try {
+      const raw = localStorage.getItem("meditrack_pharmacy_details");
+      if (raw) savedPharm = JSON.parse(raw);
+    } catch (_) {}
+
     setForm({
       name: user?.name || "",
       email: user?.email || "",
       phone: user?.phone || "+91 98765 43210",
       role: user?.role || "Chief Pharmacist",
-      license: user?.license || "TN/PH/2026/4821",
-      pharmacy: user?.pharmacy || "MediTrack Pharmacy",
-      pharmacyId: user?.pharmacyId || "PH-MT-220022",
-      branch: user?.branch || "Anna Nagar, Chennai",
+      license: savedPharm?.license || user?.license || "TN/PH/2026/0892",
+      pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
+      pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
+      branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
       joinDate: user?.joinDate || "24 Sep 2024",
       avatar: user?.avatar || "",
     });

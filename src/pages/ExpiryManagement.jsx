@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { 
   Search, Filter, AlertTriangle, ShieldCheck,
   Trash2, Download, ArrowUpDown, ChevronLeft, ChevronRight, 
-  Package, ShieldAlert, RotateCcw, Clock, RotateCw
+  Package, ShieldAlert, RotateCcw, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Navbar from '../components/dashboard/Navbar';
@@ -64,7 +64,6 @@ export default function ExpiryManagement() {
     quarantineItem,
     returnItem,
     deleteItem,
-    resetItems,
   } = useExpiryData();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,11 +75,6 @@ export default function ExpiryManagement() {
   const handleFilterChange = (status) => {
     setCurrentPage(1);
     setSearchParams(status === 'All' ? {} : { status }, { replace: true });
-  };
-
-  const handleResetData = () => {
-    resetItems();
-    toast.success("FEFO expiry dataset restored to master 48 items");
   };
 
   const handleDelete = (id) => {
@@ -187,14 +181,6 @@ export default function ExpiryManagement() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={handleResetData}
-              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition shadow-xs"
-              title="Reset FEFO items to master catalog (48 items)"
-            >
-              <RotateCw size={15} />
-              <span>Reset Data (48)</span>
-            </button>
             <button 
               onClick={exportToCSV}
               className="flex items-center gap-2 bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm"

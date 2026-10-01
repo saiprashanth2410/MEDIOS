@@ -1,4 +1,5 @@
 import defaultMedicines from "../data/catalogMedicines.json";
+import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 
 /**
  * Calculates the quantity of medicine to deduct based on prescription details.
@@ -346,6 +347,11 @@ export function deductPrescriptionInventory(prescription) {
           remaining: newStock,
         });
       }
+
+      // Sync deduction with Firestore in real-time
+      inventoryFirebaseService.deductMedicineStock(rxMed.name, qty).catch((fbErr) => {
+        console.warn("[inventoryDeduction] Firestore stock sync notice:", fbErr?.message);
+      });
     });
 
     localStorage.setItem(
@@ -359,6 +365,108 @@ export function deductPrescriptionInventory(prescription) {
     }
   } catch (err) {
     console.error("Failed to deduct inventory locally:", err);
+  }
+
+  return deductedItems;
+}
+
+/**
+ * Automatically deducts stock from inventory when a POS cart is dispensed.
+ * Updates local overrides and dispatches an event so Medicines page reflects it immediately.
+ */
+export function deductCartFromInventory(cartItems) {
+  if (!Array.isArray(cartItems) || cartItems.length === 0) return [];
+
+  const deductedItems = [];
+  try {
+    let overrides = {};
+    try {
+      const saved = localStorage.getItem("meditrack_medicine_overrides");
+      if (saved) overrides = JSON.parse(saved);
+    } catch (e) {
+      console.debug("Overrides read error:", e);
+    }
+
+    let custom = [];
+    try {
+      const savedCustom = localStorage.getItem("meditrack_custom_medicines");
+      if (savedCustom) custom = JSON.parse(savedCustom);
+    } catch (e) {
+      console.debug("Custom medicines read error:", e);
+    }
+
+    cartItems.forEach((cartItem) => {
+      if (!cartItem || !cartItem.name) return;
+      const targetName = cartItem.name.trim().toLowerCase();
+      const targetId = cartItem.id ? String(cartItem.id) : null;
+      const qty = Math.max(1, Number(cartItem.quantity) || 1);
+
+      // Match in custom medicines or defaultMedicines catalog
+      const catalogMatch =
+        (targetId && custom.find((m) => String(m.id) === targetId)) ||
+        custom.find((m) => m.name.toLowerCase() === targetName) ||
+        (targetId && defaultMedicines.find((m) => String(m.id) === targetId)) ||
+        defaultMedicines.find((m) => m.name.toLowerCase() === targetName);
+
+      if (catalogMatch) {
+        const id = catalogMatch.id;
+        const currentOverride = overrides[id] || overrides[catalogMatch.name];
+        const currentStock =
+          currentOverride?.stock !== undefined
+            ? currentOverride.stock
+            : catalogMatch.stock;
+
+        const newStock = Math.max(0, currentStock - qty);
+
+        overrides[id] = {
+          ...currentOverride,
+          stock: newStock,
+          batch: currentOverride?.batch || catalogMatch.batch,
+          rack: currentOverride?.rack || catalogMatch.rack,
+        };
+        overrides[catalogMatch.name] = overrides[id];
+
+        deductedItems.push({
+          id,
+          name: catalogMatch.name,
+          deducted: qty,
+          remaining: newStock,
+        });
+      } else {
+        const key = targetId || cartItem.name;
+        const currentStock = overrides[key]?.stock ?? 50;
+        const newStock = Math.max(0, currentStock - qty);
+        overrides[key] = {
+          stock: newStock,
+        };
+        overrides[cartItem.name] = overrides[key];
+        deductedItems.push({
+          id: key,
+          name: cartItem.name,
+          deducted: qty,
+          remaining: newStock,
+        });
+      }
+
+      // Sync deduction with Firestore in real-time
+      inventoryFirebaseService
+        .deductMedicineStock(cartItem.id || cartItem.name, qty)
+        .catch((fbErr) => {
+          console.warn("[inventoryDeduction] Firestore stock sync notice:", fbErr?.message);
+        });
+    });
+
+    localStorage.setItem(
+      "meditrack_medicine_overrides",
+      JSON.stringify(overrides)
+    );
+
+    // Notify any listening pages/tabs
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("meditrack_stock_updated"));
+    }
+  } catch (err) {
+    console.error("Failed to deduct cart inventory locally:", err);
   }
 
   return deductedItems;

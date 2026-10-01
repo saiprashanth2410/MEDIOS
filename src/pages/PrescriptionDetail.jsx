@@ -22,115 +22,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "../components/dashboard/Navbar";
+import { prescriptionsFirebaseService } from "../services/prescriptionsFirebaseService";
 import { prescriptionsAPI } from "../services/api";
 import { deductPrescriptionInventory, checkMedicineStock } from "../utils/inventoryDeduction";
 import PrescriptionMedicineRow from "../components/prescriptions/PrescriptionMedicineRow";
-
-/* =====================================================
-   MOCK DATA — Replace with API/Context later
-===================================================== */
-
-const MOCK_PRESCRIPTIONS = {
-  "RX-4821": {
-    id: "RX-4821",
-    status: "DISPENSED",
-    aiGenerated: true,
-    patient: {
-      name: "Santhosh",
-      age: 45,
-      gender: "Male",
-      phone: "+91 98765 43210",
-      email: "john.doe@example.com",
-      address: "Anna Nagar, Chennai",
-    },
-    doctor: {
-      name: "Dr. Rajesh Kumar",
-      specialization: "General Physician",
-      license: "TN/MCI/2018/4521",
-      hospital: "Apollo Hospital, Chennai",
-    },
-    date: "2026-09-25",
-    medicines: [
-      {
-        name: "Paracetamol 650mg",
-        dosage: "1-0-1",
-        duration: "5 days",
-        instructions: "After food",
-      },
-      {
-        name: "Cetirizine 10mg",
-        dosage: "0-0-1",
-        duration: "3 days",
-        instructions: "Before bed",
-      },
-    ],
-    notes: "Patient has mild fever and cold. Take rest for 2 days.",
-  },
-  "RX-4820": {
-    id: "RX-4820",
-    status: "PENDING",
-    aiGenerated: false,
-    patient: {
-      name: "Priya Sharma",
-      age: 32,
-      gender: "Female",
-      phone: "+91 98765 43211",
-      email: "priya.sharma@example.com",
-      address: "T. Nagar, Chennai",
-    },
-    doctor: {
-      name: "Dr. Anita Menon",
-      specialization: "Pediatrician",
-      license: "TN/MCI/2019/5532",
-      hospital: "Rainbow Children's Hospital",
-    },
-    date: "2026-09-24",
-    medicines: [
-      {
-        name: "Amoxicillin 500mg",
-        dosage: "1-1-1",
-        duration: "7 days",
-        instructions: "After food",
-      },
-    ],
-    notes: "Bacterial infection. Complete the full course.",
-  },
-  "RX-4819": {
-    id: "RX-4819",
-    status: "DISPENSED",
-    aiGenerated: true,
-    patient: {
-      name: "Karthik R",
-      age: 58,
-      gender: "Male",
-      phone: "+91 98765 43212",
-      email: "karthik.r@example.com",
-      address: "Adyar, Chennai",
-    },
-    doctor: {
-      name: "Dr. Suresh Babu",
-      specialization: "Cardiologist",
-      license: "TN/MCI/2015/3344",
-      hospital: "Fortis Malar Hospital",
-    },
-    date: "2026-09-23",
-    medicines: [
-      {
-        name: "Metformin 500mg",
-        dosage: "1-0-0",
-        duration: "30 days",
-        instructions: "Before breakfast",
-      },
-      {
-        name: "Glimepiride 2mg",
-        dosage: "1-0-0",
-        duration: "30 days",
-        instructions: "Before breakfast",
-      },
-    ],
-    notes: "Diabetes management. Monitor blood sugar regularly.",
-  },
-};
 
 /* =====================================================
    MAIN COMPONENT
@@ -167,9 +62,7 @@ export default function PrescriptionDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const [prescription, setPrescription] = useState(() =>
-    MOCK_PRESCRIPTIONS[id] ? normalizePrescription(MOCK_PRESCRIPTIONS[id]) : null
-  );
+  const [prescription, setPrescription] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -178,14 +71,17 @@ export default function PrescriptionDetail() {
     const fetchPrescription = async () => {
       try {
         setLoading(true);
-        const data = await prescriptionsAPI.get(id);
+        let data = await prescriptionsFirebaseService.get(id);
+        if (!data) {
+          try {
+            data = await prescriptionsAPI.get(id);
+          } catch (_) {}
+        }
         if (!cancelled && data) {
           setPrescription(normalizePrescription(data));
         }
-      } catch {
-        if (!cancelled && MOCK_PRESCRIPTIONS[id]) {
-          setPrescription(normalizePrescription(MOCK_PRESCRIPTIONS[id]));
-        }
+      } catch (err) {
+        console.debug("Prescription detail load error:", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -241,7 +137,10 @@ export default function PrescriptionDetail() {
 
     try {
       const updated = { ...prescription, status: "dispensed" };
-      await prescriptionsAPI.update(prescription.id, updated);
+      await prescriptionsFirebaseService.update(prescription.id, updated);
+      try {
+        await prescriptionsAPI.update(prescription.id, updated);
+      } catch (_) {}
       setPrescription((prev) => ({ ...prev, status: "DISPENSED" }));
       const deducted = deductPrescriptionInventory(updated);
       if (deducted.length > 0) {
@@ -269,6 +168,11 @@ export default function PrescriptionDetail() {
 
   const handleDelete = async () => {
     if (window.confirm("Delete this prescription?")) {
+      try {
+        await prescriptionsFirebaseService.delete(prescription.id);
+      } catch (e) {
+        console.debug("Firebase delete error:", e);
+      }
       try {
         await prescriptionsAPI.delete(prescription.id);
       } catch (e) {

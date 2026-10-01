@@ -210,11 +210,13 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
   };
 
   const handleSelectSuggestion = (med) => {
+    const commonName = med.brandName || med.name;
+    const medicinalName = med.genericName || med.generic || "";
     setForm((prev) => ({
       ...prev,
-      name: med.brandName || med.genericName,
-      generic: med.genericName || prev.generic,
-      manufacturer: med.manufacturer || prev.manufacturer, // ✅ Now NAME
+      name: commonName,
+      generic: medicinalName || prev.generic,
+      manufacturer: med.manufacturer || prev.manufacturer,
     }));
     setSelectedMaster(med);
     setShowSuggestions(false);
@@ -261,27 +263,28 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
   }, []);
 
   /* =====================================================
-     SUBMIT — STRICT MODE
+     SUBMIT — SAVE COMMON NAME AS TITLE
   ===================================================== */
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!selectedMaster) {
+    const commonName = form.name.trim();
+    if (!commonName) {
       setNameError(
-        "Please select a medicine from the suggestions list. Only CDCI registered medicines are allowed."
+        "Please enter medicine name (e.g. Dolo 650, Calpol 500, Pan 40)"
       );
-      toast.error("Invalid medicine — select from suggestions");
+      toast.error("Medicine name required");
       inputRef.current?.focus();
       return;
     }
 
     if (!form.generic.trim()) {
-      toast.error("Generic name required");
+      toast.error("Medicinal composition required (e.g. Paracetamol 650mg)");
       return;
     }
     if (!form.manufacturer.trim()) {
-      toast.error("Manufacturer required");
+      toast.error("Manufacturer name required");
       return;
     }
     if (!form.rack.trim()) {
@@ -291,14 +294,14 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
 
     const newMedicine = {
       id: `med-${Date.now()}`,
-      masterId: selectedMaster.id,
-      name: selectedMaster.brandName || selectedMaster.genericName || form.name,
-      fullName: selectedMaster.fullName,
-      brandName: selectedMaster.brandName || form.name,
+      masterId: selectedMaster?.id || `med-custom-${Date.now()}`,
+      name: commonName, // ✅ Save title as common brand name
+      brandName: commonName,
+      fullName: form.generic.trim() ? `${commonName} (${form.generic.trim()})` : commonName,
       generic: form.generic.trim(),
       manufacturer: form.manufacturer.trim(),
-      manufacturerCode: selectedMaster.manufacturerCode, // ✅ Store code too
-      batch: form.batch.trim(),
+      manufacturerCode: selectedMaster?.manufacturerCode || "CUSTOM",
+      batch: form.batch.trim() || `BAT-${Date.now().toString().slice(-4)}`,
       rack: form.rack.trim(),
       stock: parseInt(form.stock, 10) || 0,
       price: parseFloat(form.price) || 0,
@@ -393,7 +396,10 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
           {/* Medicine Name */}
           <div ref={suggestionsRef} className="relative">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Medicine Name <span className="text-rose-500">*</span>
+              Common Medicine Name <span className="text-rose-500">*</span>
+              <span className="text-[11px] font-normal text-slate-400 ml-1.5">
+                (e.g., Dolo 650, Calpol 500, Pan 40)
+              </span>
             </label>
             <div className="relative">
               <Pill
@@ -411,7 +417,7 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
                   form.name.length >= 2 && setShowSuggestions(true)
                 }
                 onKeyDown={handleKeyDown}
-                placeholder=""
+                placeholder="Enter common brand name (e.g. Dolo 650)..."
                 className={`w-full h-11 pl-10 pr-10 rounded-lg border bg-white dark:bg-slate-800 text-sm outline-none transition ${
                   nameError
                     ? "border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
@@ -537,29 +543,27 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Generic Name <span className="text-rose-500">*</span>
+                Medicinal / Generic Composition <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={form.generic}
                 onChange={(e) => handleChange("generic", e.target.value)}
-                placeholder="Auto-filled from master"
-                disabled={!!selectedMaster}
-                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                placeholder="e.g. Paracetamol 650mg, Pantoprazole 40mg"
+                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Manufacturer <span className="text-rose-500">*</span>
+                Manufacturer / Brand House <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={form.manufacturer}
                 onChange={(e) => handleChange("manufacturer", e.target.value)}
-                placeholder="Auto-filled from master"
-                disabled={!!selectedMaster}
-                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                placeholder="e.g. Micro Labs, Cipla Ltd, Sun Pharma"
+                className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 transition"
               />
             </div>
           </div>

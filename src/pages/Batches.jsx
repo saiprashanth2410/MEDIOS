@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import AddBatchModal from '../components/batches/AddBatchModal';
 import Navbar from '../components/dashboard/Navbar';
+import { batchesFirebaseService } from '../services/batchesFirebaseService';
 import { batchesAPI } from '../services/api';
 import { toast } from 'sonner';
 
@@ -65,10 +66,15 @@ const Batches = () => {
   ===================================================== */
   const fetchStats = useCallback(async () => {
     try {
-      const data = await batchesAPI.stats();
+      const data = await batchesFirebaseService.stats();
       setStats(data);
-    } catch (err) {
-      console.error("Stats error:", err);
+    } catch {
+      try {
+        const data = await batchesAPI.stats();
+        setStats(data);
+      } catch (err) {
+        console.error("Stats error:", err);
+      }
     }
   }, []);
 
@@ -78,16 +84,25 @@ const Batches = () => {
   const fetchBatches = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await batchesAPI.list({
+      const data = await batchesFirebaseService.list({
         page: 1,
         limit: 1000,
         search: searchTerm,
         status: filterStatus,
       });
-      setBatches(data.batches);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      toast.error("Failed to load batches");
+      setBatches(data?.batches || []);
+    } catch {
+      try {
+        const data = await batchesAPI.list({
+          page: 1,
+          limit: 1000,
+          search: searchTerm,
+          status: filterStatus,
+        });
+        setBatches(data?.batches || []);
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -95,11 +110,20 @@ const Batches = () => {
 
   useEffect(() => {
     let cancelled = false;
-    batchesAPI.stats().then((data) => {
-      if (!cancelled && data) setStats(data);
-    }).catch((err) => {
-      console.error("Stats error:", err);
-    });
+    const run = async () => {
+      try {
+        const data = await batchesFirebaseService.stats();
+        if (!cancelled && data) setStats(data);
+      } catch {
+        try {
+          const data = await batchesAPI.stats();
+          if (!cancelled && data) setStats(data);
+        } catch (err) {
+          console.error("Stats error:", err);
+        }
+      }
+    };
+    run();
     return () => {
       cancelled = true;
     };
@@ -114,14 +138,16 @@ const Batches = () => {
      HANDLERS
   ===================================================== */
 
-  // ✅ Add / Update — backend la save aagum (PERMANENT)
+  // ✅ Add / Update — Firebase & backend la save aagum (PERMANENT)
   const handleAddOrUpdateBatch = async (batchData, isEdit) => {
     try {
       if (isEdit) {
-        await batchesAPI.update(batchData.id, batchData);
+        await batchesFirebaseService.update(batchData.id, batchData);
+        try { await batchesAPI.update(batchData.id, batchData); } catch (_) {}
         toast.success(`Batch ${batchData.batchNumber} updated!`);
       } else {
-        await batchesAPI.create(batchData);
+        await batchesFirebaseService.create(batchData);
+        try { await batchesAPI.create(batchData); } catch (_) {}
         toast.success(`Batch ${batchData.batchNumber} added!`);
       }
       setEditingBatch(null);
@@ -132,11 +158,12 @@ const Batches = () => {
     }
   };
 
-  // ✅ Delete — backend la irundhu remove
+  // ✅ Delete — Firebase & backend la irundhu remove
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this batch?")) return;
     try {
-      await batchesAPI.delete(id);
+      await batchesFirebaseService.delete(id);
+      try { await batchesAPI.delete(id); } catch (_) {}
       toast.success("Batch deleted");
       fetchBatches();
       fetchStats();

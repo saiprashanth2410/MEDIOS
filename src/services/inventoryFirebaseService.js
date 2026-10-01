@@ -76,9 +76,12 @@ export const inventoryFirebaseService = {
         category: String(medicine.category || "General").slice(0, 50),
         stock: Number(medicine.stock ?? 100),
         price: Number(medicine.price ?? medicine.sellingPrice ?? 50),
+        mrp: Number(medicine.mrp ?? (medicine.price ? medicine.price * 1.15 : 60)),
         batch: String(medicine.batch || "BATCH-01").slice(0, 50),
         rack: String(medicine.rack || "R-1").slice(0, 50),
-        schedule: String(medicine.schedule || "OTC").slice(0, 20),
+        schedule: String(medicine.schedule || "H").slice(0, 20),
+        hsn: String(medicine.hsn || "3004").slice(0, 10),
+        gstRate: Number(medicine.gstRate ?? 12),
         expiry: String(medicine.expiry || "2027-12-31").slice(0, 30),
         isCustom: Boolean(medicine.isCustom),
         updatedAt: serverTimestamp(),
@@ -119,6 +122,47 @@ export const inventoryFirebaseService = {
   },
 
   /* =====================================================
+     DEDUCT MEDICINE STOCK (DISPENSING)
+  ===================================================== */
+  async deductMedicineStock(medIdOrName, quantity) {
+    const qty = Math.max(1, Number(quantity) || 1);
+    try {
+      const allMeds = await this.getMedicines();
+      const target = allMeds.find(
+        (m) =>
+          String(m.id).toLowerCase() === String(medIdOrName).toLowerCase() ||
+          String(m.name).toLowerCase() === String(medIdOrName).toLowerCase() ||
+          String(m.fullName).toLowerCase() === String(medIdOrName).toLowerCase()
+      );
+
+      if (!target) {
+        console.warn(`[inventoryFirebase] Medicine not found for deduction: ${medIdOrName}`);
+        return { ok: false, message: "Medicine not found" };
+      }
+
+      const newStock = Math.max(0, (Number(target.stock) || 0) - qty);
+      await this.updateMedicine(target.id, { stock: newStock });
+      return { ok: true, id: target.id, newStock };
+    } catch (err) {
+      console.error("[inventoryFirebase] deductMedicineStock error:", err);
+      return { ok: false, message: err.message };
+    }
+  },
+
+  /* =====================================================
+     BATCH DEDUCT MEDICINES (MULTI-ITEM PRESCRIPTIONS)
+  ===================================================== */
+  async batchDeductMedicines(items) {
+    if (!Array.isArray(items) || items.length === 0) return [];
+    const results = [];
+    for (const item of items) {
+      const res = await this.deductMedicineStock(item.id || item.name, item.quantity);
+      results.push({ item, res });
+    }
+    return results;
+  },
+
+  /* =====================================================
      DELETE MEDICINE
   ===================================================== */
   async deleteMedicine(id) {
@@ -141,7 +185,12 @@ export const inventoryFirebaseService = {
       if (existing.length === 0 && MEDICINES.length > 0) {
         console.log("[inventoryFirebase] Seeding initial medical catalog to Firestore...");
         for (const med of MEDICINES) {
-          await this.addMedicine(med);
+          await this.addMedicine({
+            ...med,
+            hsn: "3004",
+            gstRate: 12,
+            mrp: med.price ? Math.round(med.price * 1.15) : 60,
+          });
         }
         console.log(`[inventoryFirebase] Successfully seeded ${MEDICINES.length} medicines.`);
       }

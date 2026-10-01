@@ -1519,17 +1519,33 @@ app.post("/api/profile/change-password", async (req, res) => {
    START SERVER
 ===================================================== */
 
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`   Health: http://localhost:${PORT}/api/health`);
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`\n⚠️  Port ${PORT} is already in use by a background process!`);
+    console.error(`👉 Run this in your terminal to free port ${PORT}:`);
+    console.error(`   lsof -ti :${PORT} | xargs kill -9\n`);
+  } else {
+    console.error("❌ Server startup error:", err.message);
+  }
+});
+
 mongoose
   .connect(MONGODB_URI)
   .then(async () => {
     console.log("✅ MongoDB connected");
-    await cleanupTestingAndDuplicateIds();
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`   Health: http://localhost:${PORT}/api/health`);
-    });
+    try {
+      await cleanupTestingAndDuplicateIds();
+    } catch (e) {
+      console.warn("Cleanup warning:", e.message);
+    }
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1);
+    console.warn("\n⚠️  MongoDB connection notice:", err.message);
+    console.warn("   (If MongoDB is not running, start it with: brew services start mongodb-community)");
+    console.warn("   (MediTrack cloud features are also live via Cloud Firestore!)\n");
   });

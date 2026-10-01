@@ -1,0 +1,152 @@
+import {
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../config/firebase";
+
+const COLLECTION_NAME = "pharmacists";
+const LOCAL_KEY = "meditrack_pharmacists";
+
+function getActiveLoggedInPharmacist() {
+  if (typeof window !== "undefined") {
+    try {
+      const rawUser = localStorage.getItem("meditrack_user");
+      const pharmDetails = localStorage.getItem("meditrack_pharmacy_details");
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const details = pharmDetails ? JSON.parse(pharmDetails) : null;
+
+      if (user?.name || details?.license) {
+        return [
+          {
+            id: "PH-001",
+            name: user?.name || "Pharmacist",
+            email: user?.email || "pharmacist@meditrack.ai",
+            phone: user?.phone || "+91 98765 43210",
+            license: details?.license || user?.license || "TN/PH/2026/0892",
+            role: user?.role || "Chief Pharmacist",
+            shift: "Morning (9AM - 5PM)",
+            status: "active",
+            joinDate: user?.joinDate || "24 Sep 2024",
+          },
+        ];
+      }
+    } catch (_) {}
+  }
+  return [];
+}
+
+function getLocalPharmacists() {
+  if (typeof window === "undefined") return getActiveLoggedInPharmacist();
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (_) {}
+  const fallback = getActiveLoggedInPharmacist();
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(fallback));
+  } catch (_) {}
+  return fallback;
+}
+
+function saveLocalPharmacists(list) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
+    window.dispatchEvent(new Event("meditrack_pharmacists_updated"));
+  } catch (e) {
+    console.debug("Local pharmacists save error:", e);
+  }
+}
+
+export const pharmacistsFirebaseService = {
+  async list() {
+    let local = getLocalPharmacists();
+    try {
+      const colRef = collection(db, COLLECTION_NAME);
+      const snap = await getDocs(colRef);
+      if (!snap.empty) {
+        const firestoreItems = [];
+        snap.forEach((d) => firestoreItems.push({ id: d.id, ...d.data() }));
+        const map = new Map();
+        local.forEach((p) => map.set(p.id, p));
+        firestoreItems.forEach((p) => map.set(p.id, p));
+        local = Array.from(map.values());
+        saveLocalPharmacists(local);
+      }
+    } catch (err) {
+      console.debug("[pharmacistsFirebase] list fallback:", err.message);
+    }
+    return local;
+  },
+
+  async create(pharmacist) {
+    const id = String(pharmacist.id || `PH-${Date.now().toString().slice(-4)}`);
+    const payload = {
+      ...pharmacist,
+      id,
+      status: pharmacist.status || "active",
+      createdAt: new Date().toISOString(),
+    };
+
+    const current = getLocalPharmacists();
+    const updated = [payload, ...current.filter((p) => p.id !== id)];
+    saveLocalPharmacists(updated);
+
+    try {
+      const docRef = doc(db, COLLECTION_NAME, id);
+      await setDoc(docRef, {
+        ...payload,
+        serverTimestamp: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) {
+      console.debug("[pharmacistsFirebase] save note:", e.message);
+    }
+
+    return payload;
+  },
+
+  async update(id, updates) {
+    const current = getLocalPharmacists();
+    const index = current.findIndex((p) => p.id === id);
+    const updated = { ...(index >= 0 ? current[index] : {}), ...updates, id };
+
+    if (index >= 0) {
+      current[index] = updated;
+    } else {
+      current.unshift(updated);
+    }
+    saveLocalPharmacists(current);
+
+    try {
+      const docRef = doc(db, COLLECTION_NAME, String(id));
+      await updateDoc(docRef, { ...updates, updatedAt: serverTimestamp() });
+    } catch (e) {
+      console.debug("[pharmacistsFirebase] update note:", e.message);
+    }
+    return { ok: true, id };
+  },
+
+  async delete(id) {
+    const current = getLocalPharmacists();
+    const updated = current.filter((p) => p.id !== id);
+    saveLocalPharmacists(updated);
+
+    try {
+      const docRef = doc(db, COLLECTION_NAME, String(id));
+      await deleteDoc(docRef);
+    } catch (e) {
+      console.debug("[pharmacistsFirebase] delete note:", e.message);
+    }
+    return { ok: true, id };
+  },
+};
+
+export default pharmacistsFirebaseService;

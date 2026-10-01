@@ -120,10 +120,10 @@ export function AuthProvider({ children }) {
   /* =====================================================
      REGISTER
   ===================================================== */
-  const register = useCallback(async ({ name, email, password, role, pharmacy }) => {
+  const register = useCallback(async ({ name, email, password, role, pharmacy, license }) => {
     setAuthLoading(true);
     try {
-      const result = await authService.register({ name, email, password, role, pharmacy });
+      const result = await authService.register({ name, email, password, role, pharmacy, license });
       if (!result?.ok) {
         throw new Error(result?.message || "Registration failed.");
       }
