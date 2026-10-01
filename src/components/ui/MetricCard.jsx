@@ -17,16 +17,16 @@ export default function MetricCard({
   const style = tones[tone] || tones.violet;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition">
       <div className="flex items-start justify-between mb-6">
         <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center ${style.bg}`}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.bg}`}
         >
-          <Icon size={20} className={style.text} />
+          <Icon size={18} className={style.text} />
         </div>
 
         {percentage !== undefined && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40 text-xs font-semibold">
             <TrendingUp size={12} />
             {percentage}%
           </span>

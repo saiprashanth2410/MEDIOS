@@ -54,7 +54,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
       {/* =====================================================
           TOP NAVBAR — Using shared component
@@ -66,23 +66,23 @@ export default function Reports() {
           MAIN
       ====================================================== */}
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-1">Track your pharmacy performance</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports & Analytics</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track your pharmacy performance</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => toast.info("Date picker coming soon")}
-              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-sky-200 text-[#0284c7] px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-sky-50 dark:hover:bg-slate-800 transition shadow-sm"
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
             >
               <Calendar size={16} />
               This Month
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
+              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#0369a1] transition shadow-xs"
             >
               <Download size={16} />
               Export CSV
@@ -93,33 +93,33 @@ export default function Reports() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {STATS.map((stat) => {
             const Icon = stat.icon;
-            const trendColor = stat.trend === "up" ? "text-emerald-600" : "text-rose-500";
+            const trendColor = stat.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400";
             return (
-              <div key={stat.label} className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
+              <div key={stat.label} className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="w-11 h-11 rounded-md bg-sky-50 flex items-center justify-center">
-                    <Icon size={18} className="text-[#0284c7]" />
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center text-[#0284c7] dark:text-sky-400">
+                    <Icon size={18} />
                   </div>
                   <span className={`text-[11px] font-semibold flex items-center gap-1 ${trendColor}`}>
                     {stat.trend === "up" ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                     {stat.change}
                   </span>
                 </div>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-1">{stat.label}</p>
+                <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{stat.value}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{stat.label}</p>
               </div>
             );
           })}
         </div>
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-bold text-[15px]">Revenue Trend</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-0.5">Last 12 months</p>
+                <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Revenue Trend</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Last 12 months</p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
                 +22.4% growth
               </span>
             </div>
@@ -127,7 +127,7 @@ export default function Reports() {
               {CHART_DATA.map((height, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                   <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-[#0284c7] to-[#38bdf8] hover:opacity-80 transition cursor-pointer"
+                    className="w-full rounded-t-md bg-gradient-to-t from-[#0284c7] to-[#38bdf8] hover:opacity-85 transition cursor-pointer"
                     style={{ height: `${height}%` }}
                     title={`${MONTHS[i]}: ₹${height},000`}
                   />
@@ -137,11 +137,11 @@ export default function Reports() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-[15px]">Top Medicines</h3>
-              <span className="text-[10px] font-semibold px-2 py-1 rounded-md bg-sky-50 text-sky-700">
-                THIS MONTH
+              <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Top Medicines</h3>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
+                This Month
               </span>
             </div>
             <div className="space-y-4">
@@ -149,14 +149,14 @@ export default function Reports() {
                 <div key={med.name}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-5 h-5 rounded-md bg-sky-50 flex items-center justify-center text-[10px] font-bold text-[#0284c7] shrink-0">
+                      <span className="w-5 h-5 rounded-md bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center text-[10px] font-bold text-[#0284c7] dark:text-sky-400 shrink-0">
                         {i + 1}
                       </span>
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{med.name}</span>
+                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{med.name}</span>
                     </div>
-                    <span className="text-sm font-semibold text-[#0284c7] shrink-0 ml-2">{med.revenue}</span>
+                    <span className="text-sm font-semibold text-[#0284c7] dark:text-sky-400 shrink-0 ml-2">{med.revenue}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-[#0284c7] to-[#38bdf8]"
                       style={{ width: `${(med.sold / 1240) * 100}%` }}
@@ -168,24 +168,24 @@ export default function Reports() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-[15px]">Recent activity</h3>
+            <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Recent activity</h3>
           </div>
           <div className="space-y-4">
             {ACTIVITY.map((item, i) => {
               const toneBg = {
-                green: "bg-emerald-50 text-emerald-600",
-                blue: "bg-sky-50 text-[#0284c7]",
-                amber: "bg-amber-50 text-amber-600",
+                green: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40",
+                blue: "bg-sky-50 dark:bg-sky-950/40 text-[#0284c7] dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/40",
+                amber: "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40",
               }[item.tone];
               return (
-                <div key={i} className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
-                  <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 ${toneBg}`}>
+                <div key={i} className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80 last:border-0 last:pb-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${toneBg}`}>
                     <Activity size={15} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm">{item.text}</p>
+                    <p className="text-sm text-slate-800 dark:text-slate-200">{item.text}</p>
                     <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{item.time}</p>
                   </div>
                 </div>

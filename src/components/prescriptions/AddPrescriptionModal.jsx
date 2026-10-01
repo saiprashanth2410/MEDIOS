@@ -180,12 +180,12 @@ export default function AddPrescriptionModal({ onClose, onAdd }) {
   return (
     <>
       <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-3xl my-8 shadow-2xl">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 w-full max-w-3xl my-8 shadow-2xl">
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-sky-50 dark:bg-sky-500/15 border border-sky-100 dark:border-sky-500/20 flex items-center justify-center">
+              <div className="w-11 h-11 rounded-xl bg-sky-50 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/20 flex items-center justify-center">
                 <ClipboardList size={20} className="text-[#0284c7] dark:text-sky-400" />
               </div>
               <div>

@@ -287,14 +287,14 @@ export default function Settings() {
   ===================================================== */
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar onScanClick={() => {}} />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           {/* LEFT SIDEBAR */}
-          <aside className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden h-fit shadow-sm">
+          <aside className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden h-fit shadow-2xs">
             {/* User header */}
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
@@ -390,7 +390,7 @@ export default function Settings() {
 
           {/* RIGHT PANEL */}
           <main
-            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden h-fit shadow-sm"
+            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden h-fit shadow-2xs"
             aria-live="polite"
           >
             {currentCategory ? (

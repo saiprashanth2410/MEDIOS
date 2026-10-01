@@ -145,23 +145,23 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-[#0284c7] text-white sticky top-0 z-40 shadow-md">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="bg-[#0284c7] dark:bg-slate-900 text-white sticky top-0 z-40 border-b border-[#0369a1]/40 dark:border-slate-800 shadow-2xs transition-colors duration-200">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md shrink-0">
-              <Pill size={20} className="text-[#0284c7]" strokeWidth={2.5} />
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate("/dashboard")}>
+            <div className="w-9 h-9 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center shadow-2xs shrink-0 border border-transparent dark:border-slate-700/80">
+              <Pill size={18} className="text-[#0284c7] dark:text-sky-400" strokeWidth={2.3} />
             </div>
             <div className="leading-tight">
               <h1 className="text-sm font-bold tracking-tight">MediTrack</h1>
-              <p className="text-[9px] uppercase tracking-widest text-white/70 font-medium">
+              <p className="text-[9px] uppercase tracking-widest text-white/70 dark:text-slate-400 font-medium">
                 Pharmacy OS
               </p>
             </div>
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-0.5">
+          <nav className="hidden lg:flex items-center gap-1">
             {NAV_GROUPS.flatMap((group) => group.items).map((item) => {
               const Icon = item.icon;
               const isActive = currentPath === item.path;
@@ -169,10 +169,10 @@ export default function Navbar() {
                 <button
                   key={item.label}
                   onClick={() => handleNavClick(item.path)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     isActive
-                      ? "bg-white/15 text-white"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                      ? "bg-white/15 dark:bg-sky-500/20 text-white dark:text-sky-300 font-semibold"
+                      : "text-white/80 dark:text-slate-300 hover:bg-white/10 dark:hover:bg-slate-800 hover:text-white dark:hover:text-white"
                   }`}
                 >
                   <Icon size={14} />
@@ -187,11 +187,11 @@ export default function Navbar() {
             {/* Scan */}
             <button
               onClick={() => setShowScanner(true)}
-              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition"
+              className="flex items-center gap-1.5 bg-white/15 dark:bg-slate-800 dark:border dark:border-slate-700/80 hover:bg-white/20 dark:hover:bg-slate-700 text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-2xs"
               title="Scan medicine"
               aria-label="Scan medicine"
             >
-              <ScanLine size={14} />
+              <ScanLine size={13} />
               <span className="hidden sm:inline">Scan</span>
             </button>
 

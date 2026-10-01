@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Pill, CheckCircle2, AlertTriangle, XCircle, ArrowRightLeft, PlusCircle, Check } from "lucide-react";
+import { Pill, CheckCircle2, AlertTriangle, XCircle, ArrowRightLeft, PlusCircle, Check, Sparkles } from "lucide-react";
 import { checkMedicineStock, findSubstitutes, addMedicineToReorder } from "../../utils/inventoryDeduction";
 import { toast } from "sonner";
 
@@ -96,7 +96,7 @@ export default function PrescriptionMedicineRow({
                 {med.name}
               </p>
               {med.substituted && (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800 flex items-center gap-1">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800 flex items-center gap-1">
                   <ArrowRightLeft size={10} /> Substituted
                 </span>
               )}
@@ -111,22 +111,22 @@ export default function PrescriptionMedicineRow({
             {/* Dosage & Duration details */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {med.dosage && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">
+                <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
                   Dosage: {med.dosage}
                 </span>
               )}
               {med.frequency && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300">
+                <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/40">
                   {med.frequency}
                 </span>
               )}
               {med.duration && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300">
+                <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">
                   {med.duration}
                 </span>
               )}
               {med.instructions && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
+                <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">
                   {med.instructions}
                 </span>
               )}
@@ -156,9 +156,9 @@ export default function PrescriptionMedicineRow({
               type="button"
               onClick={handleReorder}
               disabled={reordered}
-              className={`text-xs font-medium px-2.5 py-1 rounded-md transition flex items-center gap-1.5 ${
+              className={`text-xs font-medium px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 shadow-2xs ${
                 reordered
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                   : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 hover:bg-rose-50"
               }`}
             >
@@ -176,14 +176,15 @@ export default function PrescriptionMedicineRow({
 
           {/* Substitute Recommendation Card */}
           {substitutes.length > 0 && (
-            <div className="bg-white dark:bg-slate-900/90 rounded-lg p-2.5 border border-sky-100 dark:border-slate-800 shadow-sm space-y-2">
-              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                💡 In-Stock Generic / Salt Substitutes Available:
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-2">
+              <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Sparkles size={13} className="text-amber-500 shrink-0" />
+                In-Stock Generic / Salt Substitutes Available:
               </p>
               {substitutes.map((sub) => (
                 <div
                   key={sub.id}
-                  className="flex items-center justify-between p-2 rounded-md bg-sky-50/50 dark:bg-slate-800/60 border border-sky-100 dark:border-slate-700 gap-2 flex-wrap"
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-sky-50/50 dark:bg-slate-800/60 border border-sky-100/80 dark:border-slate-700/80 gap-2 flex-wrap"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
@@ -193,7 +194,7 @@ export default function PrescriptionMedicineRow({
                       </span>
                     </p>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Stock: <span className="font-semibold text-emerald-600">{sub.stock}</span> · Rack:{" "}
+                      Stock: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{sub.stock}</span> · Rack:{" "}
                       <span className="font-semibold text-slate-700 dark:text-slate-300">{sub.rack}</span> · ₹{sub.price} ·{" "}
                       <span className="text-sky-600 dark:text-sky-400">{sub.matchReason}</span>
                     </p>
@@ -202,7 +203,7 @@ export default function PrescriptionMedicineRow({
                     <button
                       type="button"
                       onClick={() => onSwap(index, sub)}
-                      className="shrink-0 bg-[#0284c7] hover:bg-[#0369a1] text-white text-[11px] font-semibold px-2.5 py-1 rounded-md transition shadow-xs flex items-center gap-1"
+                      className="shrink-0 bg-[#0284c7] hover:bg-[#0369a1] text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg transition shadow-2xs flex items-center gap-1"
                     >
                       <ArrowRightLeft size={11} />
                       Swap Medicine

@@ -146,7 +146,7 @@ export default function PerformanceMetrics({ data = MOCK_DATA }) {
           return (
             <div
               key={card.id}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition"
+              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs hover:shadow-xs transition"
             >
               {/* Top row — icon + improvement badge */}
               <div className="flex items-start justify-between mb-3">

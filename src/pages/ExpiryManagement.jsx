@@ -171,7 +171,7 @@ export default function ExpiryManagement() {
   const currentItems = processedItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar onScanClick={() => {}} />
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">

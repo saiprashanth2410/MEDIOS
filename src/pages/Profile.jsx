@@ -178,12 +178,12 @@ export default function Profile() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar />
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Profile & Settings</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Profile & Settings</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage your account, security, and preferences
           </p>
@@ -193,14 +193,14 @@ export default function Profile() {
           {/* LEFT SIDEBAR */}
           <aside className="space-y-4">
             {/* User Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm text-center transition-colors">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs text-center transition-colors">
               <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                <div className="w-24 h-24 rounded-full bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-200/60 dark:border-sky-800/40 text-[#0284c7] dark:text-sky-400 flex items-center justify-center text-3xl font-bold">
                   {userName[0]?.toUpperCase()}
                 </div>
                 <button
                   onClick={() => toast.info("Avatar upload coming soon")}
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white dark:bg-slate-800 border-2 border-sky-100 dark:border-slate-700 flex items-center justify-center text-[#0284c7] dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-700 transition shadow-sm"
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-[#0284c7] dark:text-sky-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-xs"
                   aria-label="Change avatar"
                 >
                   <Camera size={14} />
@@ -214,14 +214,14 @@ export default function Profile() {
                 {form.email}
               </p>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/50 text-[#0284c7] dark:text-sky-400 text-[11px] font-medium">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/50 text-[#0284c7] dark:text-sky-400 text-[11px] font-medium border border-sky-200/60 dark:border-sky-800/40">
                 <BadgeCheck size={12} />
                 {form.role}
               </div>
             </div>
 
             {/* Tabs */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-2 shadow-sm transition-colors">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2 shadow-2xs transition-colors">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -229,10 +229,10 @@ export default function Profile() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
                       isActive
-                        ? "bg-sky-50 dark:bg-sky-950/50 text-[#0284c7] dark:text-sky-400"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        ? "bg-[#0284c7] text-white shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                   >
                     <Icon size={16} />
@@ -248,17 +248,17 @@ export default function Profile() {
             {/* PROFILE TAB */}
             {activeTab === "profile" && (
               <>
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
                       <User size={16} className="text-[#0284c7] dark:text-sky-400" />
-                      <h3 className="font-bold text-[15px]">Personal Info</h3>
+                      <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Personal Info</h3>
                     </div>
 
                     {!editing ? (
                       <button
                         onClick={() => setEditing(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-[#0284c7] dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800 transition"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#0284c7] dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800 transition"
                       >
                         <Edit3 size={12} />
                         Edit
@@ -267,14 +267,14 @@ export default function Profile() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleCancel}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                         >
                           <X size={12} />
                           Cancel
                         </button>
                         <button
                           onClick={handleSave}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-[#0284c7] hover:bg-[#0369a1] transition"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#0284c7] hover:bg-[#0369a1] transition shadow-xs"
                         >
                           <Save size={12} />
                           Save
@@ -357,10 +357,10 @@ export default function Profile() {
                 </div>
 
                 {/* Pharmacy Details */}
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center gap-2 mb-5">
                     <Building2 size={16} className="text-[#0284c7] dark:text-sky-400" />
-                    <h3 className="font-bold text-[15px]">Pharmacy Details</h3>
+                    <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">Pharmacy Details</h3>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -465,7 +465,7 @@ export default function Profile() {
             {/* SECURITY TAB */}
             {activeTab === "security" && (
               <>
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center gap-2 mb-5">
                     <Key size={16} className="text-[#0284c7] dark:text-sky-400" />
                     <h3 className="font-bold text-[15px]">Change Password</h3>
@@ -540,7 +540,7 @@ export default function Profile() {
 
                     <button
                       onClick={handlePasswordChange}
-                      className="w-full h-11 rounded-lg bg-[#0284c7] text-white text-sm font-semibold hover:bg-[#0369a1] transition flex items-center justify-center gap-2"
+                      className="w-full h-11 rounded-lg bg-[#0284c7] text-white text-sm font-semibold hover:bg-[#0369a1] transition shadow-2xs flex items-center justify-center gap-2"
                     >
                       <Save size={14} />
                       Update Password
@@ -549,16 +549,16 @@ export default function Profile() {
                 </div>
 
                 {/* Active Sessions */}
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center gap-2 mb-5">
                     <Smartphone size={16} className="text-[#0284c7] dark:text-sky-400" />
                     <h3 className="font-bold text-[15px]">Active Sessions</h3>
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30">
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/30">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-md bg-white dark:bg-slate-800 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-lg bg-white dark:bg-slate-800 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center">
                           <Globe size={16} className="text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
@@ -570,14 +570,14 @@ export default function Profile() {
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-semibold px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                      <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100/80 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                         ACTIVE
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-md bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                           <Smartphone size={16} className="text-slate-500 dark:text-slate-400" />
                         </div>
                         <div>
@@ -605,7 +605,7 @@ export default function Profile() {
             {activeTab === "preferences" && (
               <>
                 {/* Notifications */}
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center gap-2 mb-5">
                     <Bell size={16} className="text-[#0284c7] dark:text-sky-400" />
                     <h3 className="font-bold text-[15px]">Notifications</h3>
@@ -640,7 +640,7 @@ export default function Profile() {
                 </div>
 
                 {/* Appearance */}
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center gap-2 mb-5">
                     <Sun size={16} className="text-[#0284c7] dark:text-sky-400" />
                     <h3 className="font-bold text-[15px]">Appearance</h3>
@@ -663,10 +663,10 @@ export default function Profile() {
                         <button
                           key={option.id}
                           onClick={() => handleThemeChange(option.id)}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition ${
+                          className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition ${
                             isActive
-                              ? "border-[#0284c7] dark:border-sky-500 bg-sky-50 dark:bg-sky-950/50"
-                              : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                              ? "border-[#0284c7] dark:border-sky-500 bg-sky-50/60 dark:bg-sky-950/40"
+                              : "border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
                           }`}
                         >
                           <div
@@ -700,7 +700,7 @@ export default function Profile() {
                 </div>
 
                 {/* Danger Zone */}
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-rose-200 dark:border-rose-900/50 p-6 shadow-sm transition-colors">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-rose-200/80 dark:border-rose-900/50 p-6 shadow-2xs transition-colors">
                   <div className="flex items-center gap-2 mb-3">
                     <AlertCircle size={16} className="text-rose-600 dark:text-rose-400" />
                     <h3 className="font-bold text-[15px] text-rose-600 dark:text-rose-400">
@@ -717,7 +717,7 @@ export default function Profile() {
                     onClick={() =>
                       toast.error("Account deletion requires admin approval")
                     }
-                    className="px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                    className="px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/30 transition shadow-2xs"
                   >
                     Delete Account
                   </button>

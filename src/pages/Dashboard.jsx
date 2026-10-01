@@ -27,6 +27,7 @@ import {
   Factory,
   ShoppingCart,
   Info,
+  Star,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import BarcodeScanner from "../components/scanner/BarcodeScanner";
@@ -99,9 +100,9 @@ const COLOR_STYLES = {
 };
 
 const EXPIRY_CARD_STYLES = {
-  rose: "border-rose-200 dark:border-rose-800/60 bg-rose-50/60 dark:bg-rose-900/20",
-  amber: "border-amber-200 dark:border-amber-700/60 bg-amber-50/60 dark:bg-amber-900/20",
-  yellow: "border-yellow-200 dark:border-yellow-700/60 bg-yellow-50/60 dark:bg-yellow-900/20",
+  rose: "border-rose-200/80 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 hover:border-rose-300 dark:hover:border-rose-800",
+  amber: "border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 hover:border-amber-300 dark:hover:border-amber-800",
+  yellow: "border-yellow-200/80 dark:border-yellow-900/50 bg-yellow-50/40 dark:bg-yellow-950/20 hover:border-yellow-300 dark:hover:border-yellow-800",
 };
 
 /* =====================================================
@@ -162,7 +163,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar />
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -176,26 +177,25 @@ export default function Dashboard() {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Here's your pharmacy overview for today.
+              Real-time pharmacy inventory, dispensing, and supplier escalation dashboard.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowScanner(true)}
-              className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-sky-200 dark:border-slate-700 text-[#0284c7] dark:text-sky-400 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-semibold hover:bg-sky-50 dark:hover:bg-slate-700 transition shadow-sm"
+              className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
             >
               <ScanLine size={14} />
-              Scan
+              <span>Scan</span>
             </button>
 
             <button
               onClick={() => setShowAddMedicine(true)}
-              className="flex items-center gap-2 bg-[#0284c7] dark:bg-sky-600 hover:bg-[#0369a1] dark:hover:bg-sky-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-semibold transition shadow-sm"
+              className="flex items-center gap-1.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-xs"
             >
               <Pill size={14} />
-              <span className="hidden sm:inline">Add Medicine</span>
-              <span className="sm:hidden">Add</span>
+              <span>Add Medicine</span>
             </button>
           </div>
         </div>
@@ -213,7 +213,7 @@ export default function Dashboard() {
         <div className="grid lg:grid-cols-[1fr_360px] gap-4 sm:gap-6">
           <div>
             {/* EXPIRY MANAGEMENT */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 mb-4 sm:mb-6 shadow-2xs">
               <div className="flex items-center justify-between mb-4 sm:mb-5">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center">
@@ -277,7 +277,7 @@ export default function Dashboard() {
             </div>
 
             {/* AUTO-REORDER */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 mb-4 sm:mb-6 shadow-2xs">
               <div className="flex items-center justify-between mb-4 sm:mb-5">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
@@ -354,9 +354,9 @@ export default function Dashboard() {
             </div>
 
             {/* RECENT ACTIVITY */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 mb-4 sm:mb-6 shadow-2xs">
               <div className="flex items-center justify-between mb-4 sm:mb-5">
-                <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100">
+                <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
                   Recent activity
                 </h3>
                 <button className="text-[10px] sm:text-xs font-medium text-[#0284c7] dark:text-sky-400 hover:underline flex items-center gap-1">
@@ -378,10 +378,10 @@ export default function Dashboard() {
                   return (
                     <div
                       key={i}
-                      className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0"
+                      className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80 last:border-0 last:pb-0"
                     >
                       <div
-                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-md flex items-center justify-center shrink-0 ${toneBg}`}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${toneBg}`}
                       >
                         <Icon size={14} />
                       </div>
@@ -400,8 +400,8 @@ export default function Dashboard() {
             </div>
 
             {/* QUICK ACTIONS */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-sm">
-              <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 mb-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 shadow-2xs">
+              <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 mb-4 tracking-tight">
                 Quick actions
               </h3>
 
@@ -422,9 +422,9 @@ export default function Dashboard() {
                         if (action.action === "prescription") setShowAddPrescription(true);
                         if (action.action === "reorder") navigate("/reorder");
                       }}
-                      className="flex items-center gap-3 px-4 py-3 rounded-md border border-slate-200 dark:border-slate-700 hover:border-[#0284c7] dark:hover:border-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition text-left text-sm font-medium text-slate-700 dark:text-slate-200"
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition text-left text-sm font-medium text-slate-700 dark:text-slate-200"
                     >
-                      <div className="w-8 h-8 rounded-md bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center shrink-0">
                         <Icon
                           size={15}
                           className="text-[#0284c7] dark:text-sky-400"
@@ -445,11 +445,11 @@ export default function Dashboard() {
           {/* SIDEBAR */}
           <aside className="space-y-4">
             {/* SHIPMENTS */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Truck size={14} className="text-[#0284c7] dark:text-sky-400" />
-                  <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100">
+                  <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
                     Shipments
                   </h3>
                 </div>
@@ -465,23 +465,23 @@ export default function Dashboard() {
                 {SHIPMENTS.map((shipment) => (
                   <div
                     key={shipment.id}
-                    className="p-3 rounded-lg border border-slate-200 dark:border-slate-700"
+                    className="p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[10px] font-mono font-semibold text-[#0284c7] dark:text-sky-400">
                         {shipment.id}
                       </span>
                       <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                           shipment.status === "Delivered"
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                            : "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40"
+                            : "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/40"
                         }`}
                       >
                         {shipment.status}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 mb-2 truncate">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 mb-2 truncate font-medium">
                       {shipment.route}
                     </p>
                     <div className="h-1 bg-slate-200 dark:bg-slate-700 rounded-full mb-2 overflow-hidden">
@@ -513,11 +513,11 @@ export default function Dashboard() {
             </div>
 
             {/* TOP SUPPLIERS */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Factory size={14} className="text-[#0284c7] dark:text-sky-400" />
-                  <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100">
+                  <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
                     Top Suppliers
                   </h3>
                 </div>
@@ -533,15 +533,16 @@ export default function Dashboard() {
                 {TOP_SUPPLIERS.map((supplier) => (
                   <div
                     key={supplier.name}
-                    className="p-3 rounded-lg border border-slate-200 dark:border-slate-700"
+                    className="p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">
                         {supplier.name}
                       </span>
-                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                        ⭐ {supplier.rating}
-                      </span>
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        <Star size={11} className="fill-amber-400 text-amber-400" />
+                        <span>{supplier.rating}</span>
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-[10px] mb-2">
                       <div>
@@ -567,15 +568,16 @@ export default function Dashboard() {
                         </p>
                       </div>
                     </div>
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
                       <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 ${
                           supplier.risk === "low"
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                            : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40"
+                            : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40"
                         }`}
                       >
-                        {supplier.risk === "low" ? "🟢 LOW RISK" : "🟡 MEDIUM RISK"}
+                        <span className={`w-1.5 h-1.5 rounded-full ${supplier.risk === "low" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                        {supplier.risk === "low" ? "Low Risk" : "Medium Risk"}
                       </span>
                       <button
                         className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition"
@@ -590,12 +592,12 @@ export default function Dashboard() {
             </div>
 
             {/* PHARMACY INFO */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100">
+                <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
                   Pharmacy Info
                 </h3>
-                <span className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                <span className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                   Open
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 </span>
@@ -649,8 +651,8 @@ export default function Dashboard() {
             </div>
 
             {/* LICENSE */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 mb-3 tracking-tight">
                 License & Compliance
               </h3>
 
@@ -682,15 +684,15 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <button className="w-full bg-[#059669] dark:bg-emerald-700 hover:bg-[#047857] dark:hover:bg-emerald-800 text-white py-2.5 rounded-md text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm">
+              <button className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white py-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm">
                 Renew License
                 <ChevronRight size={14} />
               </button>
             </div>
 
             {/* SYSTEM STATUS */}
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-5 border border-sky-100 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 mb-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 mb-4 tracking-tight">
                 System Status
               </h3>
 
@@ -706,7 +708,7 @@ export default function Dashboard() {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-sky-100 dark:border-slate-800 mt-6 sm:mt-8">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 mt-6 sm:mt-8">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <a

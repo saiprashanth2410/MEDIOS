@@ -319,7 +319,7 @@ export default function Notifications() {
   }, [notifications]);
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Navbar onScanClick={() => {}} />
 
       <main className="max-w-[1300px] mx-auto px-4 sm:px-6 py-8">
@@ -334,9 +334,9 @@ export default function Notifications() {
                 Dashboard
               </span>
               <span>/</span>
-              <span className="text-[#0284c7] font-semibold">Notification Center</span>
+              <span className="text-[#0284c7] dark:text-sky-400 font-semibold">Notification Center</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Notification Center
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -349,7 +349,7 @@ export default function Notifications() {
             <button
               onClick={handleManualRefresh}
               disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-xs"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
               title="Refresh alerts"
             >
               <RefreshCw
@@ -362,7 +362,7 @@ export default function Notifications() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-sky-200 dark:border-slate-800 text-[#0284c7] hover:bg-sky-50 dark:hover:bg-slate-800 transition shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-[#0284c7] dark:text-sky-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
               >
                 <CheckCheck size={14} />
                 <span>Mark All Read ({unreadCount})</span>
@@ -372,7 +372,7 @@ export default function Notifications() {
             {notifications.length > 0 && (
               <button
                 onClick={handleClearAll}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-100 transition shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition shadow-2xs"
               >
                 <Trash2 size={14} />
                 <span>Clear All</span>
@@ -388,10 +388,10 @@ export default function Notifications() {
               setActiveType("all");
               setStatusFilter("all");
             }}
-            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
+            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-2xs ${
               activeType === "all" && statusFilter === "all"
                 ? "border-[#0284c7] ring-2 ring-[#0284c7]/20"
-                : "border-sky-100 dark:border-slate-800 hover:border-sky-200"
+                : "border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
@@ -407,10 +407,10 @@ export default function Notifications() {
 
           <div
             onClick={() => setStatusFilter((prev) => (prev === "unread" ? "all" : "unread"))}
-            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
+            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-2xs ${
               statusFilter === "unread"
                 ? "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/20 dark:bg-rose-950/20"
-                : "border-sky-100 dark:border-slate-800 hover:border-rose-200"
+                : "border-slate-200/80 dark:border-slate-800 hover:border-rose-200"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
@@ -428,10 +428,10 @@ export default function Notifications() {
 
           <div
             onClick={() => setActiveType((prev) => (prev === "stock" ? "all" : "stock"))}
-            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
+            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-2xs ${
               activeType === "stock"
                 ? "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/20 dark:bg-rose-950/20"
-                : "border-sky-100 dark:border-slate-800 hover:border-rose-200"
+                : "border-slate-200/80 dark:border-slate-800 hover:border-rose-200"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
@@ -449,10 +449,10 @@ export default function Notifications() {
 
           <div
             onClick={() => setActiveType((prev) => (prev === "expiry" ? "all" : "expiry"))}
-            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-xs ${
+            className={`p-4 rounded-xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-2xs ${
               activeType === "expiry"
                 ? "border-amber-400 ring-2 ring-amber-400/20 bg-amber-50/20 dark:bg-amber-950/20"
-                : "border-sky-100 dark:border-slate-800 hover:border-amber-200"
+                : "border-slate-200/80 dark:border-slate-800 hover:border-amber-200"
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
@@ -470,7 +470,7 @@ export default function Notifications() {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-slate-800 p-4 mb-6 shadow-sm space-y-3">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 mb-6 shadow-2xs space-y-3">
           <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
             {/* Search Input */}
             <div className="relative flex-1">
@@ -559,16 +559,16 @@ export default function Notifications() {
 
         {/* Alerts List */}
         {loading ? (
-          <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-slate-800">
+          <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
             <Loader2 size={32} className="text-[#0284c7] animate-spin mx-auto mb-3" />
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
               Loading notification center...
             </p>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-slate-800 p-8 shadow-xs">
+          <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-8 shadow-2xs">
             <div className="w-16 h-16 rounded-full bg-sky-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-              <Inbox size={28} className="text-[#0284c7]" />
+              <Inbox size={28} className="text-[#0284c7] dark:text-sky-400" />
             </div>
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">
               No notifications to display

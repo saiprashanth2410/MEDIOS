@@ -176,13 +176,13 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Navbar onScanClick={() => {}} />
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Suppliers</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {stats.total.toLocaleString()} suppliers from CDCI master
             </p>
@@ -190,14 +190,14 @@ export default function Suppliers() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              className="flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs"
             >
               <RefreshCw size={16} />
               Refresh
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
+              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#0369a1] transition shadow-xs"
             >
               <Plus size={16} />
               Add Supplier
@@ -207,55 +207,55 @@ export default function Suppliers() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total</span>
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center">
                 <Factory size={18} className="text-[#0284c7] dark:text-sky-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.total.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{stats.total.toLocaleString()}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active</span>
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-200/60 dark:border-emerald-500/25 flex items-center justify-center">
                 <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
               {stats.active.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pending</span>
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/60 dark:border-amber-500/25 flex items-center justify-center">
                 <Clock size={18} className="text-amber-600 dark:text-amber-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">
               {stats.pending.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Products</span>
               <div className="w-10 h-10 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-200/60 dark:border-violet-500/25 flex items-center justify-center">
                 <Package size={18} className="text-violet-600 dark:text-violet-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {stats.totalProducts.toLocaleString()}
             </p>
           </div>
         </div>
 
         {/* Search + Filter */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 mb-4 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 mb-4 shadow-2xs">
           <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
             <div className="relative flex-1">
               <Search
@@ -306,9 +306,9 @@ export default function Suppliers() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {suppliers.length === 0 ? (
-              <div className="col-span-full bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-12 text-center shadow-sm">
-                <Factory size={40} className="text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <div className="col-span-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-2xs">
+                <Factory size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
                   No suppliers found
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -321,11 +321,11 @@ export default function Suppliers() {
                   <button
                     key={supplier.code}
                     onClick={() => setSelectedSupplier(supplier)}
-                    className="text-left bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition group"
+                    className="text-left bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition group"
                   >
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center shrink-0">
-                        <Factory size={18} className="text-white" />
+                      <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-[#0284c7] dark:text-sky-400 flex items-center justify-center shrink-0">
+                        <Factory size={18} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
@@ -361,7 +361,7 @@ export default function Suppliers() {
                     <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
                             Products
                           </p>
                           <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -369,7 +369,7 @@ export default function Suppliers() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
                             Orders
                           </p>
                           <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -379,7 +379,7 @@ export default function Suppliers() {
                       </div>
                       <ChevronRight
                         size={16}
-                        className="text-slate-300 group-hover:text-[#0284c7] transition"
+                        className="text-slate-300 dark:text-slate-600 group-hover:text-[#0284c7] dark:group-hover:text-sky-400 transition"
                       />
                     </div>
                   </button>

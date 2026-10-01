@@ -151,7 +151,7 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
           </div>
 
           {/* Info note */}
-          <div className="bg-sky-50/70 dark:bg-sky-950/30 rounded-lg p-3 flex items-start gap-2.5 text-xs text-sky-800 dark:text-sky-300/90 border border-sky-100 dark:border-sky-900/40">
+          <div className="bg-sky-50/70 dark:bg-sky-950/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-sky-800 dark:text-sky-300/90 border border-sky-200/60 dark:border-sky-800/40">
             <AlertCircle size={15} className="text-[#0284c7] dark:text-sky-400 shrink-0 mt-0.5" />
             <p>
               Stock adjustments sync directly with batch inventory and prescription tracking.

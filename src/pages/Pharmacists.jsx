@@ -138,26 +138,26 @@ export default function Pharmacists() {
   }, [pharmacists, searchQuery, statusFilter]);
 
   const statusStyles = {
-    active: "bg-emerald-50 text-emerald-700",
-    "on-leave": "bg-amber-50 text-amber-700",
-    inactive: "bg-slate-100 text-slate-600 dark:text-slate-300",
+    active: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40",
+    "on-leave": "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40",
+    inactive: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700",
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Navbar onScanClick={() => {}} />
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Pharmacists</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-1">Manage your pharmacy team</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Pharmacists</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your pharmacy team</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
+            className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#0369a1] transition shadow-xs"
           >
             <Plus size={16} />
             Add Pharmacist
@@ -168,52 +168,52 @@ export default function Pharmacists() {
         <div className="grid sm:grid-cols-3 gap-4 mb-6">
           <button
             onClick={() => setStatusFilter("all")}
-            className={`text-left bg-white dark:bg-slate-900 rounded-lg p-5 border shadow-sm hover:shadow-md transition ${
-              statusFilter === "all" ? "border-[#0284c7] ring-2 ring-[#0284c7]/10" : "border-sky-100 dark:border-slate-800"
+            className={`text-left bg-white dark:bg-slate-900 rounded-xl p-5 border shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition ${
+              statusFilter === "all" ? "border-[#0284c7] ring-2 ring-[#0284c7]/10" : "border-slate-200/80 dark:border-slate-800"
             }`}
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-sky-50 flex items-center justify-center">
-                <Users size={18} className="text-[#0284c7]" />
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center text-[#0284c7] dark:text-sky-400">
+                <Users size={18} />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Total Staff</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Total Staff</span>
             </div>
-            <p className="text-2xl font-bold">{stats.total}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</p>
           </button>
 
           <button
             onClick={() => setStatusFilter("active")}
-            className={`text-left bg-white dark:bg-slate-900 rounded-lg p-5 border shadow-sm hover:shadow-md transition ${
-              statusFilter === "active" ? "border-emerald-500 ring-2 ring-emerald-500/10" : "border-sky-100 dark:border-slate-800"
+            className={`text-left bg-white dark:bg-slate-900 rounded-xl p-5 border shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition ${
+              statusFilter === "active" ? "border-emerald-500 ring-2 ring-emerald-500/10" : "border-slate-200/80 dark:border-slate-800"
             }`}
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-emerald-50 flex items-center justify-center">
-                <CheckCircle2 size={18} className="text-emerald-600" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-200/60 dark:border-emerald-500/25 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 size={18} />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Active</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Active</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">{stats.active}</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.active}</p>
           </button>
 
           <button
             onClick={() => setStatusFilter("on-leave")}
-            className={`text-left bg-white dark:bg-slate-900 rounded-lg p-5 border shadow-sm hover:shadow-md transition ${
-              statusFilter === "on-leave" ? "border-amber-500 ring-2 ring-amber-500/10" : "border-sky-100 dark:border-slate-800"
+            className={`text-left bg-white dark:bg-slate-900 rounded-xl p-5 border shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition ${
+              statusFilter === "on-leave" ? "border-amber-500 ring-2 ring-amber-500/10" : "border-slate-200/80 dark:border-slate-800"
             }`}
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-md bg-amber-50 flex items-center justify-center">
-                <Clock size={18} className="text-amber-600" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/60 dark:border-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Clock size={18} />
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">On Leave</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">On Leave</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{stats.onLeave}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.onLeave}</p>
           </button>
         </div>
 
         {/* Search + Filters */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 mb-4 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 mb-4 shadow-2xs">
           <div className="flex flex-col lg:flex-row gap-3">
 
             <div className="relative flex-1">
@@ -223,7 +223,7 @@ export default function Pharmacists() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name, email, or license..."
-                className="w-full h-11 pl-10 pr-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 text-sm outline-none transition focus:border-[#0284c7] focus:bg-white dark:bg-slate-900 focus:ring-4 focus:ring-[#0284c7]/10"
+                className="w-full h-11 pl-10 pr-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60 text-sm outline-none transition focus:border-[#0284c7] focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-[#0284c7]/15"
               />
               {searchQuery && (
                 <button
@@ -249,7 +249,7 @@ export default function Pharmacists() {
                   className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition ${
                     statusFilter === s.key
                       ? "bg-[#0284c7] text-white"
-                      : "bg-slate-50 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700"
                   }`}
                 >
                   {s.label}
@@ -257,11 +257,11 @@ export default function Pharmacists() {
               ))}
             </div>
 
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-50 shrink-0">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded-md transition ${
-                  viewMode === "grid" ? "bg-white dark:bg-slate-900 shadow-sm text-[#0284c7]" : "text-slate-400 dark:text-slate-500"
+                  viewMode === "grid" ? "bg-white dark:bg-slate-900 shadow-2xs text-[#0284c7] dark:text-sky-400" : "text-slate-400 dark:text-slate-500"
                 }`}
               >
                 <LayoutGrid size={16} />
@@ -269,7 +269,7 @@ export default function Pharmacists() {
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-2 rounded-md transition ${
-                  viewMode === "list" ? "bg-white dark:bg-slate-900 shadow-sm text-[#0284c7]" : "text-slate-400 dark:text-slate-500"
+                  viewMode === "list" ? "bg-white dark:bg-slate-900 shadow-2xs text-[#0284c7] dark:text-sky-400" : "text-slate-400 dark:text-slate-500"
                 }`}
               >
                 <ListIcon size={16} />
@@ -289,10 +289,10 @@ export default function Pharmacists() {
 
         {/* Grid view */}
         {filtered.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-12 text-center shadow-sm">
-            <Users size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">No pharmacists found</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-2xs">
+            <Users size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">No pharmacists found</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {searchQuery ? "Try a different search" : "Add your first team member"}
             </p>
           </div>
@@ -301,7 +301,7 @@ export default function Pharmacists() {
             {filtered.map((p) => (
               <div
                 key={p.id}
-                className="relative bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition"
+                className="relative bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition"
               >
                 {/* Menu */}
                 <div className="absolute top-4 right-4">
@@ -309,7 +309,7 @@ export default function Pharmacists() {
                     onClick={() =>
                       setOpenMenuId(openMenuId === p.id ? null : p.id)
                     }
-                    className="p-1.5 rounded-md hover:bg-slate-100 transition"
+                    className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                   >
                     <MoreVertical size={16} className="text-slate-400 dark:text-slate-500" />
                   </button>
@@ -343,7 +343,7 @@ export default function Pharmacists() {
                         </button>
                         <button
                           onClick={() => handleDeletePharmacist(p.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 transition"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
                         >
                           <Trash2 size={12} />
                           Delete
@@ -354,12 +354,12 @@ export default function Pharmacists() {
                 </div>
 
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/40 border border-sky-200/60 dark:border-sky-800/40 text-[#0284c7] dark:text-sky-400 font-bold text-lg flex items-center justify-center shrink-0">
                     {p.name[0]?.toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{p.name}</p>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${statusStyles[p.status]}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusStyles[p.status]}`}>
                       {p.status.toUpperCase().replace("-", " ")}
                     </span>
                   </div>
@@ -381,10 +381,10 @@ export default function Pharmacists() {
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-semibold px-2 py-1 rounded-md bg-sky-50 text-sky-700">
+                  <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/40">
                     {p.role}
                   </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                     <Clock size={10} />
                     {p.shift.split(" ")[0]}
                   </span>
@@ -395,34 +395,34 @@ export default function Pharmacists() {
         ) : (
           <div className="space-y-3">
             {filtered.map((p) => (
-              <div key={p.id} className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition">
+              <div key={p.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:shadow-sm transition">
                 <div className="flex items-start gap-4 flex-wrap">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center text-white font-bold text-lg shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/40 border border-sky-200/60 dark:border-sky-800/40 text-[#0284c7] dark:text-sky-400 flex items-center justify-center font-bold text-lg shrink-0">
                     {p.name[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-[240px]">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${statusStyles[p.status]}`}>
+                      <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${statusStyles[p.status]}`}>
                         {p.status.toUpperCase().replace("-", " ")}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 flex-wrap">
+                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                       <span className="flex items-center gap-1"><Mail size={12} />{p.email}</span>
                       <span className="flex items-center gap-1"><Phone size={12} />{p.phone}</span>
                       <span className="flex items-center gap-1"><BadgeCheck size={12} />{p.license}</span>
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
-                      <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-medium">{p.role}</span>
-                      <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 flex items-center gap-1"><Clock size={11} />{p.shift}</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/40 font-medium">{p.role}</span>
+                      <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1"><Clock size={11} />{p.shift}</span>
                     </div>
                   </div>
                   <button
                     onClick={() => handleDeletePharmacist(p.id)}
-                    className="p-2 rounded-md hover:bg-rose-50 transition shrink-0"
+                    className="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 transition shrink-0"
                     aria-label="Delete"
                   >
-                    <Trash2 size={14} className="text-rose-500" />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>

@@ -34,20 +34,23 @@ export default function SupplierDetailModal({
 
   const statusConfig = {
     active: {
-      bg: "bg-emerald-50 dark:bg-emerald-950/30",
-      text: "text-emerald-700 dark:text-emerald-400",
+      bg: "bg-emerald-50 dark:bg-emerald-950/40",
+      text: "text-emerald-700 dark:text-emerald-300",
+      border: "border-emerald-200/60 dark:border-emerald-800/40",
       icon: CheckCircle2,
       label: "ACTIVE",
     },
     pending: {
-      bg: "bg-amber-50 dark:bg-amber-950/30",
-      text: "text-amber-700 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-950/40",
+      text: "text-amber-700 dark:text-amber-300",
+      border: "border-amber-200/60 dark:border-amber-800/40",
       icon: Clock,
       label: "PENDING",
     },
     inactive: {
       bg: "bg-slate-100 dark:bg-slate-800",
       text: "text-slate-600 dark:text-slate-300",
+      border: "border-slate-200/60 dark:border-slate-700",
       icon: Clock,
       label: "INACTIVE",
     },
@@ -76,18 +79,18 @@ export default function SupplierDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 bg-black/50 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 bg-black/50 backdrop-blur-xs overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl border border-slate-200 dark:border-slate-800 overflow-hidden my-4"
+        className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden my-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#0369a1] flex items-center justify-center shrink-0">
-              <Factory size={22} className="text-white" />
+            <div className="w-11 h-11 rounded-xl bg-[#0284c7] flex items-center justify-center shrink-0 shadow-2xs">
+              <Factory size={20} className="text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -95,7 +98,7 @@ export default function SupplierDetailModal({
                   {supplier.name}
                 </h2>
                 <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 ${status.bg} ${status.text}`}
+                  className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 border ${status.bg} ${status.text} ${status.border}`}
                 >
                   <StatusIcon size={10} />
                   {status.label}
@@ -108,9 +111,9 @@ export default function SupplierDetailModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
           >
-            <X size={18} className="text-slate-500" />
+            <X size={18} />
           </button>
         </div>
 
@@ -261,10 +264,10 @@ export default function SupplierDetailModal({
 
 function Section({ icon: Icon, title, children }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
         <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          {Icon && <Icon size={14} className="text-[#0284c7]" />}
+          {Icon && <Icon size={14} className="text-[#0284c7] dark:text-sky-400" />}
           {title}
         </h3>
       </div>
@@ -287,7 +290,7 @@ function InfoRow({ icon: Icon, label, value, editing, onChange }) {
           type="text"
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full h-9 px-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10"
+          className="w-full h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10"
         />
       ) : (
         <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
@@ -300,22 +303,22 @@ function InfoRow({ icon: Icon, label, value, editing, onChange }) {
 
 function StatCard({ icon: Icon, label, value, color = "sky" }) {
   const colors = {
-    sky: "bg-sky-50 text-[#0284c7]",
-    violet: "bg-violet-50 text-violet-600",
-    amber: "bg-amber-50 text-amber-600",
-    emerald: "bg-emerald-50 text-emerald-600",
+    sky: "bg-sky-50 dark:bg-sky-950/40 text-[#0284c7] dark:text-sky-400 border-sky-200/60 dark:border-sky-800/40",
+    violet: "bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 border-violet-200/60 dark:border-violet-800/40",
+    amber: "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40",
+    emerald: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40",
   };
 
   return (
-    <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+    <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
       <div
-        className={`w-8 h-8 rounded-md flex items-center justify-center mb-2 ${
+        className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 border ${
           colors[color] || colors.sky
         }`}
       >
         <Icon size={14} />
       </div>
-      <p className="text-[10px] text-slate-400 mb-0.5">{label}</p>
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>
       <p className="text-base font-bold text-slate-800 dark:text-slate-100">
         {value}
       </p>
