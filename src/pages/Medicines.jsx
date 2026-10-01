@@ -25,7 +25,7 @@ import Navbar from "../components/dashboard/Navbar";
 import { medicinesAPI } from "../services/api";
 import defaultMedicines from "../data/catalogMedicines.json";
 
-console.log("🔥🔥🔥 VERSION 6 — LOCAL + AI (Add only) 🔥🔥🔥");
+
 
 /* =====================================================
    CONSTANTS
@@ -513,14 +513,14 @@ export default function Medicines() {
   ===================================================== */
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen bg-[#f0f9ff] dark:bg-slate-950 text-slate-900 dark:text-white">
       <Navbar onScanClick={() => {}} />
 
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Medicines</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Medicines</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Manage your pharmacy inventory
             </p>
@@ -531,11 +531,14 @@ export default function Medicines() {
                 setAddModalTab("pdf");
                 setShowAddMedicine(true);
               }}
-              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition shadow-2xs"
-              title="Import medicines from supplier invoice or document"
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-3.5 py-2.5 rounded-md text-sm font-semibold transition shadow-2xs"
+              title="Upload PDF, wholesale invoice or medicine list to bulk add & update stock"
             >
               <FileUp size={16} className="text-[#0284c7] dark:text-sky-400" />
-              <span>Import Invoice</span>
+              <span>Import via PDF / Bill</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                AI
+              </span>
             </button>
 
             <button
@@ -543,7 +546,7 @@ export default function Medicines() {
                 setAddModalTab("manual");
                 setShowAddMedicine(true);
               }}
-              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#0369a1] transition shadow-xs"
+              className="flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-[#0369a1] transition shadow-sm"
             >
               <Plus size={16} />
               <span>Add Medicine</span>
@@ -553,49 +556,49 @@ export default function Medicines() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total</span>
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center">
                 <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{stats.total}</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Low Stock</span>
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-200/60 dark:border-rose-500/25 flex items-center justify-center">
                 <AlertTriangle size={18} className="text-rose-600 dark:text-rose-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-rose-600 dark:text-rose-400 tracking-tight">{stats.lowStock}</p>
+            <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{stats.lowStock}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Expiring</span>
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/60 dark:border-amber-500/25 flex items-center justify-center">
                 <CalendarClock size={18} className="text-amber-600 dark:text-amber-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">{stats.expiring}</p>
+            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.expiring}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Categories</span>
               <div className="w-10 h-10 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-200/60 dark:border-violet-500/25 flex items-center justify-center">
                 <Package size={18} className="text-violet-600 dark:text-violet-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{stats.categories}</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.categories}</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 mb-6 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-4 mb-6 shadow-sm">
           <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
             <div className="relative flex-1">
               <Search
@@ -689,7 +692,7 @@ export default function Medicines() {
 
         {/* List */}
         {filtered.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-16 text-center shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-16 text-center shadow-sm">
             <Pill size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1">No medicines found</p>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
@@ -710,9 +713,9 @@ export default function Medicines() {
             ))}
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 overflow-hidden shadow-sm">
             <table className="w-full">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     Medicine
@@ -736,7 +739,7 @@ export default function Medicines() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.map((med) => (
-                  <tr key={med.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition">
+                  <tr key={med.id} className="hover:bg-sky-50 dark:hover:bg-slate-800/60 transition">
                     <td className="px-4 py-3">
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{med.name}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">{med.generic}</p>
@@ -871,9 +874,9 @@ function MedicineCard({ med, onEdit, onDelete }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition">
+    <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition">
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center shrink-0">
+        <div className="w-11 h-11 rounded-md bg-sky-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
           <Pill size={18} className="text-[#0284c7] dark:text-sky-400" />
         </div>
         <div className="min-w-0 flex-1">
