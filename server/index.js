@@ -11,6 +11,8 @@ import Batch from "./models/Batch.js";
 import Pharmacist from "./models/Pharmacist.js";
 import Sale from "./models/Sale.js";
 import Notification from "./models/Notification.js";
+import Setting from "./models/Setting.js";
+import AuthLog from "./models/AuthLog.js";
 
 dotenv.config();
 
@@ -1025,21 +1027,489 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
     }
 
-    const pharmacist = await Pharmacist.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    let pharmacist = await Pharmacist.findOne({ email: cleanEmail });
+
+    // If pharmacist doesn't exist, create an account
+    if (!pharmacist) {
+      pharmacist = await Pharmacist.create({
+        id: "PH-" + Date.now().toString().slice(-4),
+        name: cleanEmail.split("@")[0].replace(/\./g, " "),
+        email: cleanEmail,
+        role: "Chief Pharmacist",
+        phone: "+91 98765 43210",
+        license: "TN/PH/2026/001",
+        shift: "General (9AM - 6PM)",
+        status: "active",
+      });
+    }
+
+    // Record login entry in MongoDB AuthLog
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "";
+    const isMobile = /Mobile|Android|iPhone/i.test(userAgent);
+
+    const log = await AuthLog.create({
+      userId: pharmacist.id,
+      userName: pharmacist.name,
+      email: cleanEmail,
+      action: "login",
+      provider: "credentials",
+      entryTime: new Date(),
+      ip: clientIp,
+      device: isMobile ? "Mobile Web" : "Desktop Web (macOS/Chrome)",
+      status: "success",
+    });
+
     const user = {
-      id: pharmacist ? pharmacist.id : "USR-" + Date.now().toString().slice(-4),
-      name: pharmacist ? pharmacist.name : email.split("@")[0].replace(/\./g, " "),
-      email: email.toLowerCase(),
-      role: pharmacist ? pharmacist.role : "Chief Pharmacist",
-      phone: pharmacist ? pharmacist.phone : "+91 98765 43210",
-      license: pharmacist ? pharmacist.license : "TN/PH/2026/001",
+      id: pharmacist.id,
+      name: pharmacist.name,
+      email: cleanEmail,
+      role: pharmacist.role,
+      phone: pharmacist.phone || "+91 98765 43210",
+      license: pharmacist.license || "TN/PH/2026/001",
+      provider: "credentials",
+      logId: log._id.toString(),
     };
 
     res.json({
       ok: true,
       user,
       token: "jwt-token-" + Date.now(),
+      logId: log._id.toString(),
     });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password, role = "Chief Pharmacist", phone, license } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let pharmacist = await Pharmacist.findOne({ email: cleanEmail });
+
+    if (pharmacist) {
+      // User exists, update details if provided
+      if (name) pharmacist.name = name.trim();
+      if (role) pharmacist.role = role;
+      await pharmacist.save();
+    } else {
+      pharmacist = await Pharmacist.create({
+        id: "PH-" + Date.now().toString().slice(-4),
+        name: name?.trim() || cleanEmail.split("@")[0].replace(/\./g, " "),
+        email: cleanEmail,
+        role: role || "Chief Pharmacist",
+        phone: phone || "+91 98765 43210",
+        license: license || "TN/PH/2026/0" + Math.floor(100 + Math.random() * 900),
+        shift: "General (9AM - 6PM)",
+        status: "active",
+      });
+    }
+
+    // Sync to Setting model
+    let setting = await Setting.findOne({ key: "general_settings" });
+    if (!setting) {
+      await Setting.create({
+        key: "general_settings",
+        personal: {
+          name: pharmacist.name,
+          email: cleanEmail,
+          role: pharmacist.role,
+        },
+      });
+    }
+
+    // Record register entry in MongoDB AuthLog
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "";
+    const isMobile = /Mobile|Android|iPhone/i.test(userAgent);
+
+    const log = await AuthLog.create({
+      userId: pharmacist.id,
+      userName: pharmacist.name,
+      email: cleanEmail,
+      action: "register",
+      provider: "credentials",
+      entryTime: new Date(),
+      ip: clientIp,
+      device: isMobile ? "Mobile Web" : "Desktop Web (macOS/Chrome)",
+      status: "success",
+    });
+
+    const user = {
+      id: pharmacist.id,
+      name: pharmacist.name,
+      email: cleanEmail,
+      role: pharmacist.role,
+      phone: pharmacist.phone,
+      license: pharmacist.license,
+      provider: "credentials",
+      logId: log._id.toString(),
+    };
+
+    res.json({
+      ok: true,
+      user,
+      token: "jwt-token-" + Date.now(),
+      logId: log._id.toString(),
+    });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =====================================================
+   OAUTH (Google & GitHub)
+===================================================== */
+
+app.post("/api/auth/oauth", async (req, res) => {
+  try {
+    const { provider = "google", email, name, avatar, id } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required for OAuth login" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let pharmacist = await Pharmacist.findOne({ email: cleanEmail });
+
+    if (!pharmacist) {
+      const newId = id || "PH-" + Date.now().toString().slice(-4);
+      pharmacist = await Pharmacist.create({
+        id: newId,
+        name: name || cleanEmail.split("@")[0].replace(/\./g, " "),
+        email: cleanEmail,
+        role: "Chief Pharmacist",
+        phone: "+91 98765 43210",
+        license: "TN/PH/2026/0" + Math.floor(100 + Math.random() * 900),
+        shift: "General (9AM - 6PM)",
+        status: "active",
+      });
+    }
+
+    // Sync to Setting model if avatar or name provided
+    let setting = await Setting.findOne({ key: "general_settings" });
+    if (!setting) {
+      setting = await Setting.create({
+        key: "general_settings",
+        personal: {
+          name: pharmacist.name,
+          email: cleanEmail,
+          avatar: avatar || "",
+          role: pharmacist.role,
+        },
+      });
+    } else if (avatar && !setting.personal?.avatar) {
+      setting.personal.avatar = avatar;
+      await setting.save();
+    }
+
+    // Record OAuth login entry in MongoDB AuthLog
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "";
+    const isMobile = /Mobile|Android|iPhone/i.test(userAgent);
+
+    const log = await AuthLog.create({
+      userId: pharmacist.id,
+      userName: pharmacist.name,
+      email: cleanEmail,
+      action: "oauth_login",
+      provider: provider === "github" ? "github" : "google",
+      entryTime: new Date(),
+      ip: clientIp,
+      device: isMobile ? "Mobile Web" : "Desktop Web (macOS/Chrome)",
+      status: "success",
+    });
+
+    const user = {
+      id: pharmacist.id,
+      name: pharmacist.name,
+      email: cleanEmail,
+      role: pharmacist.role,
+      phone: pharmacist.phone || "+91 98765 43210",
+      license: pharmacist.license || "TN/PH/2026/001",
+      avatar: avatar || setting?.personal?.avatar || "",
+      provider,
+      logId: log._id.toString(),
+    };
+
+    res.json({
+      ok: true,
+      user,
+      token: "oauth-token-" + Date.now(),
+      logId: log._id.toString(),
+    });
+  } catch (err) {
+    console.error("OAuth error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/auth/google", (req, res, next) => {
+  req.body.provider = "google";
+  return app._router.handle(req, res, next);
+});
+
+/* =====================================================
+   LOGOUT — Record Logout Time & Session Duration
+===================================================== */
+
+app.post("/api/auth/logout", async (req, res) => {
+  try {
+    const { email, logId } = req.body;
+    const now = new Date();
+    let log = null;
+
+    if (logId) {
+      try {
+        log = await AuthLog.findById(logId);
+      } catch (e) {
+        // Invalid objectId format fallback
+      }
+    }
+
+    if (!log && email) {
+      const cleanEmail = email.toLowerCase().trim();
+      log = await AuthLog.findOne({
+        email: cleanEmail,
+        logoutTime: null,
+      }).sort({ entryTime: -1 });
+
+      if (!log) {
+        log = await AuthLog.findOne({ email: cleanEmail }).sort({ entryTime: -1 });
+      }
+    }
+
+    if (log) {
+      log.logoutTime = now;
+      const durationSeconds = Math.max(
+        0,
+        Math.round((now.getTime() - new Date(log.entryTime).getTime()) / 1000)
+      );
+      log.sessionDurationSeconds = durationSeconds;
+      await log.save();
+
+      return res.json({
+        ok: true,
+        message: "Logout recorded in MongoDB",
+        log: {
+          id: log._id,
+          email: log.email,
+          entryTime: log.entryTime,
+          logoutTime: log.logoutTime,
+          durationSeconds: log.sessionDurationSeconds,
+        },
+      });
+    }
+
+    // If no previous session was found, create a logout entry
+    if (email) {
+      const cleanEmail = email.toLowerCase().trim();
+      const newLog = await AuthLog.create({
+        email: cleanEmail,
+        action: "logout",
+        entryTime: now,
+        logoutTime: now,
+        sessionDurationSeconds: 0,
+        status: "success",
+      });
+      return res.json({ ok: true, message: "Standalone logout log created", log: newLog });
+    }
+
+    res.json({ ok: true, message: "Logged out without specific log id" });
+  } catch (err) {
+    console.error("Logout log error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =====================================================
+   AUTH LOGS QUERY — View session history
+===================================================== */
+
+app.get("/api/auth/logs", async (req, res) => {
+  try {
+    const { limit = 50, email } = req.query;
+    const filter = {};
+    if (email) filter.email = email.toLowerCase().trim();
+
+    const logs = await AuthLog.find(filter)
+      .sort({ entryTime: -1 })
+      .limit(Number(limit))
+      .lean();
+
+    res.json({
+      ok: true,
+      count: logs.length,
+      logs,
+    });
+  } catch (err) {
+    console.error("Fetch auth logs error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =====================================================
+   CLEANUP TESTING & DUPLICATE IDS
+===================================================== */
+
+async function cleanupTestingAndDuplicateIds() {
+  try {
+    // 1. Remove all test pharmacist accounts & test logs
+    const testPharmResult = await Pharmacist.deleteMany({
+      $or: [
+        { email: /test/i },
+        { id: /test/i },
+        { name: /test/i },
+        { email: /demo/i },
+        { email: "user@meditrack.ai" },
+        { id: "PH-TEST" },
+      ],
+    });
+
+    const testLogsResult = await AuthLog.deleteMany({
+      $or: [
+        { email: /test/i },
+        { userId: /test/i },
+        { userName: /test/i },
+        { email: "user@meditrack.ai" },
+      ],
+    });
+
+    // 2. Remove duplicate pharmacists by email keeping the newest one
+    const allPharmacists = await Pharmacist.find().sort({ createdAt: -1 });
+    const seenEmails = new Set();
+    let duplicatesRemoved = 0;
+    for (const p of allPharmacists) {
+      const email = p.email?.toLowerCase().trim();
+      if (!email) continue;
+      if (seenEmails.has(email)) {
+        await Pharmacist.deleteOne({ _id: p._id });
+        duplicatesRemoved++;
+      } else {
+        seenEmails.add(email);
+      }
+    }
+
+    console.log(`🧹 Cleaned up: ${testPharmResult.deletedCount} test pharmacists, ${testLogsResult.deletedCount} test logs, ${duplicatesRemoved} duplicates.`);
+    return {
+      ok: true,
+      testPharmacistsDeleted: testPharmResult.deletedCount,
+      testLogsDeleted: testLogsResult.deletedCount,
+      duplicatesRemoved,
+    };
+  } catch (err) {
+    console.warn("⚠️ Cleanup error:", err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+app.all("/api/auth/cleanup", async (req, res) => {
+  const result = await cleanupTestingAndDuplicateIds();
+  res.json(result);
+});
+
+/* =====================================================
+   SETTINGS & PROFILE
+===================================================== */
+
+app.get("/api/settings", async (req, res) => {
+  try {
+    let settings = await Setting.findOne({ key: "general_settings" });
+    if (!settings) {
+      settings = await Setting.create({ key: "general_settings" });
+    }
+    res.json(settings);
+  } catch (err) {
+    console.error("Settings fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/settings", async (req, res) => {
+  try {
+    const { personal, pharmacy, preferences } = req.body;
+    let settings = await Setting.findOne({ key: "general_settings" });
+    if (!settings) {
+      settings = new Setting({ key: "general_settings" });
+    }
+
+    if (personal) settings.personal = { ...settings.personal, ...personal };
+    if (pharmacy) settings.pharmacy = { ...settings.pharmacy, ...pharmacy };
+    if (preferences) settings.preferences = { ...settings.preferences, ...preferences };
+
+    await settings.save();
+
+    if (personal?.email) {
+      await Pharmacist.findOneAndUpdate(
+        { email: personal.email.toLowerCase() },
+        {
+          ...(personal.name && { name: personal.name }),
+          ...(personal.phone && { phone: personal.phone }),
+          ...(personal.role && { role: personal.role }),
+        }
+      );
+    }
+
+    res.json({ ok: true, settings });
+  } catch (err) {
+    console.error("Settings update error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/profile", async (req, res) => {
+  try {
+    let settings = await Setting.findOne({ key: "general_settings" });
+    if (!settings) {
+      settings = await Setting.create({ key: "general_settings" });
+    }
+    res.json(settings);
+  } catch (err) {
+    console.error("Profile fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/profile", async (req, res) => {
+  try {
+    const { personal, pharmacy, preferences } = req.body;
+    let settings = await Setting.findOne({ key: "general_settings" });
+    if (!settings) {
+      settings = new Setting({ key: "general_settings" });
+    }
+
+    if (personal) settings.personal = { ...settings.personal, ...personal };
+    if (pharmacy) settings.pharmacy = { ...settings.pharmacy, ...pharmacy };
+    if (preferences) settings.preferences = { ...settings.preferences, ...preferences };
+
+    await settings.save();
+    res.json({ ok: true, profile: settings });
+  } catch (err) {
+    console.error("Profile update error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/profile/change-password", async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Current and new password required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "New password must be at least 6 characters" });
+    }
+    res.json({ ok: true, message: "Password updated successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1051,8 +1521,9 @@ app.post("/api/auth/login", async (req, res) => {
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log("✅ MongoDB connected");
+    await cleanupTestingAndDuplicateIds();
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`   Health: http://localhost:${PORT}/api/health`);

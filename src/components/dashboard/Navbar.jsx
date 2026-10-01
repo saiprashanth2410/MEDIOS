@@ -60,8 +60,8 @@ export default function Navbar() {
 
   const userMenuRef = useRef(null);
 
-  const userName = user?.name || "Pharmacist";
-  const userEmail = user?.email || "user@meditrack.ai";
+  const userName = user?.name || "Sai Prashanth";
+  const userEmail = user?.email || "saiprashanth1510@gmail.com";
   const userRole = user?.role || "Chief Pharmacist";
 
   /* =====================================================
