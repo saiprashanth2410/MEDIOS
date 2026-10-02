@@ -124,6 +124,16 @@ export const batchesFirebaseService = {
   },
 
   /* =====================================================
+     GET SINGLE BATCH
+  ===================================================== */
+  async get(id) {
+    const list = getLocalBatches();
+    const found = list.find((b) => b.id === id || b.batchNumber === id);
+    if (!found) throw new Error("Batch not found");
+    return found;
+  },
+
+  /* =====================================================
      CREATE BATCH
   ===================================================== */
   async create(data) {

@@ -199,6 +199,14 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /notifications/{notificationId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /audit_logs/{logId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidAuditLog(request.resource.data);

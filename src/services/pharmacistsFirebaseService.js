@@ -147,6 +147,23 @@ export const pharmacistsFirebaseService = {
     }
     return { ok: true, id };
   },
+
+  async stats() {
+    const list = await this.list();
+    return {
+      total: list.length,
+      active: list.filter((p) => p.status === "active").length,
+      onLeave: list.filter((p) => p.status === "on-leave").length,
+      inactive: list.filter((p) => p.status === "inactive").length,
+    };
+  },
+
+  async get(id) {
+    const list = await this.list();
+    const found = list.find((p) => p.id === id);
+    if (!found) throw new Error("Pharmacist not found");
+    return found;
+  },
 };
 
 export default pharmacistsFirebaseService;
