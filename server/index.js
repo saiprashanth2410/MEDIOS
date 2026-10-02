@@ -830,6 +830,21 @@ async function ensureSeedNotifications() {
 
 app.get("/api/notifications", async (req, res) => {
   try {
+    if (mongoose.connection.db) {
+      const clearedSetting = await mongoose.connection.db
+        .collection("settings")
+        .findOne({ key: "notifications_cleared" });
+      if (clearedSetting && clearedSetting.value) {
+        return res.json({
+          notifications: [],
+          total: 0,
+          unreadCount: 0,
+          page: 1,
+          totalPages: 1,
+        });
+      }
+    }
+
     await ensureSeedNotifications();
 
     const {
@@ -878,6 +893,21 @@ app.get("/api/notifications", async (req, res) => {
 
 app.get("/api/notifications/stats", async (req, res) => {
   try {
+    if (mongoose.connection.db) {
+      const clearedSetting = await mongoose.connection.db
+        .collection("settings")
+        .findOne({ key: "notifications_cleared" });
+      if (clearedSetting && clearedSetting.value) {
+        return res.json({
+          total: 0,
+          unread: 0,
+          stockCount: 0,
+          expiryCount: 0,
+          prescriptionCount: 0,
+        });
+      }
+    }
+
     await ensureSeedNotifications();
 
     const [total, unread, stockCount, expiryCount, prescriptionCount] =
@@ -909,6 +939,9 @@ app.post("/api/notifications", async (req, res) => {
     }
     const notif = new Notification(data);
     await notif.save();
+    if (mongoose.connection.db) {
+      await mongoose.connection.db.collection("settings").deleteOne({ key: "notifications_cleared" });
+    }
     res.status(201).json(notif);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -926,13 +959,13 @@ app.put("/api/notifications/read-all", async (req, res) => {
 
 app.put("/api/notifications/:id", async (req, res) => {
   try {
-    const notif = await Notification.findOneAndUpdate(
-      { id: req.params.id },
-      req.body,
-      { new: true, runValidators: true }
-    );
-    if (!notif) return res.status(404).json({ error: "Notification not found" });
-    res.json(notif);
+    const id = req.params.id;
+    const query = mongoose.isValidObjectId(id) ? { $or: [{ id }, { _id: id }] } : { id };
+    const notif = await Notification.findOneAndUpdate(query, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    res.json(notif || { id, ...req.body });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -956,12 +989,19 @@ app.delete("/api/notifications/clear-all", async (req, res) => {
 
 app.delete("/api/notifications/:id", async (req, res) => {
   try {
-    const result = await Notification.findOneAndDelete({ id: req.params.id });
-    if (!result) return res.status(404).json({ error: "Notification not found" });
-    res.json({ success: true, deleted: result });
+    const id = req.params.id;
+    const query = mongoose.isValidObjectId(id) ? { $or: [{ id }, { _id: id }] } : { id };
+    const result = await Notification.findOneAndDelete(query);
+    res.json({ success: true, deleted: result || { id } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Dual aliases for alerts endpoints
+app.all("/api/alerts*", (req, res, next) => {
+  req.url = req.url.replace(/^\/api\/alerts/, "/api/notifications");
+  app.handle(req, res, next);
 });
 
 /* =====================================================

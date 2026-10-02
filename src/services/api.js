@@ -221,31 +221,159 @@ export const analyticsAPI = {
 };
 
 /* =====================================================
-   NOTIFICATIONS API (100% FIREBASE FIRESTORE SYNC)
+   NOTIFICATIONS API (DUAL BACKEND & FIREBASE SYNC)
 ===================================================== */
 export const notificationsAPI = {
   list: async (params = {}) => {
+    const isCleared =
+      typeof window !== "undefined" &&
+      localStorage.getItem("meditrack_notifications_cleared") === "true";
+    if (isCleared) {
+      return {
+        notifications: [],
+        total: 0,
+        unreadCount: 0,
+        page: 1,
+        totalPages: 1,
+      };
+    }
+
+    let deletedIds = new Set();
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("meditrack_deleted_notifications");
+        if (raw) deletedIds = new Set(JSON.parse(raw));
+      } catch (_) {}
+    }
+
+    try {
+      const qParams = new URLSearchParams(params);
+      const res = await api.get(`/notifications?${qParams}`);
+      if (res.data && (Array.isArray(res.data) || Array.isArray(res.data?.notifications))) {
+        let notifs = Array.isArray(res.data) ? res.data : res.data.notifications;
+        notifs = notifs.filter((n) => !deletedIds.has(n.id) && !deletedIds.has(n._id));
+        if (typeof window !== "undefined") {
+          localStorage.setItem("meditrack_notifications", JSON.stringify(notifs));
+        }
+        return {
+          notifications: notifs,
+          total: notifs.length,
+          unreadCount: notifs.filter((n) => !n.read).length,
+          page: Number(res.data.page || 1),
+          totalPages: Math.ceil(notifs.length / (params.limit || 50)) || 1,
+        };
+      }
+    } catch (err) {
+      console.debug("Backend notifications list notice (using Firebase):", err?.message);
+    }
     return await notificationsFirebaseService.list(params);
   },
+
   stats: async () => {
+    const isCleared =
+      typeof window !== "undefined" &&
+      localStorage.getItem("meditrack_notifications_cleared") === "true";
+    if (isCleared) {
+      return {
+        total: 0,
+        unread: 0,
+        stockCount: 0,
+        expiryCount: 0,
+        prescriptionCount: 0,
+        highPriority: 0,
+      };
+    }
+    try {
+      const res = await api.get("/notifications/stats");
+      if (res.data) return res.data;
+    } catch (err) {
+      console.debug("Backend notifications stats notice (using Firebase):", err?.message);
+    }
     return await notificationsFirebaseService.stats();
   },
+
   markAllRead: async () => {
-    return await notificationsFirebaseService.markAllRead();
+    let backendResult = null;
+    try {
+      const res = await api.put("/notifications/read-all");
+      backendResult = res.data;
+    } catch (err) {
+      console.debug("Backend markAllRead notice:", err?.message);
+    }
+    const fbRes = await notificationsFirebaseService.markAllRead();
+    return backendResult || fbRes;
   },
+
   markRead: async (id) => {
-    return await notificationsFirebaseService.markRead(id);
+    let backendResult = null;
+    try {
+      const res = await api.put(`/notifications/${id}`, { read: true });
+      backendResult = res.data;
+    } catch (err) {
+      console.debug("Backend markRead notice:", err?.message);
+    }
+    const fbRes = await notificationsFirebaseService.markRead(id);
+    return backendResult || fbRes;
   },
+
   update: async (id, data) => {
-    return await notificationsFirebaseService.update(id, data);
+    let backendResult = null;
+    try {
+      const res = await api.put(`/notifications/${id}`, data);
+      backendResult = res.data;
+    } catch (err) {
+      console.debug("Backend update notification notice:", err?.message);
+    }
+    const fbRes = await notificationsFirebaseService.update(id, data);
+    return backendResult || fbRes;
   },
+
   clearAll: async () => {
-    return await notificationsFirebaseService.clearAll();
+    if (typeof window !== "undefined") {
+      localStorage.setItem("meditrack_notifications_cleared", "true");
+      localStorage.setItem("meditrack_notifications", "[]");
+    }
+    let backendResult = null;
+    try {
+      const res = await api.delete("/notifications/clear-all");
+      backendResult = res.data;
+    } catch (err) {
+      console.debug("Backend clearAll notice:", err?.message);
+    }
+    const fbRes = await notificationsFirebaseService.clearAll();
+    return backendResult || fbRes;
   },
+
   delete: async (id) => {
-    return await notificationsFirebaseService.delete(id);
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("meditrack_deleted_notifications");
+        const set = new Set(raw ? JSON.parse(raw) : []);
+        set.add(id);
+        localStorage.setItem("meditrack_deleted_notifications", JSON.stringify(Array.from(set)));
+      } catch (_) {}
+    }
+    let backendResult = null;
+    try {
+      const res = await api.delete(`/notifications/${id}`);
+      backendResult = res.data;
+    } catch (err) {
+      console.debug("Backend delete notification notice:", err?.message);
+    }
+    const fbRes = await notificationsFirebaseService.delete(id);
+    return backendResult || fbRes;
   },
+
   create: async (data) => {
+    try {
+      const res = await api.post("/notifications", data);
+      if (res.data) {
+        await notificationsFirebaseService.create(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.debug("Backend create notification notice:", err?.message);
+    }
     return await notificationsFirebaseService.create(data);
   },
 };

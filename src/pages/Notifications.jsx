@@ -158,23 +158,20 @@ export default function Notifications() {
         ]);
 
         if (!cancelled) {
-          if (data?.notifications && Array.isArray(data.notifications)) {
-            if (isCleared && data.notifications.length === 0) {
-              setNotifications([]);
-            } else {
-              setNotifications(data.notifications);
-              localStorage.setItem(
-                "meditrack_notifications",
-                JSON.stringify(data.notifications)
-              );
-              if (data.notifications.length === 0) {
-                localStorage.setItem("meditrack_notifications_cleared", "true");
-              } else {
-                localStorage.removeItem("meditrack_notifications_cleared");
-              }
+          if (isCleared) {
+            setNotifications([]);
+            setStats({ total: 0, unread: 0, stockCount: 0, expiryCount: 0, prescriptionCount: 0, highPriority: 0 });
+          } else if (data?.notifications && Array.isArray(data.notifications)) {
+            setNotifications(data.notifications);
+            localStorage.setItem(
+              "meditrack_notifications",
+              JSON.stringify(data.notifications)
+            );
+            if (data.notifications.length === 0) {
+              localStorage.setItem("meditrack_notifications_cleared", "true");
             }
           }
-          if (statsData) setStats(statsData);
+          if (!isCleared && statsData) setStats(statsData);
           setLoading(false);
         }
       } catch (err) {
@@ -186,14 +183,29 @@ export default function Notifications() {
     };
 
     load();
+
+    const handleUpdate = () => {
+      load();
+    };
+
+    window.addEventListener("meditrack_notifications_updated", handleUpdate);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("meditrack_notifications_updated", handleUpdate);
     };
   }, [searchQuery, statusFilter, activeType]);
 
   const handleManualRefresh = async () => {
     try {
       setRefreshing(true);
+      const isCleared = localStorage.getItem("meditrack_notifications_cleared") === "true";
+      if (isCleared) {
+        setNotifications([]);
+        setStats({ total: 0, unread: 0, stockCount: 0, expiryCount: 0, prescriptionCount: 0, highPriority: 0 });
+        toast.success("Notifications refreshed");
+        return;
+      }
       const [data, statsData] = await Promise.all([
         notificationsAPI.list({
           search: searchQuery,
@@ -212,8 +224,6 @@ export default function Notifications() {
         );
         if (data.notifications.length === 0) {
           localStorage.setItem("meditrack_notifications_cleared", "true");
-        } else {
-          localStorage.removeItem("meditrack_notifications_cleared");
         }
       }
       if (statsData) setStats(statsData);
@@ -248,9 +258,10 @@ export default function Notifications() {
   };
 
   const handleToggleRead = async (notif) => {
+    const notifId = notif.id || notif._id;
     const updatedStatus = !notif.read;
     const updated = notifications.map((n) =>
-      n.id === notif.id ? { ...n, read: updatedStatus } : n
+      (n.id === notifId || n._id === notifId) ? { ...n, read: updatedStatus } : n
     );
     setNotifications(updated);
     setStats((prev) => ({
@@ -259,7 +270,7 @@ export default function Notifications() {
     }));
     try {
       localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
-      await notificationsAPI.update(notif.id, { read: updatedStatus });
+      await notificationsAPI.update(notifId, { read: updatedStatus });
       notifyChange();
       toast.success(updatedStatus ? "Marked as read" : "Marked as unread");
     } catch {
@@ -268,7 +279,7 @@ export default function Notifications() {
   };
 
   const handleDelete = async (id) => {
-    const updated = notifications.filter((n) => n.id !== id);
+    const updated = notifications.filter((n) => n.id !== id && n._id !== id);
     setNotifications(updated);
     try {
       localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
@@ -677,7 +688,7 @@ export default function Notifications() {
 
                       <button
                         type="button"
-                        onClick={() => handleDelete(notif.id)}
+                        onClick={() => handleDelete(notif.id || notif._id)}
                         className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 hover:text-rose-600 hover:border-rose-200 transition"
                         title="Delete alert"
                       >

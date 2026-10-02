@@ -5,7 +5,20 @@ import { toast } from "sonner";
 import { auth, db } from "../config/firebase";
 import { authService } from "../services/authService";
 
-const AuthContext = createContext(null);
+const defaultAuthValue = {
+  user: null,
+  loading: false,
+  authLoading: false,
+  login: async () => ({ ok: false }),
+  loginWithGoogle: async () => ({ ok: false }),
+  loginWithOAuth: async () => ({ ok: false }),
+  register: async () => ({ ok: false }),
+  logout: async () => {},
+  updateUser: () => {},
+  isAuthenticated: false,
+};
+
+const AuthContext = createContext(defaultAuthValue);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -192,6 +205,20 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  if (!ctx || ctx === defaultAuthValue) {
+    let savedUser = null;
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("meditrack_user");
+        if (saved) savedUser = JSON.parse(saved);
+      }
+    } catch (_) {}
+
+    return {
+      ...defaultAuthValue,
+      user: savedUser,
+      isAuthenticated: !!savedUser,
+    };
+  }
   return ctx;
 }

@@ -4,13 +4,14 @@ import {
   setDoc,
   getDocs,
   deleteDoc,
-  updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
 const COLLECTION_NAME = "notifications";
 const LOCAL_NOTIFS_KEY = "meditrack_notifications";
+const DELETED_NOTIFS_KEY = "meditrack_deleted_notifications";
+const CLEARED_NOTIFS_KEY = "meditrack_notifications_cleared";
 
 const SEED_NOTIFICATIONS = [
   {
@@ -81,25 +82,51 @@ const SEED_NOTIFICATIONS = [
   },
 ];
 
+function getDeletedSet() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_NOTIFS_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 function getLocalNotifications() {
   if (typeof window === "undefined") return SEED_NOTIFICATIONS;
   try {
+    const isCleared = localStorage.getItem(CLEARED_NOTIFS_KEY) === "true";
+    if (isCleared) return [];
+
+    const deletedIds = getDeletedSet();
     const raw = localStorage.getItem(LOCAL_NOTIFS_KEY);
-    if (raw) {
+
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((n) => !deletedIds.has(n.id));
+      }
     }
-  } catch (_) {}
-  try {
-    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(SEED_NOTIFICATIONS));
-  } catch (_) {}
-  return SEED_NOTIFICATIONS;
+
+    const initial = SEED_NOTIFICATIONS.filter((n) => !deletedIds.has(n.id));
+    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(initial));
+    return initial;
+  } catch (_) {
+    return [];
+  }
 }
 
 function saveLocalNotifications(list) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(list));
+    const deletedIds = getDeletedSet();
+    const cleanList = (list || []).filter((n) => !deletedIds.has(n.id));
+    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(cleanList));
+    if (cleanList.length === 0) {
+      localStorage.setItem(CLEARED_NOTIFS_KEY, "true");
+    } else {
+      localStorage.removeItem(CLEARED_NOTIFS_KEY);
+    }
     window.dispatchEvent(new Event("meditrack_notifications_updated"));
   } catch (err) {
     console.debug("Local notifications save error:", err);
@@ -109,56 +136,85 @@ function saveLocalNotifications(list) {
 export const notificationsFirebaseService = {
   async list({ page = 1, limit = 50, search = "", status = "all", type = "all" } = {}) {
     let all = getLocalNotifications();
+    const deletedIds = getDeletedSet();
 
     try {
-      const snap = await getDocs(collection(db, COLLECTION_NAME));
-      if (!snap.empty) {
-        const firestoreList = [];
-        snap.forEach((d) => firestoreList.push({ id: d.id, ...d.data() }));
-        const map = new Map();
-        all.forEach((n) => map.set(n.id, n));
-        firestoreList.forEach((n) => map.set(n.id, { ...map.get(n.id), ...n }));
-        all = Array.from(map.values());
-        saveLocalNotifications(all);
+      const isCleared = typeof window !== "undefined" && localStorage.getItem(CLEARED_NOTIFS_KEY) === "true";
+      if (!isCleared) {
+        const snap = await getDocs(collection(db, COLLECTION_NAME));
+        if (!snap.empty) {
+          const firestoreList = [];
+          snap.forEach((d) => {
+            if (!deletedIds.has(d.id)) {
+              firestoreList.push({ id: d.id, ...d.data() });
+            }
+          });
+
+          if (firestoreList.length > 0) {
+            const map = new Map();
+            all.forEach((n) => map.set(n.id, n));
+            firestoreList.forEach((n) => {
+              if (!deletedIds.has(n.id)) {
+                const existing = map.get(n.id);
+                const isRead = existing ? (existing.read || n.read) : n.read;
+                map.set(n.id, { ...existing, ...n, read: isRead });
+              }
+            });
+            all = Array.from(map.values()).filter((n) => !deletedIds.has(n.id));
+            saveLocalNotifications(all);
+          }
+        }
       }
     } catch (err) {
       console.debug("Firestore notifications fetch notice:", err.message);
     }
 
-    let filtered = all;
+    let filtered = all.filter((n) => !deletedIds.has(n.id));
+
     if (search && search.trim()) {
       const q = search.toLowerCase().trim();
       filtered = filtered.filter(
         (n) => n.title?.toLowerCase().includes(q) || n.message?.toLowerCase().includes(q)
       );
     }
+
     if (status === "unread") {
       filtered = filtered.filter((n) => !n.read);
     } else if (status === "read") {
       filtered = filtered.filter((n) => n.read);
     }
+
     if (type !== "all" && type) {
       filtered = filtered.filter((n) => n.type === type);
     }
 
-    const start = (page - 1) * limit;
-    const paginated = filtered.slice(start, start + limit);
+    const total = filtered.length;
+    const start = (Number(page) - 1) * Number(limit);
+    const paginated = filtered.slice(start, start + Number(limit));
 
     return {
       notifications: paginated,
-      total: filtered.length,
+      total,
+      unreadCount: filtered.filter((n) => !n.read).length,
       page: Number(page),
-      totalPages: Math.ceil(filtered.length / limit) || 1,
+      totalPages: Math.ceil(total / Number(limit)) || 1,
     };
   },
 
   async stats() {
     const list = getLocalNotifications();
     const unread = list.filter((n) => !n.read).length;
+    const stockCount = list.filter((n) => n.type === "stock").length;
+    const expiryCount = list.filter((n) => n.type === "expiry").length;
+    const prescriptionCount = list.filter((n) => n.type === "prescription").length;
     const highPriority = list.filter((n) => n.priority === "high" || n.priority === "critical").length;
+
     return {
       total: list.length,
       unread,
+      stockCount,
+      expiryCount,
+      prescriptionCount,
       highPriority,
     };
   },
@@ -169,14 +225,18 @@ export const notificationsFirebaseService = {
     saveLocalNotifications(updated);
 
     try {
-      for (const n of list) {
-        if (!n.read) {
-          updateDoc(doc(db, COLLECTION_NAME, n.id), { read: true, updatedAt: serverTimestamp() }).catch(() => {});
-        }
-      }
+      await Promise.all(
+        updated.map((n) =>
+          setDoc(
+            doc(db, COLLECTION_NAME, n.id),
+            { ...n, read: true, updatedAt: serverTimestamp() },
+            { merge: true }
+          ).catch(() => {})
+        )
+      );
     } catch (_) {}
 
-    return { ok: true, count: list.length };
+    return { success: true, count: updated.length };
   },
 
   async markRead(id) {
@@ -185,10 +245,15 @@ export const notificationsFirebaseService = {
     saveLocalNotifications(updated);
 
     try {
-      await updateDoc(doc(db, COLLECTION_NAME, id), { read: true, updatedAt: serverTimestamp() });
+      const target = updated.find((n) => n.id === id) || { id, read: true };
+      await setDoc(
+        doc(db, COLLECTION_NAME, id),
+        { ...target, read: true, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
     } catch (_) {}
 
-    return { ok: true };
+    return { success: true, id };
   },
 
   async update(id, data) {
@@ -197,13 +262,25 @@ export const notificationsFirebaseService = {
     saveLocalNotifications(updated);
 
     try {
-      await updateDoc(doc(db, COLLECTION_NAME, id), { ...data, updatedAt: serverTimestamp() });
+      await setDoc(
+        doc(db, COLLECTION_NAME, id),
+        { ...data, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
     } catch (_) {}
 
-    return { ok: true };
+    return { success: true, id, data };
   },
 
   async delete(id) {
+    const deletedIds = getDeletedSet();
+    deletedIds.add(id);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(DELETED_NOTIFS_KEY, JSON.stringify(Array.from(deletedIds)));
+      } catch (_) {}
+    }
+
     const list = getLocalNotifications();
     const updated = list.filter((n) => n.id !== id);
     saveLocalNotifications(updated);
@@ -212,18 +289,24 @@ export const notificationsFirebaseService = {
       await deleteDoc(doc(db, COLLECTION_NAME, id));
     } catch (_) {}
 
-    return { ok: true, deleted: id };
+    return { success: true, deleted: id };
   },
 
   async clearAll() {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(CLEARED_NOTIFS_KEY, "true");
+        localStorage.setItem(LOCAL_NOTIFS_KEY, "[]");
+      } catch (_) {}
+    }
     saveLocalNotifications([]);
 
     try {
       const snap = await getDocs(collection(db, COLLECTION_NAME));
-      snap.forEach((d) => deleteDoc(d.ref).catch(() => {}));
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref).catch(() => {})));
     } catch (_) {}
 
-    return { ok: true };
+    return { success: true, message: "All notifications cleared" };
   },
 
   async create(data) {

@@ -156,12 +156,12 @@ export default function NotificationBell() {
       try {
         const isCleared =
           localStorage.getItem("meditrack_notifications_cleared") === "true";
+        if (isCleared) {
+          if (!cancelled) setNotifications([]);
+          return;
+        }
         const data = await notificationsAPI.list({ limit: 15 });
         if (!cancelled && data?.notifications && Array.isArray(data.notifications)) {
-          if (isCleared && data.notifications.length === 0) {
-            setNotifications([]);
-            return;
-          }
           setNotifications(data.notifications);
           localStorage.setItem(
             "meditrack_notifications",
@@ -169,8 +169,6 @@ export default function NotificationBell() {
           );
           if (data.notifications.length === 0) {
             localStorage.setItem("meditrack_notifications_cleared", "true");
-          } else {
-            localStorage.removeItem("meditrack_notifications_cleared");
           }
         }
       } catch (err) {
@@ -196,6 +194,12 @@ export default function NotificationBell() {
     let cancelled = false;
     const refresh = async () => {
       try {
+        const isCleared =
+          localStorage.getItem("meditrack_notifications_cleared") === "true";
+        if (isCleared) {
+          if (!cancelled) setNotifications([]);
+          return;
+        }
         setLoading(true);
         const data = await notificationsAPI.list({ limit: 15 });
         if (!cancelled && data?.notifications && Array.isArray(data.notifications)) {
@@ -206,8 +210,6 @@ export default function NotificationBell() {
           );
           if (data.notifications.length === 0) {
             localStorage.setItem("meditrack_notifications_cleared", "true");
-          } else {
-            localStorage.removeItem("meditrack_notifications_cleared");
           }
         }
       } catch (err) {
@@ -288,6 +290,23 @@ export default function NotificationBell() {
     if (notif.link) {
       setOpen(false);
       navigate(notif.link);
+    }
+  };
+
+  const handleDeleteNotification = async (e, id) => {
+    e.stopPropagation();
+    const updated = notifications.filter((n) => n.id !== id && n._id !== id);
+    setNotifications(updated);
+    try {
+      localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
+      if (updated.length === 0) {
+        localStorage.setItem("meditrack_notifications_cleared", "true");
+      }
+      await notificationsAPI.delete(id);
+      window.dispatchEvent(new Event("meditrack_notifications_updated"));
+      toast.success("Notification deleted");
+    } catch (err) {
+      console.debug("Delete notification error:", err);
     }
   };
 
@@ -387,12 +406,21 @@ export default function NotificationBell() {
             notifications.map((n) => {
               const Icon = TYPE_ICONS[n.type] || Bell;
               const colors = COLOR_MAP[n.color] || COLOR_MAP.blue;
+              const notifId = n.id || n._id;
 
               return (
-                <button
-                  key={n.id}
+                <div
+                  key={notifId}
                   onClick={() => handleClickItem(n)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition ${
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleClickItem(n);
+                    }
+                  }}
+                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition cursor-pointer select-none ${
                     n.read
                       ? "hover:bg-slate-50 dark:hover:bg-slate-800/40"
                       : "bg-[#0284c7]/[0.04] dark:bg-sky-950/20 hover:bg-[#0284c7]/[0.08]"
@@ -407,16 +435,26 @@ export default function NotificationBell() {
                     <div className="flex items-start justify-between gap-2">
                       <p
                         className={`text-xs font-semibold text-slate-800 dark:text-slate-100 ${
-                          !n.read ? "pr-2" : ""
+                          !n.read ? "pr-1" : ""
                         }`}
                       >
                         {n.title}
                       </p>
-                      {!n.read && (
-                        <span
-                          className={`w-2 h-2 rounded-full ${colors.dot} shrink-0 mt-1`}
-                        />
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!n.read && (
+                          <span
+                            className={`w-2 h-2 rounded-full ${colors.dot} shrink-0 mt-0.5`}
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteNotification(e, notifId)}
+                          className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition opacity-60 hover:opacity-100"
+                          title="Delete alert"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
                       {n.message}
@@ -430,7 +468,7 @@ export default function NotificationBell() {
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })
           )}

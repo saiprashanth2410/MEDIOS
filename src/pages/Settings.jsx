@@ -14,11 +14,23 @@ import {
   Package,
   X,
   Check,
+  Keyboard,
+  Command,
+  Sparkles,
+  Zap,
+  ArrowDown,
+  ArrowUp,
+  CornerDownLeft,
+  QrCode,
+  CreditCard,
+  CheckCircle2,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
+import QRCodeSVG from "../components/common/QRCodeSVG";
 
 /* =====================================================
    CATEGORIES
@@ -134,6 +146,48 @@ const CATEGORIES = [
       },
     ],
   },
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    icon: Keyboard,
+    header: "Keyboard Shortcuts & POS Fast Controls",
+    description: "Speed up counter billing with fast cashier hotkeys and navigation shortcuts",
+    items: [
+      {
+        id: "enable-pos-shortcuts",
+        icon: Keyboard,
+        label: "Enable POS Keyboard Shortcuts",
+        desc: "Allow / for instant search, ↑↓ arrows, Enter to add, F2 to dispense, and Esc to clear",
+        type: "toggle",
+        storageKey: "meditrack-shortcuts-enabled",
+      },
+      {
+        id: "f2-instant-dispense",
+        icon: Zap,
+        label: "F2 Instant Invoice Dispense",
+        desc: "Pressing F2 anywhere on the billing counter automatically completes invoice generation",
+        type: "toggle",
+        storageKey: "meditrack-f2-dispense",
+      },
+    ],
+  },
+  {
+    id: "payments",
+    label: "Payments & UPI",
+    icon: QrCode,
+    header: "UPI QR & Payment Settings",
+    description: "Configure pharmacy UPI VPA ID and payment settings for counter checkout",
+    items: [
+      {
+        id: "enable-upi-qr",
+        icon: QrCode,
+        label: "Dynamic POS QR Code",
+        desc: "Auto-encode pharmacy VPA and exact payable bill amount into instant scannable QR on POS",
+        type: "toggle",
+        storageKey: "meditrack-upi-qr-enabled",
+      },
+    ],
+  },
 ];
 
 /* =====================================================
@@ -194,18 +248,70 @@ export default function Settings() {
   const { theme, actualTheme, setTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialCategory = searchParams.get("category") || "account";
+  const initialCategory =
+    searchParams.get("category") || searchParams.get("tab") || "account";
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState("");
+  const [testedKey, setTestedKey] = useState(null);
+
+  // UPI ID configuration state
+  const [upiIdInput, setUpiIdInput] = useState(() => {
+    return (
+      (typeof window !== "undefined" ? localStorage.getItem("meditrack_upi_id") : "") ||
+      user?.upiId ||
+      "meditrack@upi"
+    );
+  });
+  const [savedUpiId, setSavedUpiId] = useState(() => {
+    return (
+      (typeof window !== "undefined" ? localStorage.getItem("meditrack_upi_id") : "") ||
+      user?.upiId ||
+      "meditrack@upi"
+    );
+  });
 
   // Toggle states (persisted)
   const [toggles, setToggles] = useState(() => ({
     "meditrack-push": localStorage.getItem("meditrack-push") === "true",
     "meditrack-expiry": localStorage.getItem("meditrack-expiry") === "true",
     "meditrack-lowstock": localStorage.getItem("meditrack-lowstock") === "true",
+    "meditrack-shortcuts-enabled":
+      localStorage.getItem("meditrack-shortcuts-enabled") !== "false",
+    "meditrack-f2-dispense":
+      localStorage.getItem("meditrack-f2-dispense") !== "false",
+    "meditrack-upi-qr-enabled":
+      localStorage.getItem("meditrack-upi-qr-enabled") !== "false",
   }));
 
+  const handleSaveUpiId = (e) => {
+    if (e) e.preventDefault();
+    const cleanId = upiIdInput.trim();
+    if (!cleanId) {
+      toast.error("Please enter a valid UPI ID (e.g. pharmacy@upi)");
+      return;
+    }
+    if (!cleanId.includes("@")) {
+      toast.error("Invalid UPI format. Must contain '@' (e.g. storename@okaxis)");
+      return;
+    }
+    localStorage.setItem("meditrack_upi_id", cleanId);
+    setSavedUpiId(cleanId);
+    toast.success("UPI ID saved! Dynamic QR code is active on POS billing counter.");
+    window.dispatchEvent(new Event("meditrack_pharmacy_updated"));
+    window.dispatchEvent(new Event("storage"));
+  };
+
   const trimmedQuery = searchQuery.trim().toLowerCase();
+
+  // Listen to keyboard testing in shortcuts tab
+  useEffect(() => {
+    if (activeCategory !== "shortcuts") return;
+    const handleTestKey = (e) => {
+      setTestedKey(e.key === " " ? "Space" : e.key);
+    };
+    window.addEventListener("keydown", handleTestKey);
+    return () => window.removeEventListener("keydown", handleTestKey);
+  }, [activeCategory]);
 
   /* =====================================================
      SYNC CATEGORY TO URL
@@ -495,6 +601,282 @@ export default function Settings() {
                         Active appearance: <strong className="text-slate-700 dark:text-slate-200 capitalize">{actualTheme}</strong> mode
                         {theme === "system" && " (detected from system)"}
                       </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* KEYBOARD SHORTCUTS PANEL (Only in Shortcuts tab) */}
+                {currentCategory.id === "shortcuts" && (
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 space-y-6">
+                    {/* Live Keypress Tester */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                          <Keyboard size={16} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                            Interactive Key Tester
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Press any key on your keyboard to test its recognition
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Detected Key:</span>
+                        <kbd className="px-2.5 py-1 text-xs font-mono font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded-lg border border-teal-200 dark:border-teal-800 shadow-xs">
+                          {testedKey || "Press any key"}
+                        </kbd>
+                      </div>
+                    </div>
+
+                    {/* Section 1: POS Billing Shortcuts */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                          <Zap size={13} className="text-teal-600" />
+                          <span>Point of Sale (POS) Fast Billing Controls</span>
+                        </h3>
+                        <span className="text-[10px] text-slate-400">Active on /billing</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {[
+                          {
+                            key: "/",
+                            title: "Focus Medicine Search",
+                            desc: "Instantly jump cursor into the medicine catalog search box",
+                            badge: "Search",
+                          },
+                          {
+                            key: "↓ / ↑",
+                            title: "Navigate Results",
+                            desc: "Arrow keys move selection up and down without touching mouse",
+                            badge: "Navigate",
+                          },
+                          {
+                            key: "Enter",
+                            title: "Add to Cart",
+                            desc: "Adds highlighted medicine with available batch directly into cart",
+                            badge: "Dispense",
+                          },
+                          {
+                            key: "F2",
+                            title: "Dispense & Invoice",
+                            desc: "Immediate checkout, deducting inventory and finalizing receipt",
+                            badge: "Checkout",
+                          },
+                          {
+                            key: "Esc",
+                            title: "Clear Search / Close Modals",
+                            desc: "Wipes search box or closes any open invoice/details popup",
+                            badge: "Dismiss",
+                          },
+                          {
+                            key: "Ctrl + P / ⌘ + P",
+                            title: "Print Thermal Receipt",
+                            desc: "Triggers instant thermal 80mm GST receipt slip printer dialog",
+                            badge: "Print",
+                          },
+                        ].map((s) => (
+                          <div
+                            key={s.key}
+                            className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-teal-400 transition"
+                          >
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                <span>{s.title}</span>
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+                                  {s.badge}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                                {s.desc}
+                              </p>
+                            </div>
+                            <kbd className="px-2 py-1 text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs shrink-0">
+                              {s.key}
+                            </kbd>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Section 2: Global Navigation Hotkeys */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                          <Command size={13} className="text-[#0284c7]" />
+                          <span>Global Pharmacy Quick Navigation</span>
+                        </h3>
+                        <span className="text-[10px] text-slate-400">Any screen</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          { key: "Alt + B", label: "Retail POS Billing" },
+                          { key: "Alt + D", label: "Dashboard Overview" },
+                          { key: "Alt + M", label: "Medicines Inventory" },
+                          { key: "Alt + P", label: "Prescriptions" },
+                          { key: "Alt + E", label: "Expiry Management" },
+                          { key: "Alt + N", label: "Notifications & Alerts" },
+                          { key: "Alt + S", label: "Settings & Profile" },
+                          { key: "Alt + Z", label: "Day-End Register" },
+                          { key: "?", label: "POS Cheat-Sheet" },
+                        ].map((nav) => (
+                          <div
+                            key={nav.key}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs"
+                          >
+                            <span className="text-slate-700 dark:text-slate-300 font-medium truncate">
+                              {nav.label}
+                            </span>
+                            <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700 shrink-0">
+                              {nav.key}
+                            </kbd>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PAYMENTS & UPI CONFIGURATION PANEL (Only in Payments tab) */}
+                {currentCategory.id === "payments" && (
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 space-y-6">
+                    {/* Setup Card */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-2xs">
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                            <QrCode size={20} />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                              Pharmacy UPI Virtual Payment Address (VPA)
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              This UPI ID is encoded into dynamic checkout QR codes on the Retail POS billing counter
+                            </p>
+                          </div>
+                        </div>
+
+                        {savedUpiId && (
+                          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                            <CheckCircle2 size={13} className="text-emerald-500" />
+                            <span>Active</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <form onSubmit={handleSaveUpiId} className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            UPI ID / VPA Address
+                          </label>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              value={upiIdInput}
+                              onChange={(e) => setUpiIdInput(e.target.value)}
+                              placeholder="e.g. pharmacyname@okaxis or 9876543210@upi"
+                              className="flex-1 h-10 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition"
+                            />
+                            <button
+                              type="submit"
+                              className="h-10 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs shrink-0"
+                            >
+                              <Check size={14} />
+                              <span>Save UPI ID</span>
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
+                            Supported: Google Pay (@okaxis, @okhdfcbank, @oksbi, @okicici), PhonePe (@ybl, @ibl, @axl), Paytm (@paytm), BHIM (@upi)
+                          </p>
+                        </div>
+                      </form>
+
+                      {/* Current Active UPI Banner */}
+                      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Currently Active:</span>
+                          <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-800">
+                            {savedUpiId || "None"}
+                          </span>
+                        </div>
+                        {savedUpiId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(savedUpiId);
+                              toast.success("UPI ID copied to clipboard!");
+                            }}
+                            className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 cursor-pointer transition"
+                          >
+                            <Copy size={12} />
+                            <span>Copy UPI ID</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Live Scanner Preview Card */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-2xs">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={16} className="text-teal-600 dark:text-teal-400" />
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                            POS Counter Live QR Preview
+                          </h3>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                          Sample ₹100 Bill
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                        {/* Dynamic QR preview image */}
+                        <div className="flex flex-col items-center p-3 rounded-2xl border-2 border-teal-400 bg-white shadow-sm shrink-0">
+                          <QRCodeSVG
+                            value={`upi://pay?pa=${savedUpiId}&pn=MediTrack%20Pharmacy&am=100&cu=INR&tn=Sample%20Bill%20Payment`}
+                            size={150}
+                            title="Sample Test UPI QR"
+                          />
+                          <p className="text-[11px] font-bold text-teal-700 mt-2">₹100.00</p>
+                          <p className="text-[10px] text-slate-500 font-mono mt-0.5 max-w-[140px] truncate text-center">
+                            {savedUpiId}
+                          </p>
+                        </div>
+
+                        {/* Explanatory points */}
+                        <div className="space-y-3 flex-1 text-xs">
+                          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <p className="font-bold text-slate-800 dark:text-slate-200">
+                              How it works at POS checkout:
+                            </p>
+                            <p className="text-slate-500 dark:text-slate-400 mt-1 leading-relaxed text-[11px]">
+                              When the cashier selects <strong>UPI / QR</strong> during checkout, the screen automatically generates and displays the scannable QR with the customer's exact bill total. The cashier never has to type or configure anything during busy counter hours.
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-[11px] font-bold">
+                              <span>📱</span> Google Pay
+                            </div>
+                            <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold">
+                              <span>📱</span> PhonePe
+                            </div>
+                            <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-400 text-[11px] font-bold">
+                              <span>📱</span> Paytm
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                            💡 You can test-scan this sample QR code with Google Pay, PhonePe, or Paytm right now to verify that funds will be directed to your pharmacy's registered bank account.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

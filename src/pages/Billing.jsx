@@ -38,6 +38,7 @@ import {
   Lock,
 } from "lucide-react";
 import Navbar from "../components/dashboard/Navbar";
+import QRCodeSVG from "../components/common/QRCodeSVG";
 import { useAuth } from "../context/AuthContext";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { billingFirebaseService } from "../services/billingFirebaseService";
@@ -107,10 +108,16 @@ function getInitialBillingCatalog() {
 function getLivePharmacyDetails() {
   if (typeof window !== "undefined") {
     try {
+      const savedUpi = localStorage.getItem("meditrack_upi_id");
       const saved = localStorage.getItem("meditrack_pharmacy_details");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.name) return parsed;
+        if (parsed?.name) {
+          return {
+            ...parsed,
+            upiId: savedUpi || parsed.upiId || "meditrack@upi",
+          };
+        }
       }
       const rawUser = localStorage.getItem("meditrack_user");
       if (rawUser) {
@@ -121,8 +128,18 @@ function getLivePharmacyDetails() {
             branch: u.branch || "Tiruvannamalai",
             license: u.license || "TN/PH/2026/0892",
             pharmacyId: u.pharmacyId || "DL-TN-CH-2024-0045",
+            upiId: savedUpi || u.upiId || "meditrack@upi",
           };
         }
+      }
+      if (savedUpi) {
+        return {
+          name: "MediTrack Pharmacy & Health Store",
+          branch: "Tiruvannamalai",
+          license: "TN/PH/2026/0892",
+          pharmacyId: "DL-TN-CH-2024-0045",
+          upiId: savedUpi,
+        };
       }
     } catch (_) {}
   }
@@ -131,6 +148,7 @@ function getLivePharmacyDetails() {
     branch: "Tiruvannamalai",
     license: "TN/PH/2026/0892",
     pharmacyId: "DL-TN-CH-2024-0045",
+    upiId: "meditrack@upi",
   };
 }
 
@@ -156,6 +174,12 @@ export default function Billing() {
   const [catalog, setCatalog] = useState(getInitialBillingCatalog);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState(() => savedDraft?.activeTab || "pos");
+  const isRegisterTab = ["day_close", "schedule_h", "refills"].includes(activeTab);
+  const [registerSubTab, setRegisterSubTab] = useState(() =>
+    ["day_close", "schedule_h", "refills"].includes(savedDraft?.activeTab)
+      ? savedDraft.activeTab
+      : "day_close"
+  );
 
   // Cart & Draft state (persisted across tab changes)
   const [cart, setCart] = useState(() => savedDraft?.cart || []);
@@ -501,22 +525,20 @@ export default function Billing() {
      Placed AFTER totals so totals.grandTotal is available.
      UPI deep-link format: upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=INR&tn=NOTE
   ─────────────────────────────────────────────────────────────────────── */
-  const upiQrUrl = useMemo(() => {
+  const upiPaymentString = useMemo(() => {
     if (!totals || totals.grandTotal <= 0) return null;
     const vpa =
-      pharmacyInfo?.upiId ||
-      user?.upiId ||
       (typeof window !== "undefined"
         ? localStorage.getItem("meditrack_upi_id")
         : "") ||
-      "";
-    if (!vpa) return null;
+      pharmacyInfo?.upiId ||
+      user?.upiId ||
+      "meditrack@upi";
     const name = encodeURIComponent(
       pharmacyInfo?.name || user?.pharmacy || "MediTrack Pharmacy"
     );
     const note = encodeURIComponent("Medicine Bill Payment");
-    const upiStr = `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${name}&am=${totals.grandTotal}&cu=INR&tn=${note}`;
-    return `https://chart.googleapis.com/chart?cht=qr&chs=200x200&choe=UTF-8&chl=${encodeURIComponent(upiStr)}`;
+    return `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${name}&am=${totals.grandTotal}&cu=INR&tn=${note}`;
   }, [totals, pharmacyInfo, user]);
 
   /* =====================================================
@@ -914,81 +936,121 @@ export default function Billing() {
             </div>
           </div>
 
-          {/* Navigation Sub-Tabs */}
+          {/* Streamlined Primary POS Navigation Tabs */}
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <button
+              type="button"
               onClick={() => setActiveTab("pos")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
                 activeTab === "pos"
                   ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               Billing Counter
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("history")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
                 activeTab === "history"
                   ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               Sales History
             </button>
             <button
-              onClick={() => setActiveTab("schedule_h")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === "schedule_h"
-                  ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              type="button"
+              onClick={() => {
+                setActiveTab(registerSubTab || "day_close");
+              }}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                isRegisterTab
+                  ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               <ShieldCheck size={14} />
-              <span>Schedule H Register</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("refills")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === "refills"
-                  ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-              }`}
-            >
-              <MessageSquare size={14} />
-              <span>Smart Refills (தமிழ் & EN)</span>
+              <span>Registers & Compliance</span>
               {dueSoonCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
                   {dueSoonCount}
                 </span>
               )}
             </button>
-            <button
-              onClick={() => setActiveTab("day_close")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === "day_close"
-                  ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-              }`}
-            >
-              <Clock size={14} />
-              <span>Day-End Register (Z-Report)</span>
-            </button>
           </div>
-
-          {/* Quick Shortcuts Cheat-Sheet Toggle */}
-          <button
-            onClick={() => setShowShortcutsModal(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:border-teal-400 hover:text-teal-600 transition shadow-2xs cursor-pointer"
-            title="Press ? or click to view keyboard shortcuts"
-          >
-            <Keyboard size={14} className="text-teal-600 dark:text-teal-400" />
-            <span>Shortcuts</span>
-            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
-              ?
-            </kbd>
-          </button>
         </div>
+
+        {/* =====================================================
+            REGISTERS & COMPLIANCE SECONDARY SUB-NAVIGATION
+        ====================================================== */}
+        {isRegisterTab && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 mb-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("day_close");
+                  setRegisterSubTab("day_close");
+                }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === "day_close"
+                    ? "bg-teal-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <Clock size={14} />
+                <span>Day-End Register (Z-Report)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("schedule_h");
+                  setRegisterSubTab("schedule_h");
+                }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === "schedule_h"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <ShieldCheck size={14} />
+                <span>CDSCO Schedule H Register</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("refills");
+                  setRegisterSubTab("refills");
+                }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === "refills"
+                    ? "bg-teal-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <MessageSquare size={14} />
+                <span>Smart Refills (தமிழ் & EN)</span>
+                {dueSoonCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white">
+                    {dueSoonCount} due
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <div className="text-[11px] text-slate-400 px-2 flex items-center gap-1.5">
+              <span>Shortcuts configured in</span>
+              <a
+                href="/settings?tab=shortcuts"
+                className="text-teal-600 dark:text-teal-400 font-semibold hover:underline flex items-center gap-0.5"
+              >
+                Settings →
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* =====================================================
             VIEW 1: POS BILLING COUNTER
@@ -1345,7 +1407,7 @@ export default function Billing() {
                     type="text"
                     value={patientName}
                     onChange={(e) => setPatientName(e.target.value)}
-                    placeholder="e.g. Santhosh Kumar"
+                    placeholder=""
                     className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500"
                   />
                 </div>
@@ -1455,81 +1517,33 @@ export default function Billing() {
 
                     {showUpiQr && (
                       <div className="p-4 bg-white dark:bg-slate-900 flex flex-col items-center gap-3">
-                        {upiQrUrl ? (
+                        {upiPaymentString ? (
                           <>
                             <div className="p-2 rounded-xl border-2 border-teal-400 bg-white shadow-md">
-                              <img
-                                src={upiQrUrl}
-                                alt={`UPI QR for ₹${totals.grandTotal}`}
-                                className="w-[160px] h-[160px] block"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none";
-                                  e.currentTarget.nextSibling.style.display = "flex";
-                                }}
+                              <QRCodeSVG
+                                value={upiPaymentString}
+                                size={160}
+                                title={`UPI QR for ₹${totals.grandTotal}`}
                               />
-                              <div
-                                style={{ display: "none" }}
-                                className="w-[160px] h-[160px] items-center justify-center text-xs text-slate-400 text-center"
-                              >
-                                QR load failed. Check internet.
-                              </div>
                             </div>
                             <div className="text-center">
                               <p className="text-xl font-black text-teal-700 dark:text-teal-300">
                                 ₹{totals.grandTotal}
                               </p>
                               <p className="text-[11px] text-slate-500 mt-0.5">
-                                Scan with any UPI app to pay exactly
+                                Scan with any UPI app to pay
                               </p>
                               <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                                {pharmacyInfo?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id")}
+                                {pharmacyInfo?.upiId || (typeof window !== "undefined" && localStorage.getItem("meditrack_upi_id")) || user?.upiId || "meditrack@upi"}
                               </p>
                             </div>
                             <div className="flex gap-2 w-full">
-                              <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-[11px] font-bold">
-                                <span>📱</span> GPay
-                              </div>
-                              <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold">
-                                <span>📱</span> PhonePe
-                              </div>
-                              <div className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-400 text-[11px] font-bold">
-                                <span>📱</span> Paytm
-                              </div>
+                              
                             </div>
                           </>
                         ) : (
-                          /* No UPI ID configured — prompt to add it */
-                          <div className="text-center py-3">
-                            <QrCode size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              UPI ID Not Configured
-                            </p>
-                            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                              Add your pharmacy UPI/VPA in{" "}
-                              <strong>Profile → Pharmacy Details → UPI ID</strong>
-                              {" "}to auto-generate scannable QR codes.
-                            </p>
-                            <div className="mt-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2">
-                              <input
-                                type="text"
-                                placeholder="yourpharmacy@upi"
-                                className="flex-1 bg-transparent text-xs outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
-                                onBlur={(e) => {
-                                  if (e.target.value.trim()) {
-                                    localStorage.setItem("meditrack_upi_id", e.target.value.trim());
-                                    toast.success("UPI ID saved! QR will appear on next bill.");
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && e.target.value.trim()) {
-                                    localStorage.setItem("meditrack_upi_id", e.target.value.trim());
-                                    toast.success("UPI ID saved!");
-                                    e.target.blur();
-                                  }
-                                }}
-                              />
-                              <span className="text-[10px] text-slate-400">Press Enter</span>
-                            </div>
+                          <div className="text-center py-4 text-xs text-slate-500 dark:text-slate-400">
+                            Add items to cart to generate dynamic payment QR
                           </div>
                         )}
                       </div>
@@ -1700,38 +1714,6 @@ export default function Billing() {
         ====================================================== */}
         {activeTab === "refills" && (
           <div className="space-y-6">
-            {/* Top Banner & Quick Overview */}
-            <div className="bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 backdrop-blur-xs tracking-wide">
-                      Automated 1-Day Prior Engine (தானியங்கி நினைவூட்டல்)
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-400/30 text-emerald-100">
-                      Bilingual (English + தமிழ்)
-                    </span>
-                  </div>
-                  <h2 className="text-xl font-extrabold tracking-tight">
-                    Smart Chronic Medicine Refill Tracker
-                  </h2>
-                  <p className="text-xs text-teal-100 mt-1 max-w-2xl leading-relaxed">
-                    Automatically computes medication completion date based on dispensed quantity. Sends bilingual refill alerts 1 day before the patient's medicine runs out to prevent therapy discontinuation.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 text-center border border-white/20 min-w-[110px]">
-                    <span className="block text-2xl font-black text-rose-300">
-                      {dueSoonCount}
-                    </span>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-teal-100">
-                      Due Today / Tomorrow
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -2553,16 +2535,14 @@ export default function Billing() {
                       </p>
                     </div>
                     <div className="shrink-0 p-1 bg-white border border-teal-200 rounded-lg shadow-2xs">
-                      <img
-                        src={`https://chart.googleapis.com/chart?cht=qr&chs=120x120&choe=UTF-8&chl=${encodeURIComponent(
-                          `upi://pay?pa=${pharmacyInfo?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "meditrack@upi"}&pn=${encodeURIComponent(
-                            completedSale.pharmacyName || "Pharmacy"
-                          )}&am=${completedSale.totals?.grandTotal}&cu=INR&tn=${encodeURIComponent(
-                            completedSale.invoiceNumber || "Bill"
-                          )}`
+                      <QRCodeSVG
+                        value={`upi://pay?pa=${pharmacyInfo?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "meditrack@upi"}&pn=${encodeURIComponent(
+                          completedSale.pharmacyName || "Pharmacy"
+                        )}&am=${completedSale.totals?.grandTotal}&cu=INR&tn=${encodeURIComponent(
+                          completedSale.invoiceNumber || "Bill"
                         )}`}
-                        alt="UPI Receipt QR"
-                        className="w-16 h-16 block"
+                        size={64}
+                        title="UPI Receipt QR"
                       />
                     </div>
                   </div>
@@ -2677,7 +2657,13 @@ export default function Billing() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
+              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <a
+                  href="/settings?tab=shortcuts"
+                  className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                >
+                  Configure in Settings →
+                </a>
                 <button
                   onClick={() => setShowShortcutsModal(false)}
                   className="px-4 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs transition"
