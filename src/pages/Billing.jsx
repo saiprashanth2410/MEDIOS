@@ -29,6 +29,13 @@ import {
   ExternalLink,
   MessageCircle,
   Check,
+  Clock,
+  Keyboard,
+  Zap,
+  DollarSign,
+  XCircle,
+  Info,
+  Lock,
 } from "lucide-react";
 import Navbar from "../components/dashboard/Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -36,6 +43,7 @@ import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { billingFirebaseService } from "../services/billingFirebaseService";
 import { patientsFirebaseService } from "../services/patientsFirebaseService";
 import { deductCartFromInventory } from "../utils/inventoryDeduction";
+import { checkDrugInteractions } from "../utils/drugInteractionChecker";
 import defaultMedicines from "../data/catalogMedicines.json";
 
 const DRAFT_KEY = "meditrack_pos_active_draft";
@@ -174,6 +182,20 @@ export default function Billing() {
 
   // Loose Tablet editing: stores itemId → loose qty string being typed
   const [looseQtyEdit, setLooseQtyEdit] = useState({}); // { [itemId]: "2" }
+
+  // Clinical Drug-Drug Interaction (DDI) & Overdose Alerts State
+  const [dismissedDdiAlerts, setDismissedDdiAlerts] = useState({});
+
+  // Keyboard Shortcuts State
+  const [selectedSearchIdx, setSelectedSearchIdx] = useState(0);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+
+  // Day-End Cash Register & Z-Report State
+  const [openingCashFloat, setOpeningCashFloat] = useState(1000);
+  const [physicalCashCount, setPhysicalCashCount] = useState("");
+  const [showZReportPrintModal, setShowZReportPrintModal] = useState(false);
+  const [closingDayNote, setClosingDayNote] = useState("");
+  const [dayCloseSuccess, setDayCloseSuccess] = useState(false);
 
   const searchInputRef = useRef(null);
 
@@ -445,6 +467,15 @@ export default function Billing() {
     return cart.some((it) => it.schedule && it.schedule !== "OTC");
   }, [cart]);
 
+  /* =====================================================
+     CLINICAL DRUG-DRUG INTERACTION (DDI) & OVERDOSE ENGINE
+  ===================================================== */
+  const ddiAlerts = useMemo(() => checkDrugInteractions(cart), [cart]);
+  const activeDdiAlerts = useMemo(
+    () => ddiAlerts.filter((a) => !dismissedDdiAlerts[a.id]),
+    [ddiAlerts, dismissedDdiAlerts]
+  );
+
 
   /* =====================================================
      TAX & TOTALS (INDIAN GST SPEC)
@@ -487,6 +518,194 @@ export default function Billing() {
     const upiStr = `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${name}&am=${totals.grandTotal}&cu=INR&tn=${note}`;
     return `https://chart.googleapis.com/chart?cht=qr&chs=200x200&choe=UTF-8&chl=${encodeURIComponent(upiStr)}`;
   }, [totals, pharmacyInfo, user]);
+
+  /* =====================================================
+     DAY-END CASH REGISTER & STATUTORY Z-REPORT METRICS
+  ===================================================== */
+  const todayDateStr = useMemo(() => new Date().toLocaleDateString("en-IN"), []);
+
+  const todayInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      if (!inv.date) return false;
+      return (
+        inv.date === todayDateStr ||
+        inv.date.includes(new Date().getFullYear().toString())
+      );
+    });
+  }, [invoices, todayDateStr]);
+
+  const zReportMetrics = useMemo(() => {
+    let cashTotal = 0;
+    let upiTotal = 0;
+    let cardTotal = 0;
+    let grandRevenue = 0;
+    const medSalesMap = new Map();
+
+    todayInvoices.forEach((inv) => {
+      const amt = Number(inv.totals?.grandTotal || inv.total || 0);
+      grandRevenue += amt;
+      const method = (inv.paymentMethod || "Cash").toLowerCase();
+      if (method.includes("cash")) cashTotal += amt;
+      else if (method.includes("upi") || method.includes("qr")) upiTotal += amt;
+      else if (method.includes("card")) cardTotal += amt;
+      else cashTotal += amt;
+
+      if (Array.isArray(inv.items)) {
+        inv.items.forEach((it) => {
+          const prev = medSalesMap.get(it.name) || { name: it.name, qty: 0, revenue: 0 };
+          medSalesMap.set(it.name, {
+            name: it.name,
+            qty: prev.qty + (Number(it.quantity) || 1),
+            revenue: prev.revenue + (Number(it.total) || 0),
+          });
+        });
+      }
+    });
+
+    const topSellingMeds = Array.from(medSalesMap.values())
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 6);
+
+    const expectedCashInDrawer = openingCashFloat + cashTotal;
+    const physicalCashNum = physicalCashCount !== "" ? Number(physicalCashCount) : null;
+    const cashDiscrepancy =
+      physicalCashNum !== null ? physicalCashNum - expectedCashInDrawer : 0;
+
+    return {
+      todayInvoicesCount: todayInvoices.length,
+      cashTotal,
+      upiTotal,
+      cardTotal,
+      grandRevenue,
+      topSellingMeds,
+      expectedCashInDrawer,
+      cashDiscrepancy,
+      isBalanced: physicalCashNum !== null && Math.abs(cashDiscrepancy) < 1,
+    };
+  }, [todayInvoices, openingCashFloat, physicalCashCount]);
+
+  /* Handle Day-End Closing Archive */
+  const handleSaveDayClose = () => {
+    const record = {
+      id: `Z-${Date.now().toString().slice(-6)}`,
+      date: todayDateStr,
+      closedAt: new Date().toLocaleTimeString("en-IN"),
+      pharmacistName: user?.name || "Chief Pharmacist",
+      metrics: zReportMetrics,
+      openingFloat: openingCashFloat,
+      physicalCash: physicalCashCount,
+      notes: closingDayNote,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem("meditrack_day_closings") || "[]");
+      localStorage.setItem("meditrack_day_closings", JSON.stringify([record, ...existing]));
+      setDayCloseSuccess(true);
+      toast.success("Day shift closed & statutory Z-Report archived!");
+      setTimeout(() => setDayCloseSuccess(false), 4000);
+    } catch {
+      toast.error("Failed to archive day closing");
+    }
+  };
+
+  /* =====================================================
+     KEYBOARD SHORTCUTS & SEARCH NAVIGATION (SPEED POS)
+  ===================================================== */
+  useEffect(() => {
+    setSelectedSearchIdx(0);
+  }, [searchQuery]);
+
+  const handleSearchKeyDown = (e) => {
+    if (searchResults.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedSearchIdx((prev) => (prev + 1) % searchResults.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedSearchIdx((prev) => (prev - 1 + searchResults.length) % searchResults.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchResults[selectedSearchIdx]) {
+        handleAddToCart(searchResults[selectedSearchIdx]);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // 1. Escape: clear search or close shortcut modal / previews
+      if (e.key === "Escape") {
+        if (showShortcutsModal) {
+          setShowShortcutsModal(false);
+          return;
+        }
+        if (showZReportPrintModal) {
+          setShowZReportPrintModal(false);
+          return;
+        }
+        if (selectedPreviewReminder) {
+          setSelectedPreviewReminder(null);
+          return;
+        }
+        if (completedSale) {
+          setCompletedSale(null);
+          return;
+        }
+        setSearchQuery("");
+        return;
+      }
+
+      // 2. '/' or 'F1' to focus search (when not in an input)
+      if (
+        (e.key === "/" || e.key === "F1") &&
+        e.target.tagName !== "INPUT" &&
+        e.target.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        setActiveTab("pos");
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+        return;
+      }
+
+      // 3. 'F2' or 'Ctrl + Enter' / 'Cmd + Enter' to dispense sale
+      if (e.key === "F2" || ((e.ctrlKey || e.metaKey) && e.key === "Enter")) {
+        e.preventDefault();
+        if (activeTab === "pos") {
+          if (cart.length > 0 && !dispensing) {
+            handleDispenseSale();
+          } else if (cart.length === 0) {
+            toast.error("Cart is empty. Add medicines before dispensing.");
+          }
+        }
+        return;
+      }
+
+      // 4. '?' to show keyboard shortcuts
+      if (
+        e.key === "?" &&
+        e.target.tagName !== "INPUT" &&
+        e.target.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        setShowShortcutsModal((prev) => !prev);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    activeTab,
+    cart,
+    dispensing,
+    showShortcutsModal,
+    showZReportPrintModal,
+    selectedPreviewReminder,
+    completedSale,
+  ]);
+
 
   /* =====================================================
      DISPENSE & SAVE INVOICE (REAL-TIME CLOUD FIRESTORE)
@@ -744,7 +963,31 @@ export default function Billing() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab("day_close")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                activeTab === "day_close"
+                  ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <Clock size={14} />
+              <span>Day-End Register (Z-Report)</span>
+            </button>
           </div>
+
+          {/* Quick Shortcuts Cheat-Sheet Toggle */}
+          <button
+            onClick={() => setShowShortcutsModal(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:border-teal-400 hover:text-teal-600 transition shadow-2xs cursor-pointer"
+            title="Press ? or click to view keyboard shortcuts"
+          >
+            <Keyboard size={14} className="text-teal-600 dark:text-teal-400" />
+            <span>Shortcuts</span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+              ?
+            </kbd>
+          </button>
         </div>
 
         {/* =====================================================
@@ -766,51 +1009,102 @@ export default function Billing() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by common brand (e.g. Dolo 650, Calpol, Pan 40, Rexonac) or composition..."
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Search by common brand (e.g. Dolo 650, Calpol, Pan 40) or composition... (Press /)"
                     className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900 transition"
                   />
                 </div>
 
+                {/* Keyboard Shortcut Hints Bar */}
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 mt-2 px-1 gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        /
+                      </kbd>
+                      <span>Focus Search</span>
+                    </span>
+                    <span>·</span>
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        ↓↑
+                      </kbd>
+                      <span>Navigate</span>
+                    </span>
+                    <span>·</span>
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        Enter
+                      </kbd>
+                      <span>Add to Cart</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-teal-600 dark:text-teal-400 font-medium">
+                    <kbd className="px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950 font-mono text-[10px] border border-teal-200 dark:border-teal-800 font-bold">
+                      F2
+                    </kbd>
+                    <span>Dispense & Bill</span>
+                  </div>
+                </div>
+
                 {/* Dropdown Results */}
                 {searchQuery.trim().length > 0 && (
-                  <div className="absolute left-4 right-4 top-[64px] z-30 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 max-h-[340px] overflow-y-auto">
+                  <div className="absolute left-4 right-4 top-[84px] z-30 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 max-h-[340px] overflow-y-auto">
                     {searchResults.length > 0 ? (
-                      searchResults.map((med) => (
-                        <div
-                          key={med.id}
-                          onClick={() => handleAddToCart(med)}
-                          className="p-3 hover:bg-teal-50/60 dark:hover:bg-teal-950/30 cursor-pointer flex items-center justify-between transition"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                              <Pill size={16} />
+                      searchResults.map((med, idx) => {
+                        const isSelected = idx === selectedSearchIdx;
+                        return (
+                          <div
+                            key={med.id}
+                            onClick={() => handleAddToCart(med)}
+                            className={`p-3 cursor-pointer flex items-center justify-between transition ${
+                              isSelected
+                                ? "bg-teal-50 dark:bg-teal-950/80 border-l-4 border-teal-500 pl-2.5"
+                                : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                  isSelected
+                                    ? "bg-teal-600 text-white"
+                                    : "bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400"
+                                }`}
+                              >
+                                <Pill size={16} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                  <span>{med.name}</span>
+                                  {isSelected && (
+                                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200">
+                                      Press Enter ↵
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                  {med.generic ? `${med.generic} · ` : ""}Batch: {med.batch} · Shelf: {med.rack}
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                                {med.name}
-                              </p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                {med.generic ? `${med.generic} · ` : ""}Batch: {med.batch} · Shelf: {med.rack}
-                              </p>
-                            </div>
-                          </div>
 
-                          <div className="text-right shrink-0 ml-3">
-                            <p className="text-sm font-bold text-teal-600 dark:text-teal-400">
-                              ₹{Number(med.price || 45).toFixed(2)}
-                            </p>
-                            <span
-                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                                (med.stock || 0) < 50
-                                  ? "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
-                                  : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400"
-                              }`}
-                            >
-                              Stock: {med.stock || 0}
-                            </span>
+                            <div className="text-right shrink-0 ml-3">
+                              <p className="text-sm font-bold text-teal-600 dark:text-teal-400">
+                                ₹{Number(med.price || 45).toFixed(2)}
+                              </p>
+                              <span
+                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                  (med.stock || 0) < 50
+                                    ? "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
+                                    : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400"
+                                }`}
+                              >
+                                Stock: {med.stock || 0}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="p-4 text-center">
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -827,6 +1121,58 @@ export default function Billing() {
 
               {/* Cart Table */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+                {/* Clinical Drug-Drug Interaction & Overdose Alert Banner */}
+                {activeDdiAlerts.length > 0 && (
+                  <div className="mb-4 space-y-2.5">
+                    {activeDdiAlerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`p-3.5 rounded-xl border flex items-start justify-between gap-3 shadow-xs ${
+                          alert.severity === "CRITICAL"
+                            ? "bg-red-50 dark:bg-red-950/60 border-red-300 dark:border-red-800 text-red-950 dark:text-red-200"
+                            : alert.severity === "HIGH"
+                            ? "bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-200"
+                            : "bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-200"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div
+                            className={`w-6 h-6 rounded-md shrink-0 flex items-center justify-center font-bold text-xs ${
+                              alert.severity === "CRITICAL" || alert.severity === "HIGH"
+                                ? "bg-red-600 text-white animate-pulse"
+                                : "bg-amber-500 text-white"
+                            }`}
+                          >
+                            !
+                          </div>
+                          <div className="text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs uppercase tracking-wide">
+                                ⚠️ {alert.title}
+                              </span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/80 dark:bg-slate-900 border border-current">
+                                {alert.severity}
+                              </span>
+                            </div>
+                            <p className="mt-1 font-medium leading-relaxed">{alert.messageEn}</p>
+                            <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed font-sans">{alert.messageTa}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            setDismissedDdiAlerts((prev) => ({ ...prev, [alert.id]: true }))
+                          }
+                          className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition shadow-2xs cursor-pointer"
+                          title="Override warning after verifying doctor's prescription"
+                        >
+                          Verified ✓
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span>Dispensary Cart</span>
@@ -1712,6 +2058,289 @@ export default function Billing() {
         )}
 
         {/* =====================================================
+            VIEW 5: DAY-END CASH REGISTER & STATUTORY Z-REPORT
+        ====================================================== */}
+        {activeTab === "day_close" && (
+          <div className="space-y-6">
+            {/* Top Gradient Banner */}
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-teal-700 via-teal-800 to-slate-900 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20 uppercase tracking-wider">
+                    Statutory Day-End Close
+                  </span>
+                  <span className="text-xs text-teal-200">
+                    Date: {todayDateStr}
+                  </span>
+                </div>
+                <h2 className="text-xl font-bold tracking-tight">
+                  Daily Cash Drawer Closing & Z-Report (கடை கணக்கு முடிவு)
+                </h2>
+                <p className="text-xs text-teal-100/90 mt-1 max-w-xl">
+                  Reconcile physical cash drawer with system sales, verify UPI settlements, and generate official audit Z-Reports.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => setShowZReportPrintModal(true)}
+                  className="px-4 h-10 rounded-xl bg-white text-teal-900 font-bold text-xs flex items-center justify-center gap-2 hover:bg-teal-50 transition shadow-sm cursor-pointer"
+                >
+                  <Printer size={15} />
+                  <span>Print Official Z-Report</span>
+                </button>
+                <button
+                  onClick={handleSaveDayClose}
+                  className="px-4 h-10 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm cursor-pointer"
+                >
+                  <Lock size={15} />
+                  <span>Archive & Close Shift</span>
+                </button>
+              </div>
+            </div>
+
+            {dayCloseSuccess && (
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-3">
+                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                <div>
+                  <p className="font-bold">Shift Closed & Archived Successfully!</p>
+                  <p className="text-[11px] mt-0.5">
+                    Official Z-Report saved to permanent audit ledger. Safe to power down POS counter.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Metric Cards Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Gross Sales Today
+                  </span>
+                  <DollarSign size={16} className="text-teal-600 dark:text-teal-400" />
+                </div>
+                <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+                  ₹{zReportMetrics.grandRevenue.toFixed(2)}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Across {zReportMetrics.todayInvoicesCount} dispensed bills
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Cash in Till
+                  </span>
+                  <Banknote size={16} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
+                  ₹{zReportMetrics.cashTotal.toFixed(2)}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Physical currency collection
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    UPI / QR Received
+                  </span>
+                  <QrCode size={16} className="text-teal-600 dark:text-teal-400" />
+                </div>
+                <p className="text-2xl font-black text-teal-600 dark:text-teal-400 mt-2">
+                  ₹{zReportMetrics.upiTotal.toFixed(2)}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  GPay, PhonePe, Paytm QR
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Card / POS Machine
+                  </span>
+                  <CreditCard size={16} className="text-sky-600 dark:text-sky-400" />
+                </div>
+                <p className="text-2xl font-black text-sky-600 dark:text-sky-400 mt-2">
+                  ₹{zReportMetrics.cardTotal.toFixed(2)}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Debit / Credit swipe terminal
+                </p>
+              </div>
+            </div>
+
+            {/* Physical Cash Drawer Reconciliation Panel */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
+                <Banknote size={18} className="text-teal-600 dark:text-teal-400" />
+                <span>Physical Till Reconciliation (கல்லாப்பண கணக்கீடு)</span>
+              </h3>
+
+              <div className="grid md:grid-cols-3 gap-6 items-center">
+                {/* 1. Opening Cash Float */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block">
+                    Opening Cash Float (சில்லறை இருப்பு)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      value={openingCashFloat}
+                      onChange={(e) => setOpeningCashFloat(Number(e.target.value) || 0)}
+                      placeholder="1000"
+                      className="w-full h-11 pl-8 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Change given at counter opening
+                  </p>
+                </div>
+
+                {/* 2. Physical Cash Counted */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block">
+                    Physical Cash Counted in Drawer (எண்ணிய பணம்)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      value={physicalCashCount}
+                      onChange={(e) => setPhysicalCashCount(e.target.value)}
+                      placeholder={`Expected: ₹${zReportMetrics.expectedCashInDrawer.toFixed(0)}`}
+                      className="w-full h-11 pl-8 pr-3 rounded-xl border-2 border-teal-500 bg-teal-50/40 dark:bg-teal-950/40 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">
+                    Expected in Till: ₹{zReportMetrics.expectedCashInDrawer.toFixed(2)}
+                  </p>
+                </div>
+
+                {/* 3. Discrepancy Status */}
+                <div className="p-4 rounded-xl border flex flex-col justify-center h-full bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Till Balancing Audit
+                  </span>
+                  {physicalCashCount === "" ? (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Enter physical cash counted above to audit variance.
+                    </p>
+                  ) : zReportMetrics.isBalanced ? (
+                    <div className="mt-1 flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                      <CheckCircle2 size={18} />
+                      <span>Perfect Match (₹0.00 Variance)</span>
+                    </div>
+                  ) : zReportMetrics.cashDiscrepancy < 0 ? (
+                    <div className="mt-1 flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+                      <AlertTriangle size={18} />
+                      <span>Shortage: -₹{Math.abs(zReportMetrics.cashDiscrepancy).toFixed(2)}</span>
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-sm">
+                      <Info size={18} />
+                      <span>Excess: +₹{zReportMetrics.cashDiscrepancy.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Fast Moving Drugs & Invoices List */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Fast Moving Medicines */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+                <h4 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-3">
+                  Top Dispensed Medicines Today
+                </h4>
+                {zReportMetrics.topSellingMeds.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center">
+                    No medicine sales dispensed yet today.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {zReportMetrics.topSellingMeds.map((med, idx) => (
+                      <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[10px] text-slate-500">
+                            {idx + 1}
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {med.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-teal-600 dark:text-teal-400">
+                            {med.qty} units
+                          </span>
+                          <span className="text-[10px] text-slate-400 ml-2">
+                            (₹{med.revenue.toFixed(2)})
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Today's Invoices List */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+                <h4 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-3">
+                  Today's Invoices Audit Log ({todayInvoices.length})
+                </h4>
+                {todayInvoices.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center">
+                    No sales invoices logged for today yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto max-h-[260px] overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="text-slate-400 border-b border-slate-100 dark:border-slate-800 text-left sticky top-0 bg-white dark:bg-slate-900">
+                        <tr>
+                          <th className="py-2">Invoice</th>
+                          <th className="py-2">Patient</th>
+                          <th className="py-2">Mode</th>
+                          <th className="py-2 text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {todayInvoices.map((inv) => (
+                          <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2 font-mono font-bold text-teal-600">
+                              {inv.invoiceNumber || inv.id}
+                            </td>
+                            <td className="py-2 text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
+                              {inv.customer?.name || "Walk-in"}
+                            </td>
+                            <td className="py-2">
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold">
+                                {inv.paymentMethod || "Cash"}
+                              </span>
+                            </td>
+                            <td className="py-2 text-right font-bold text-slate-900 dark:text-white">
+                              ₹{Number(inv.totals?.grandTotal || inv.total || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================
             BILINGUAL MESSAGE PREVIEW & DISPATCH MODAL
         ====================================================== */}
         {selectedPreviewReminder && (
@@ -1908,6 +2537,37 @@ export default function Billing() {
                   </div>
                 </div>
 
+                {/* Printable UPI QR Code on Bill Slip */}
+                {completedSale.paymentMethod?.includes("UPI") && (
+                  <div className="py-2.5 px-3 rounded-xl border border-dashed border-teal-300 dark:border-teal-700 bg-teal-50/50 dark:bg-teal-950/30 flex items-center justify-between gap-3 text-left">
+                    <div>
+                      <p className="text-[11px] font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                        <QrCode size={13} className="text-teal-600" />
+                        <span>Scan & Pay via GPay / PhonePe / Paytm</span>
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                        VPA: {pharmacyInfo?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "meditrack@upi"}
+                      </p>
+                      <p className="text-xs text-teal-700 dark:text-teal-300 font-black mt-1">
+                        Amount: ₹{Number(completedSale.totals?.grandTotal || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 p-1 bg-white border border-teal-200 rounded-lg shadow-2xs">
+                      <img
+                        src={`https://chart.googleapis.com/chart?cht=qr&chs=120x120&choe=UTF-8&chl=${encodeURIComponent(
+                          `upi://pay?pa=${pharmacyInfo?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "meditrack@upi"}&pn=${encodeURIComponent(
+                            completedSale.pharmacyName || "Pharmacy"
+                          )}&am=${completedSale.totals?.grandTotal}&cu=INR&tn=${encodeURIComponent(
+                            completedSale.invoiceNumber || "Bill"
+                          )}`
+                        )}`}
+                        alt="UPI Receipt QR"
+                        className="w-16 h-16 block"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-end text-[11px] text-slate-400">
                   <div>
                     <p>Computer-generated invoice.</p>
@@ -1931,6 +2591,249 @@ export default function Billing() {
                 </button>
                 <button
                   onClick={() => setCompletedSale(null)}
+                  className="px-4 h-10 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================
+            KEYBOARD SHORTCUTS CHEAT-SHEET MODAL
+        ====================================================== */}
+        {showShortcutsModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+              <button
+                onClick={() => setShowShortcutsModal(false)}
+                className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm font-bold"
+              >
+                ✕
+              </button>
+
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Keyboard size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    POS Speed Billing Keyboard Shortcuts
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    High-speed mouse-free retail pharmacy checkout
+                  </p>
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">Focus Search Bar</span>
+                  <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                    / or F1
+                  </kbd>
+                </div>
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">Navigate Search Results</span>
+                  <div className="flex gap-1">
+                    <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                      ↑
+                    </kbd>
+                    <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                      ↓
+                    </kbd>
+                  </div>
+                </div>
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">Add Selected Item to Cart</span>
+                  <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                    Enter
+                  </kbd>
+                </div>
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">Dispense & Generate Bill</span>
+                  <div className="flex gap-1.5 items-center">
+                    <kbd className="px-2 py-1 rounded bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 font-mono text-[11px] font-bold border border-teal-200 dark:border-teal-800">
+                      F2
+                    </kbd>
+                    <span className="text-slate-400">or</span>
+                    <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                      Ctrl + Enter
+                    </kbd>
+                  </div>
+                </div>
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">Close Modal / Clear Search</span>
+                  <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                    Esc
+                  </kbd>
+                </div>
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">Open Shortcuts Cheat-Sheet</span>
+                  <kbd className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                    ?
+                  </kbd>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
+                <button
+                  onClick={() => setShowShortcutsModal(false)}
+                  className="px-4 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs transition"
+                >
+                  Got it (Esc)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================
+            PRINTABLE STATUTORY Z-REPORT MODAL
+        ====================================================== */}
+        {showZReportPrintModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white text-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+              <button
+                onClick={() => setShowZReportPrintModal(false)}
+                className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 text-sm font-bold"
+              >
+                ✕
+              </button>
+
+              {/* Printable Z-Report Sheet */}
+              <div id="print-section" className="space-y-4 font-mono text-xs">
+                <div className="text-center pb-3 border-b-2 border-dashed border-slate-300 font-sans">
+                  <h2 className="text-lg font-black uppercase tracking-wide">
+                    {pharmacyInfo.name || user?.pharmacy || "MediTrack Pharmacy & Health Store"}
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    {pharmacyInfo.branch || "Tiruvannamalai"} · Lic: {pharmacyInfo.license || "TN/PH/2026/0892"}
+                  </p>
+                  <div className="mt-2 inline-block px-3 py-1 rounded bg-slate-100 text-xs font-black tracking-wider uppercase text-slate-800">
+                    DAILY REGISTER CLOSING SUMMARY (Z-REPORT)
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Z-Report No:</span>
+                    <strong className="text-slate-900 font-mono">Z-{todayDateStr.replace(/\//g, "")}-001</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Date & Time:</span>
+                    <span>{todayDateStr} · {new Date().toLocaleTimeString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Pharmacist on Duty:</span>
+                    <strong className="text-slate-800">{user?.name || "Chief Pharmacist"}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Invoices Dispensed:</span>
+                    <strong>{zReportMetrics.todayInvoicesCount} Bills</strong>
+                  </div>
+                </div>
+
+                {/* Sales Mode Breakdown */}
+                <div className="border-t border-b border-dashed border-slate-300 py-2.5 space-y-1.5">
+                  <div className="flex justify-between text-slate-500 uppercase tracking-wider text-[10px] font-bold">
+                    <span>Payment Mode</span>
+                    <span>Collection</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>1. Cash In Till:</span>
+                    <span className="font-bold">₹{zReportMetrics.cashTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>2. UPI / QR Settlements:</span>
+                    <span className="font-bold">₹{zReportMetrics.upiTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>3. Card / POS Swipes:</span>
+                    <span className="font-bold">₹{zReportMetrics.cardTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black text-slate-900 pt-1.5 border-t border-slate-200">
+                    <span>GROSS DAY SALES:</span>
+                    <span className="text-teal-700">₹{zReportMetrics.grandRevenue.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Cash Drawer Reconciliation */}
+                <div className="p-3 bg-slate-50 rounded-xl space-y-1.5">
+                  <p className="font-bold text-[11px] text-slate-800 uppercase tracking-wider font-sans">
+                    Cash Till Reconciliation Audit
+                  </p>
+                  <div className="flex justify-between">
+                    <span>Opening Float:</span>
+                    <span>₹{openingCashFloat.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Today Cash Dispensed:</span>
+                    <span>+ ₹{zReportMetrics.cashTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-800 border-t border-slate-200 pt-1">
+                    <span>Expected Cash in Till:</span>
+                    <span>₹{zReportMetrics.expectedCashInDrawer.toFixed(2)}</span>
+                  </div>
+                  {physicalCashCount !== "" && (
+                    <>
+                      <div className="flex justify-between font-bold">
+                        <span>Actual Physical Count:</span>
+                        <span>₹{Number(physicalCashCount).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-black text-[12px] pt-1 border-t border-slate-200">
+                        <span>Reconciliation Variance:</span>
+                        <span className={zReportMetrics.isBalanced ? "text-emerald-600" : zReportMetrics.cashDiscrepancy < 0 ? "text-rose-600" : "text-sky-600"}>
+                          {zReportMetrics.isBalanced
+                            ? "₹0.00 (Balanced)"
+                            : `${zReportMetrics.cashDiscrepancy < 0 ? "-" : "+"}₹${Math.abs(zReportMetrics.cashDiscrepancy).toFixed(2)}`}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Fast Moving Drugs Summary */}
+                {zReportMetrics.topSellingMeds.length > 0 && (
+                  <div className="border-t border-dashed border-slate-300 pt-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Top Dispensed Drugs
+                    </p>
+                    <div className="space-y-1 text-[11px]">
+                      {zReportMetrics.topSellingMeds.slice(0, 4).map((m, idx) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>{m.name}</span>
+                          <span className="font-bold">{m.qty} tabs (₹{m.revenue.toFixed(0)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-6 border-t-2 border-dashed border-slate-300 flex justify-between items-end font-sans text-[11px] text-slate-500">
+                  <div>
+                    <p>Statutory CDSCO Record.</p>
+                    <p>Preserve in pharmacy register.</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800">{user?.name || "Chief Pharmacist"}</p>
+                    <p>Registered Pharmacist Signature</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-6 pt-3 border-t border-slate-100">
+                <button
+                  onClick={handlePrintReceipt}
+                  className="flex-1 h-10 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <Printer size={16} />
+                  <span>Print Official Z-Report (Thermal / A4)</span>
+                </button>
+                <button
+                  onClick={() => setShowZReportPrintModal(false)}
                   className="px-4 h-10 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs"
                 >
                   Close
