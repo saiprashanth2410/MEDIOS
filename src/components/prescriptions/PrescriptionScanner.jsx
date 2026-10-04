@@ -286,8 +286,7 @@ export default function PrescriptionScanner({ onResult, onClose }) {
                   )}
 
                   <p className="text-white/50 text-[11px] mt-3 text-center max-w-xs">
-                    AI is reading your prescription. This may take up to 30
-                    seconds.
+                    Reading prescription image. This may take up to 30 seconds.
                   </p>
                 </div>
               )}
@@ -299,27 +298,27 @@ export default function PrescriptionScanner({ onResult, onClose }) {
                 <div
                   onDrop={handleDrop}
                   onDragOver={(e) => e.preventDefault()}
-                  className="border-2 border-dashed border-slate-200 hover:border-violet-400 rounded-2xl py-14 cursor-pointer transition bg-slate-50/50 hover:bg-violet-50"
+                  className="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-500 dark:hover:border-teal-500 rounded-2xl py-14 cursor-pointer transition bg-slate-50/50 dark:bg-slate-800/40 hover:bg-teal-50/30 dark:hover:bg-teal-950/20"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-4">
-                      <Sparkles size={24} className="text-violet-600" />
+                    <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/60 flex items-center justify-center mb-4 text-teal-600 dark:text-teal-400">
+                      <Upload size={24} />
                     </div>
-                    <p className="text-sm font-semibold text-slate-800 mb-1">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1">
                       Upload prescription image
                     </p>
-                    <p className="text-xs text-slate-500 mb-4">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
                       Drag & drop or click to browse
                     </p>
                     <div className="flex flex-wrap justify-center gap-1.5 text-[10px]">
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                         JPG
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                         PNG
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
+                      <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                         HEIC
                       </span>
                     </div>
@@ -355,7 +354,7 @@ export default function PrescriptionScanner({ onResult, onClose }) {
 
                   <button
                     onClick={capturePhoto}
-                    className="w-full h-12 rounded-xl bg-[#0284c7] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#0369a1] transition"
+                    className="w-full h-12 rounded-xl bg-teal-600 text-white font-semibold flex items-center justify-center gap-2 hover:bg-teal-700 transition cursor-pointer"
                   >
                     <Camera size={18} />
                     Capture Photo
