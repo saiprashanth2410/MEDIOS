@@ -13,11 +13,12 @@ import {
   Building2,
   MapPin,
   CheckCircle2,
+  ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { recycleBinService } from "../../services/recycleBinService";
 
-export default function RecycleBinSection({ onRestoreItem }) {
+export default function RecycleBinSection({ onRestoreItem, onBack }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -39,8 +40,10 @@ export default function RecycleBinSection({ onRestoreItem }) {
   useEffect(() => {
     fetchRecycleBin();
 
-    const handleUpdate = () => {
-      fetchRecycleBin();
+    const handleUpdate = (e) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setItems(e.detail);
+      }
     };
 
     window.addEventListener("meditrack_recycle_bin_updated", handleUpdate);
@@ -134,7 +137,7 @@ export default function RecycleBinSection({ onRestoreItem }) {
   }, [filteredItems]);
 
   return (
-    <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden transition-all">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden transition-all">
       {/* Header bar */}
       <div className="px-6 py-4.5 bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800/40 dark:to-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -157,6 +160,17 @@ export default function RecycleBinSection({ onRestoreItem }) {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition cursor-pointer shadow-2xs"
+            >
+              <ChevronLeft size={14} />
+              <span>Back to Active Batches</span>
+            </button>
+          )}
+
           {items.length > 0 && (
             <button
               type="button"

@@ -25,11 +25,13 @@ function getLocalRecycleBin() {
   }
 }
 
-function saveLocalRecycleBin(items) {
+function saveLocalRecycleBin(items, notify = true) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(items));
-    window.dispatchEvent(new CustomEvent("meditrack_recycle_bin_updated", { detail: items }));
+    if (notify) {
+      window.dispatchEvent(new CustomEvent("meditrack_recycle_bin_updated", { detail: items }));
+    }
   } catch (err) {
     console.debug("[recycleBinService] Local save note:", err);
   }
@@ -44,7 +46,7 @@ export const recycleBinService = {
     try {
       const res = await axios.get(`${API_URL}/recycle-bin`, { timeout: 3500 });
       if (res.data?.items && Array.isArray(res.data.items)) {
-        saveLocalRecycleBin(res.data.items);
+        saveLocalRecycleBin(res.data.items, false);
         return res.data.items;
       }
     } catch {
@@ -62,7 +64,7 @@ export const recycleBinService = {
         const snap = await getDocs(q);
         if (!snap.empty) {
           const items = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
-          saveLocalRecycleBin(items);
+          saveLocalRecycleBin(items, false);
           return items;
         }
       }

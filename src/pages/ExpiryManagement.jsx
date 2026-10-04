@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Search, Filter, AlertTriangle, ShieldCheck,
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import Navbar from '../components/dashboard/Navbar';
 import { useExpiryData } from '../utils/expiryStore';
 import RecycleBinSection from '../components/expiry/RecycleBinSection';
+import { recycleBinService } from '../services/recycleBinService';
 
 const STATUS_STYLES = {
   'Expired': 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
@@ -58,6 +59,9 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
 export default function ExpiryManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterStatus = searchParams.get('status') || 'All';
+  const [activeTab, setActiveTabState] = useState(() => {
+    return searchParams.get('tab') === 'recycle_bin' ? 'recycle_bin' : 'active';
+  });
 
   const {
     items,
@@ -73,16 +77,69 @@ export default function ExpiryManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Track live count of items in the recycle bin
+  const [trashCount, setTrashCount] = useState(() => {
+    try {
+      const raw = localStorage.getItem('meditrack_recycle_bin');
+      return raw ? JSON.parse(raw).length : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') === 'recycle_bin' ? 'recycle_bin' : 'active';
+    setActiveTabState(urlTab);
+  }, [searchParams]);
+
+  useEffect(() => {
+    recycleBinService.list().then((list) => {
+      if (Array.isArray(list)) setTrashCount(list.length);
+    }).catch(() => {});
+
+    const handleTrashUpdate = (e) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setTrashCount(e.detail.length);
+      }
+    };
+
+    window.addEventListener('meditrack_recycle_bin_updated', handleTrashUpdate);
+    return () => window.removeEventListener('meditrack_recycle_bin_updated', handleTrashUpdate);
+  }, []);
+
   // --- Handlers ---
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === 'recycle_bin') {
+      nextParams.set('tab', 'recycle_bin');
+    } else {
+      nextParams.delete('tab');
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const handleFilterChange = (status) => {
     setCurrentPage(1);
-    setSearchParams(status === 'All' ? {} : { status }, { replace: true });
+    const nextParams = new URLSearchParams(searchParams);
+    if (status === 'All') {
+      nextParams.delete('status');
+    } else {
+      nextParams.set('status', status);
+    }
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("Move this batch to the Recycle Bin? (You can recover it anytime below)")) {
+    if (window.confirm("Move this batch to the Recycle Bin? (You can recover it anytime in the Recycle Bin tab)")) {
       deleteItem(id, "Removed from Expiry Tracking", "Pharmacist Admin");
-      toast.success("Batch moved to Recycle Bin (Recoverable below)", { icon: "🗑️" });
+      toast.success("Batch moved to Recycle Bin", { 
+        icon: "🗑️",
+        action: {
+          label: "View Trash",
+          onClick: () => setActiveTab('recycle_bin'),
+        },
+      });
     }
   };
 
@@ -172,36 +229,96 @@ export default function ExpiryManagement() {
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
         
-        {/* Header */}
+        {/* Header & Tab Switcher */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Expiry Management (FEFO)
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                {activeTab === 'recycle_bin' ? 'Recycle Bin & Deletion Log' : 'Expiry Management (FEFO)'}
+              </h1>
+              {activeTab === 'recycle_bin' && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 font-semibold border border-rose-200 dark:border-rose-900/50">
+                  Trash View
+                </span>
+              )}
+            </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Live tracking across 90/60/30 day escalation tiers (Total: {stats.total} items, ₹{(stats.totalAtRiskVal || 237300).toLocaleString('en-IN')} at risk)
+              {activeTab === 'recycle_bin'
+                ? `Audit log of deleted medicines & expired batches (${trashCount} items in bin). Recover any item back to active inventory with 1 click.`
+                : `Live tracking across 90/60/30 day escalation tiers (Total: ${stats.total} items, ₹${(stats.totalAtRiskVal || 237300).toLocaleString('en-IN')} at risk)`
+              }
             </p>
           </div>
+
           <div className="flex items-center gap-2.5 flex-wrap">
-            <a 
-              href="#recycle-bin"
-              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-2xs"
-            >
-              <Trash2 size={16} className="text-rose-500" />
-              <span>Recycle Bin</span>
-            </a>
-            <button 
-              onClick={exportToCSV}
-              className="flex items-center gap-2 bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm"
-            >
-              <Download size={16} />
-              <span>Export Report</span>
-            </button>
+            {/* Segmented Pill Tab Switcher */}
+            <div className="flex items-center p-1 bg-slate-200/80 dark:bg-slate-800 rounded-xl border border-slate-300/70 dark:border-slate-700 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setActiveTab('active')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'active'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Package size={14} className={activeTab === 'active' ? 'text-[#0284c7] dark:text-sky-400' : ''} />
+                <span>Active Batches</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  activeTab === 'active'
+                    ? 'bg-sky-100 dark:bg-sky-950/60 text-[#0284c7] dark:text-sky-400'
+                    : 'bg-slate-300/60 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                }`}>
+                  {stats.total}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('recycle_bin')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'recycle_bin'
+                    ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400'
+                }`}
+                title="Open Recycle Bin to restore deleted items"
+              >
+                <Trash2 size={14} className={activeTab === 'recycle_bin' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'} />
+                <span>Recycle Bin</span>
+                {trashCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 font-bold">
+                    {trashCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {activeTab === 'active' ? (
+              <button 
+                type="button"
+                onClick={exportToCSV}
+                className="flex items-center gap-2 bg-[#0284c7] hover:bg-[#0369a1] text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+              >
+                <Download size={15} />
+                <span>Export Report</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setActiveTab('active')}
+                className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-2xs cursor-pointer"
+              >
+                <ChevronLeft size={15} />
+                <span>Back to Batches</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 6 FEFO Escalation KPI Cards (Interactive Filter Triggers synced with Dashboard) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {activeTab === 'active' ? (
+          <>
+            {/* 6 FEFO Escalation KPI Cards (Interactive Filter Triggers synced with Dashboard) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           
           {/* Total */}
           <button
@@ -492,13 +609,19 @@ export default function ExpiryManagement() {
             </div>
           )}
         </div>
-
-        {/* =====================================================
-            RECYCLE BIN & DELETION AUDIT LOG
-        ====================================================== */}
-        <div id="recycle-bin">
-          <RecycleBinSection onRestoreItem={restoreItem} />
-        </div>
+          </>
+        ) : (
+          /* =====================================================
+              RECYCLE BIN & DELETION AUDIT LOG (TAB VIEW)
+          ====================================================== */
+          <RecycleBinSection 
+            onRestoreItem={(restored) => {
+              restoreItem(restored);
+              setTrashCount(c => Math.max(0, c - 1));
+            }}
+            onBack={() => setActiveTab('active')}
+          />
+        )}
 
       </main>
     </div>
