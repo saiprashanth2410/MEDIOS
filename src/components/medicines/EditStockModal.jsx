@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Package,
@@ -35,7 +36,7 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
     }
   }, [medicine]);
 
-  // Keyboard shortcut: Escape to close modal
+  // Keyboard shortcut: Escape to close modal + body scroll lock
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -44,7 +45,13 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen || !medicine) return null;
@@ -78,16 +85,16 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
     }
   };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 pt-16 sm:pt-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-8 sm:pt-12 bg-black/60 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-medicine-title"
     >
       <div
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden my-auto relative"
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden my-4 relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -298,4 +305,7 @@ export default function EditStockModal({ medicine, isOpen, onClose, onSave }) {
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(modalContent, document.body);
 }
