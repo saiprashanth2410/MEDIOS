@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -34,6 +34,7 @@ import {
   Zap,
   DollarSign,
   XCircle,
+  X,
   Info,
   Lock,
 } from "lucide-react";
@@ -181,13 +182,207 @@ export default function Billing() {
       : "day_close"
   );
 
-  // Cart & Draft state (persisted across tab changes)
-  const [cart, setCart] = useState(() => savedDraft?.cart || []);
-  const [patientName, setPatientName] = useState(() => savedDraft?.patientName || "");
-  const [patientPhone, setPatientPhone] = useState(() => savedDraft?.patientPhone || "");
-  const [doctorName, setDoctorName] = useState(() => savedDraft?.doctorName || "");
-  const [paymentMethod, setPaymentMethod] = useState(() => savedDraft?.paymentMethod || "UPI / QR");
-  const [patientVisitInfo, setPatientVisitInfo] = useState(null);
+  // Multi-Cart State: supports multiple concurrent customer carts (Cart 1, Cart 2, etc.)
+  const initialCartsData = useMemo(() => {
+    if (savedDraft?.carts && Array.isArray(savedDraft.carts) && savedDraft.carts.length > 0) {
+      return {
+        carts: savedDraft.carts,
+        activeCartId: savedDraft.activeCartId || savedDraft.carts[0].id,
+      };
+    }
+    if (savedDraft?.cart && Array.isArray(savedDraft.cart) && savedDraft.cart.length > 0) {
+      return {
+        carts: [
+          {
+            id: "cart-1",
+            name: "Cart 1",
+            cart: savedDraft.cart,
+            patientName: savedDraft.patientName || "",
+            patientPhone: savedDraft.patientPhone || "",
+            doctorName: savedDraft.doctorName || "",
+            paymentMethod: savedDraft.paymentMethod || "UPI / QR",
+            patientVisitInfo: null,
+          },
+        ],
+        activeCartId: "cart-1",
+      };
+    }
+    return {
+      carts: [
+        {
+          id: "cart-1",
+          name: "Cart 1",
+          cart: [],
+          patientName: "",
+          patientPhone: "",
+          doctorName: "",
+          paymentMethod: "UPI / QR",
+          patientVisitInfo: null,
+        },
+      ],
+      activeCartId: "cart-1",
+    };
+  }, [savedDraft]);
+
+  const [carts, setCarts] = useState(initialCartsData.carts);
+  const [activeCartId, setActiveCartId] = useState(initialCartsData.activeCartId);
+
+  // Active Cart extraction & updaters
+  const activeCart = useMemo(() => {
+    return (
+      carts.find((c) => c.id === activeCartId) ||
+      carts[0] || {
+        id: "cart-1",
+        name: "Cart 1",
+        cart: [],
+        patientName: "",
+        patientPhone: "",
+        doctorName: "",
+        paymentMethod: "UPI / QR",
+        patientVisitInfo: null,
+      }
+    );
+  }, [carts, activeCartId]);
+
+  const cart = activeCart.cart || [];
+  const patientName = activeCart.patientName || "";
+  const patientPhone = activeCart.patientPhone || "";
+  const doctorName = activeCart.doctorName || "";
+  const paymentMethod = activeCart.paymentMethod || "UPI / QR";
+  const patientVisitInfo = activeCart.patientVisitInfo || null;
+
+  const updateActiveCart = useCallback(
+    (updater) => {
+      setCarts((prevCarts) =>
+        prevCarts.map((c) => {
+          if (c.id === activeCartId) {
+            return typeof updater === "function" ? updater(c) : { ...c, ...updater };
+          }
+          return c;
+        })
+      );
+    },
+    [activeCartId]
+  );
+
+  const setCart = useCallback(
+    (updater) => {
+      setCarts((prevCarts) =>
+        prevCarts.map((c) => {
+          if (c.id === activeCartId) {
+            const nextCart = typeof updater === "function" ? updater(c.cart || []) : updater;
+            return { ...c, cart: nextCart };
+          }
+          return c;
+        })
+      );
+    },
+    [activeCartId]
+  );
+
+  const setPatientName = useCallback(
+    (val) => {
+      updateActiveCart((c) => ({
+        ...c,
+        patientName: typeof val === "function" ? val(c.patientName || "") : val,
+      }));
+    },
+    [updateActiveCart]
+  );
+
+  const setPatientPhone = useCallback(
+    (val) => {
+      updateActiveCart((c) => ({
+        ...c,
+        patientPhone: typeof val === "function" ? val(c.patientPhone || "") : val,
+      }));
+    },
+    [updateActiveCart]
+  );
+
+  const setDoctorName = useCallback(
+    (val) => {
+      updateActiveCart((c) => ({
+        ...c,
+        doctorName: typeof val === "function" ? val(c.doctorName || "") : val,
+      }));
+    },
+    [updateActiveCart]
+  );
+
+  const setPaymentMethod = useCallback(
+    (val) => {
+      updateActiveCart((c) => ({
+        ...c,
+        paymentMethod: typeof val === "function" ? val(c.paymentMethod || "UPI / QR") : val,
+      }));
+    },
+    [updateActiveCart]
+  );
+
+  const setPatientVisitInfo = useCallback(
+    (val) => {
+      updateActiveCart((c) => ({
+        ...c,
+        patientVisitInfo: typeof val === "function" ? val(c.patientVisitInfo) : val,
+      }));
+    },
+    [updateActiveCart]
+  );
+
+  // Add a new Cart tab
+  const handleAddNewCart = () => {
+    let highestNum = carts.length;
+    carts.forEach((c) => {
+      const match = (c.name || "").match(/Cart (\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num >= highestNum) highestNum = num;
+      }
+    });
+    const newNum = highestNum + 1;
+    const newId = `cart-${Date.now()}`;
+    const newCart = {
+      id: newId,
+      name: `Cart ${newNum}`,
+      cart: [],
+      patientName: "",
+      patientPhone: "",
+      doctorName: "",
+      paymentMethod: "UPI / QR",
+      patientVisitInfo: null,
+    };
+    setCarts((prev) => [...prev, newCart]);
+    setActiveCartId(newId);
+    toast.success(`New Cart created: Cart ${newNum}`);
+  };
+
+  // Close / Delete a Cart tab
+  const handleRemoveCart = (cartIdToRemove) => {
+    if (carts.length <= 1) {
+      handleClearCart();
+      return;
+    }
+    const targetCart = carts.find((c) => c.id === cartIdToRemove);
+    if (targetCart && targetCart.cart && targetCart.cart.length > 0) {
+      if (
+        !window.confirm(
+          `"${targetCart.name || "This cart"}" has ${targetCart.cart.length} item(s). Close and delete it?`
+        )
+      ) {
+        return;
+      }
+    }
+    setCarts((prev) => {
+      const remaining = prev.filter((c) => c.id !== cartIdToRemove);
+      if (activeCartId === cartIdToRemove) {
+        const nextActive = remaining[0]?.id || "cart-1";
+        setActiveCartId(nextActive);
+      }
+      return remaining;
+    });
+    toast.info(`${targetCart?.name || "Cart"} closed`);
+  };
 
   // Invoices & Schedule H Register
   const [invoices, setInvoices] = useState([]);
@@ -288,15 +483,19 @@ export default function Billing() {
   /* Auto-save billing draft across tabs */
   useEffect(() => {
     try {
-      if (cart.length > 0 || patientName || patientPhone || doctorName) {
+      const hasAnyContent = carts.some(
+        (c) =>
+          (c.cart && c.cart.length > 0) ||
+          c.patientName ||
+          c.patientPhone ||
+          c.doctorName
+      );
+      if (hasAnyContent || carts.length > 1) {
         localStorage.setItem(
           DRAFT_KEY,
           JSON.stringify({
-            cart,
-            patientName,
-            patientPhone,
-            doctorName,
-            paymentMethod,
+            carts,
+            activeCartId,
             activeTab,
           })
         );
@@ -306,7 +505,7 @@ export default function Billing() {
     } catch (e) {
       console.debug("Billing draft auto-save note:", e);
     }
-  }, [cart, patientName, patientPhone, doctorName, paymentMethod, activeTab]);
+  }, [carts, activeCartId, activeTab]);
 
   /* Patient auto-lookup by mobile number */
   const handlePhoneChange = async (val) => {
@@ -333,14 +532,15 @@ export default function Billing() {
   };
 
   const handleClearCart = () => {
-    if (cart.length === 0) return;
-    if (window.confirm("Are you sure you want to clear the active cart?")) {
-      setCart([]);
-      setPatientName("");
-      setPatientPhone("");
-      setDoctorName("");
-      setPatientVisitInfo(null);
-      localStorage.removeItem(DRAFT_KEY);
+    if (cart.length === 0 && !patientName && !patientPhone && !doctorName) return;
+    if (window.confirm(`Clear all items from ${activeCart.name || "active cart"}?`)) {
+      updateActiveCart({
+        cart: [],
+        patientName: "",
+        patientPhone: "",
+        doctorName: "",
+        patientVisitInfo: null,
+      });
       toast.info("Cart cleared");
     }
   };
@@ -809,12 +1009,21 @@ export default function Billing() {
         });
 
         toast.success(`Invoice ${invoiceNumber} generated & dispensed!`);
-        setCart([]);
-        setPatientName("");
-        setPatientPhone("");
-        setDoctorName("");
-        setPatientVisitInfo(null);
-        localStorage.removeItem(DRAFT_KEY);
+        if (carts.length > 1) {
+          const remaining = carts.filter((c) => c.id !== activeCartId);
+          const nextWithItems =
+            remaining.find((c) => c.cart && c.cart.length > 0) || remaining[0];
+          setCarts(remaining);
+          setActiveCartId(nextWithItems.id);
+        } else {
+          updateActiveCart({
+            cart: [],
+            patientName: "",
+            patientPhone: "",
+            doctorName: "",
+            patientVisitInfo: null,
+          });
+        }
       }
     } catch (err) {
       console.error("[Billing] Dispense failed:", err);
@@ -1235,28 +1444,98 @@ export default function Billing() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span>Dispensary Cart</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-2.5">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-100 shrink-0">
+                      Dispensary Cart
+                    </span>
+
+                    {/* Cart Tabs Pill Bar */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-0.5 scrollbar-none">
+                      {carts.map((c, idx) => {
+                        const isActive = c.id === activeCartId;
+                        const count = (c.cart || []).length;
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => setActiveCartId(c.id)}
+                            className={`group flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer select-none shrink-0 ${
+                              isActive
+                                ? "bg-teal-600 text-white shadow-xs ring-2 ring-teal-600/30"
+                                : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                            }`}
+                          >
+                            <span>{c.name || `Cart ${idx + 1}`}</span>
+                            {c.patientName && (
+                              <span
+                                className={`text-[10px] max-w-[70px] truncate ${
+                                  isActive ? "text-teal-100" : "text-slate-500 dark:text-slate-400"
+                                }`}
+                              >
+                                • {c.patientName}
+                              </span>
+                            )}
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                isActive
+                                  ? "bg-teal-700 text-white"
+                                  : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                              }`}
+                            >
+                              {count}
+                            </span>
+                            {carts.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCart(c.id);
+                                }}
+                                className={`ml-0.5 rounded-full p-0.5 hover:bg-black/20 dark:hover:bg-white/20 transition ${
+                                  isActive ? "text-white" : "text-slate-400 hover:text-rose-500"
+                                }`}
+                                title="Close this cart"
+                              >
+                                <X size={11} strokeWidth={2.5} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Add Cart Button (+) */}
+                      <button
+                        type="button"
+                        onClick={handleAddNewCart}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-teal-500/60 hover:border-teal-500 bg-teal-50/60 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-bold transition cursor-pointer shrink-0 shadow-2xs"
+                        title="Create another cart for a parallel customer (+)"
+                      >
+                        <Plus size={13} strokeWidth={2.5} />
+                        <span>New Cart</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                       {cart.length} {cart.length === 1 ? "item" : "items"}
                     </span>
-                  </h3>
-                  {cart.length > 0 && (
-                    <button
-                      onClick={handleClearCart}
-                      className="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                    >
-                      Clear All
-                    </button>
-                  )}
+                    {cart.length > 0 && (
+                      <button
+                        onClick={handleClearCart}
+                        className="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {cart.length === 0 ? (
                   <div className="py-16 text-center">
                     <Receipt size={36} className="text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      No medicines in cart
+                      No medicines in {activeCart.name || "cart"}
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
                       Search above or scan a medicine barcode to begin billing.

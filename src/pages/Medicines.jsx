@@ -72,6 +72,9 @@ function getInitialMedicines() {
           stock: override.stock !== undefined ? override.stock : m.stock,
           batch: override.batch || m.batch,
           rack: override.rack || m.rack,
+          price: override.price !== undefined ? override.price : m.price,
+          expiry: override.expiry || m.expiry,
+          manufacturer: override.manufacturer || m.manufacturer,
         };
       });
 
@@ -163,13 +166,24 @@ export default function Medicines() {
      SAVE STOCK TO SERVER & STATE
   ===================================================== */
 
-  const handleSaveStock = async (medId, newStock, newBatch, newRack) => {
+  const handleSaveStock = async (
+    medId,
+    newStock,
+    newBatch,
+    newRack,
+    newPrice,
+    newExpiry,
+    newManufacturer
+  ) => {
     const target = medicines.find((m) => m.id === medId);
     if (!target) return;
 
     const updatedStock = Number(newStock);
     const updatedBatch = newBatch || target.batch;
     const updatedRack = newRack || target.rack;
+    const updatedPrice = newPrice !== undefined ? Number(newPrice) : target.price;
+    const updatedExpiry = newExpiry || target.expiry;
+    const updatedManufacturer = newManufacturer || target.manufacturer;
 
     // 1. Immediate UI update
     setMedicines((prev) =>
@@ -180,6 +194,9 @@ export default function Medicines() {
               stock: updatedStock,
               batch: updatedBatch,
               rack: updatedRack,
+              price: updatedPrice,
+              expiry: updatedExpiry,
+              manufacturer: updatedManufacturer,
             }
           : m
       )
@@ -191,6 +208,9 @@ export default function Medicines() {
         stock: updatedStock,
         batch: updatedBatch,
         rack: updatedRack,
+        price: updatedPrice,
+        expiry: updatedExpiry,
+        manufacturer: updatedManufacturer,
       });
     } catch (fbErr) {
       console.warn("Firestore stock update warning:", fbErr.message);
@@ -205,19 +225,20 @@ export default function Medicines() {
         category: target.category,
         composition: target.generic,
         generic: target.generic,
-        supplierName: target.manufacturer,
+        supplierName: updatedManufacturer,
+        manufacturer: updatedManufacturer,
         stock: updatedStock,
         quantity: updatedStock,
         batch: updatedBatch,
         rack: updatedRack,
-        price: target.price,
-        sellingPrice: target.price,
-        expiry: target.expiry,
+        price: updatedPrice,
+        sellingPrice: updatedPrice,
+        expiry: updatedExpiry,
       });
-      toast.success(`Stock updated for ${target.name}: ${updatedStock} units`);
+      toast.success(`Medicine details updated for ${target.name}`);
     } catch (err) {
       console.warn("Server stock update fallback:", err.message);
-      toast.success(`Stock updated for ${target.name}`);
+      toast.success(`Medicine details updated for ${target.name}`);
     }
 
     // 3. Persist to localStorage override
@@ -229,6 +250,9 @@ export default function Medicines() {
         stock: updatedStock,
         batch: updatedBatch,
         rack: updatedRack,
+        price: updatedPrice,
+        expiry: updatedExpiry,
+        manufacturer: updatedManufacturer,
       };
       if (target.name) overrides[target.name] = overrides[medId];
       localStorage.setItem(
