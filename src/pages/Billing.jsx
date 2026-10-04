@@ -21,7 +21,7 @@ import {
   Package,
   FileText,
   RotateCcw,
-  Sparkles,
+  ScanLine,
   Download,
   MessageSquare,
   Send,
@@ -47,6 +47,7 @@ import { patientsFirebaseService } from "../services/patientsFirebaseService";
 import { deductCartFromInventory } from "../utils/inventoryDeduction";
 import { checkDrugInteractions } from "../utils/drugInteractionChecker";
 import defaultMedicines from "../data/catalogMedicines.json";
+import PrescriptionScanner from "../components/prescriptions/PrescriptionScanner";
 
 const DRAFT_KEY = "meditrack_pos_active_draft";
 
@@ -408,8 +409,11 @@ export default function Billing() {
   const [selectedPreviewReminder, setSelectedPreviewReminder] = useState(null);
   const [previewLang, setPreviewLang] = useState("combined");
 
-  // UPI QR Code State
-  const [showUpiQr, setShowUpiQr] = useState(false);
+  // UPI QR Code State (visible by default when UPI / QR payment is selected)
+  const [showUpiQr, setShowUpiQr] = useState(true);
+
+  // Prescription OCR Modal State
+  const [showRxScanner, setShowRxScanner] = useState(false);
 
   // Loose Tablet editing: stores itemId → loose qty string being typed
   const [looseQtyEdit, setLooseQtyEdit] = useState({}); // { [itemId]: "2" }
@@ -638,6 +642,88 @@ export default function Billing() {
 
     setSearchQuery("");
     toast.success(`Added ${qtyToAdd > 1 ? `${qtyToAdd}x ` : ""}${medicine.name}`);
+  };
+
+  /* =====================================================
+     PRESCRIPTION OCR TO CART HANDLER
+  ===================================================== */
+  const handleRxScanResult = (result) => {
+    if (!result) return;
+
+    // 1. Auto-fill Patient Name & Doctor Name into active cart if available
+    if (result.patient?.name) {
+      setPatientName(result.patient.name);
+    }
+    if (result.doctor?.name) {
+      setDoctorName(result.doctor.name);
+    }
+
+    const rxMeds = result.prescription?.medicines || [];
+    if (!Array.isArray(rxMeds) || rxMeds.length === 0) {
+      toast.info("Prescription processed. No medicine items detected.");
+      return;
+    }
+
+    let addedCount = 0;
+    const missing = [];
+
+    rxMeds.forEach((rxItem) => {
+      const rawName = String(rxItem.name || "").trim();
+      if (!rawName) return;
+
+      // Clean common medicine prefixes (Tab, Cap, Syrup, Syp, Inj, etc.)
+      const cleanName = rawName
+        .toLowerCase()
+        .replace(/^(tab|cap|syrup|syp|inj|tablet|capsule|ointment|drop|drops)\.?\s+/i, "")
+        .trim();
+
+      // Search catalog (fuzzy match brand name or generic composition)
+      const match = catalog.find((m) => {
+        const mName = String(m.name || "").toLowerCase();
+        const mGen = String(m.generic || "").toLowerCase();
+        return (
+          mName === cleanName ||
+          mName.includes(cleanName) ||
+          cleanName.includes(mName) ||
+          (mGen && (mGen.includes(cleanName) || cleanName.includes(mGen)))
+        );
+      });
+
+      if (match) {
+        // Calculate dosage quantity from frequency and duration
+        let calcQty = 10;
+        const freqParts = String(rxItem.frequency || "").match(/\d+/g);
+        const durationMatch = String(rxItem.duration || "").match(/\d+/);
+        if (freqParts && durationMatch) {
+          const perDay = freqParts.reduce((acc, v) => acc + parseInt(v, 10), 0);
+          const days = parseInt(durationMatch[0], 10);
+          if (perDay > 0 && days > 0) calcQty = Math.max(1, perDay * days);
+        } else if (rxItem.dosage) {
+          const doseMatch = String(rxItem.dosage).match(/\d+/);
+          if (doseMatch) calcQty = Math.max(1, parseInt(doseMatch[0], 10));
+        }
+
+        const instructions = rxItem.instructions || rxItem.frequency || "";
+        handleAddToCart(match, calcQty, instructions);
+        addedCount++;
+      } else {
+        missing.push(rawName);
+      }
+    });
+
+    if (addedCount > 0) {
+      toast.success(
+        `Prescription OCR added ${addedCount} medicine(s) to Dispensary Cart!`,
+        { icon: "📋" }
+      );
+    }
+
+    if (missing.length > 0) {
+      toast.warning(
+        `Not in stock / catalog: ${missing.join(", ")} (add manually or check substitutes)`,
+        { duration: 6000 }
+      );
+    }
   };
 
   const handleUpdateQty = (id, delta) => {
@@ -1536,7 +1622,17 @@ export default function Billing() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                  <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowRxScanner(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50/70 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-semibold transition shadow-2xs cursor-pointer"
+                      title="Upload or scan doctor prescription (OCR) to automatically populate medicines into this cart"
+                    >
+                      <ScanLine size={13} strokeWidth={2.5} />
+                      <span>Scan Rx (OCR)</span>
+                    </button>
+
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                       {cart.length} {cart.length === 1 ? "item" : "items"}
                     </span>
@@ -1557,9 +1653,17 @@ export default function Billing() {
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       No medicines in {activeCart.name || "cart"}
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Search above or scan a medicine barcode to begin billing.
+                    <p className="text-xs text-slate-400 mt-1 mb-4">
+                      Search above or scan a prescription to auto-fill medicines.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowRxScanner(true)}
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-teal-300 dark:border-teal-700 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-semibold transition cursor-pointer shadow-2xs"
+                    >
+                      <ScanLine size={14} />
+                      <span>Scan Prescription (OCR)</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2">
@@ -3126,6 +3230,16 @@ export default function Billing() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* =====================================================
+            PRESCRIPTION OCR SCANNER MODAL
+        ====================================================== */}
+        {showRxScanner && (
+          <PrescriptionScanner
+            onResult={handleRxScanResult}
+            onClose={() => setShowRxScanner(false)}
+          />
         )}
       </main>
     </div>

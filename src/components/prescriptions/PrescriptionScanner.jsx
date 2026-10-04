@@ -5,10 +5,10 @@ import {
   Camera,
   Upload,
   Loader2,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
-  Brain,
+  FileText,
+  ScanLine,
 } from "lucide-react";
 import { parsePrescriptionImage } from "../../services/aiService";
 
@@ -101,7 +101,7 @@ export default function PrescriptionScanner({ onResult, onClose }) {
   };
 
   /* =====================================================
-     PARSE — ✨ UPDATED WITH PROGRESS CALLBACK
+     PARSE
   ===================================================== */
 
   const handleParse = async () => {
@@ -113,25 +113,20 @@ export default function PrescriptionScanner({ onResult, onClose }) {
     setLoading(true);
     setError("");
     setAttemptInfo("");
-    setProgress("Starting AI scan...");
+    setProgress("Scanning prescription (OCR)...");
 
     try {
       const result = await parsePrescriptionImage(image, (status) => {
         console.log("[Scanner] Progress:", status);
         setProgress(status);
 
-        // ✨ Extract attempt info from status
         if (status.includes("Attempt") || status.includes("Retrying")) {
           setAttemptInfo(status);
         }
       });
 
-      setProgress("Success!");
-      if (result.isFallback) {
-        toast.info("Cloud AI offline. Loaded editable draft prescription for review.");
-      } else {
-        toast.success(`Prescription parsed with ${result.model || "AI"}`);
-      }
+      setProgress("Done!");
+      toast.success("Prescription details extracted successfully!");
       onResult?.(result.data);
       onClose?.();
     } catch (err) {
@@ -180,22 +175,22 @@ export default function PrescriptionScanner({ onResult, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl w-full max-w-lg my-8 shadow-2xl">
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg my-8 shadow-2xl text-slate-900 dark:text-slate-100 overflow-hidden">
 
         {/* =====================================================
             HEADER
         ====================================================== */}
 
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-              <Brain size={20} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/60 flex items-center justify-center text-teal-600 dark:text-teal-400">
+              <FileText size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-bold">AI Prescription Scanner</h3>
-              <p className="text-[11px] text-slate-500">
-                Snap a prescription, AI reads it
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Prescription OCR Scanner</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Upload or capture doctor prescription to extract medicines
               </p>
             </div>
           </div>
@@ -203,7 +198,7 @@ export default function PrescriptionScanner({ onResult, onClose }) {
           <button
             onClick={onClose}
             disabled={loading}
-            className="p-2 rounded-lg hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             <X size={18} className="text-slate-500" />
           </button>
@@ -213,7 +208,7 @@ export default function PrescriptionScanner({ onResult, onClose }) {
             TABS
         ====================================================== */}
 
-        <div className="flex border-b border-slate-100">
+        <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <button
             onClick={() => {
               if (loading) return;
@@ -221,14 +216,14 @@ export default function PrescriptionScanner({ onResult, onClose }) {
               reset();
             }}
             disabled={loading}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs sm:text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
               mode === "upload"
-                ? "text-[#0284c7] border-b-2 border-[#0284c7]"
-                : "text-slate-500"
+                ? "text-teal-600 dark:text-teal-400 border-b-2 border-teal-600"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
             }`}
           >
             <Upload size={15} />
-            Upload
+            Upload Document
           </button>
           <button
             onClick={() => {
@@ -237,14 +232,14 @@ export default function PrescriptionScanner({ onResult, onClose }) {
               reset();
             }}
             disabled={loading}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs sm:text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
               mode === "camera"
-                ? "text-[#0284c7] border-b-2 border-[#0284c7]"
-                : "text-slate-500"
+                ? "text-teal-600 dark:text-teal-400 border-b-2 border-teal-600"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
             }`}
           >
             <Camera size={15} />
-            Camera
+            Camera Scanner
           </button>
         </div>
 
@@ -400,10 +395,10 @@ export default function PrescriptionScanner({ onResult, onClose }) {
           {preview && !loading && (
             <button
               onClick={handleParse}
-              className="w-full h-12 mt-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold flex items-center justify-center gap-2 transition shadow-lg shadow-violet-500/20"
+              className="w-full h-11 mt-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
             >
-              <Sparkles size={18} />
-              Extract with AI
+              <ScanLine size={16} />
+              <span>Extract Medicines (OCR)</span>
             </button>
           )}
 
@@ -411,15 +406,13 @@ export default function PrescriptionScanner({ onResult, onClose }) {
               INFO
           ====================================================== */}
 
-          <div className="mt-4 flex items-start gap-2 rounded-lg bg-violet-50 border border-violet-100 px-3 py-2.5">
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 px-3.5 py-2.5">
             <CheckCircle2
-              size={14}
-              className="text-violet-600 mt-0.5 shrink-0"
+              size={15}
+              className="text-teal-600 dark:text-teal-400 mt-0.5 shrink-0"
             />
-            <p className="text-xs text-violet-800">
-              AI reads handwritten prescriptions and extracts patient, doctor,
-              and medicine details automatically. If servers are busy, it
-              auto-retries.
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              OCR reads handwritten & printed prescriptions to extract patient, doctor, and medicine details. Prescribed medicines will be automatically matched and added to your dispensary cart.
             </p>
           </div>
 
