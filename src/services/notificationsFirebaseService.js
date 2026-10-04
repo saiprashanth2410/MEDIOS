@@ -7,82 +7,12 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const COLLECTION_NAME = "notifications";
 const LOCAL_NOTIFS_KEY = "meditrack_notifications";
 const DELETED_NOTIFS_KEY = "meditrack_deleted_notifications";
 const CLEARED_NOTIFS_KEY = "meditrack_notifications_cleared";
-
-const SEED_NOTIFICATIONS = [
-  {
-    id: "NOTIF-1",
-    type: "expiry",
-    title: "Medicine Expiring Soon",
-    message: "Safedox (BATCH-1000) expires in 15 days",
-    read: false,
-    color: "amber",
-    priority: "high",
-    link: "/expiry",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "NOTIF-2",
-    type: "stock",
-    title: "Low Stock Alert",
-    message: "Flucret stock is below 10 units",
-    read: false,
-    color: "red",
-    priority: "high",
-    link: "/medicines",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "NOTIF-3",
-    type: "expiry",
-    title: "Batch Expired",
-    message: "BATCH-0998 expired yesterday — remove from shelf immediately",
-    read: false,
-    color: "red",
-    priority: "critical",
-    link: "/batches",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "NOTIF-4",
-    type: "prescription",
-    title: "New Prescription Pending",
-    message: "Prescription RX-2024-001 awaiting pharmacist dispensing",
-    read: false,
-    color: "blue",
-    priority: "medium",
-    link: "/prescriptions",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "NOTIF-5",
-    type: "order",
-    title: "Purchase Order Pending",
-    message: "PO-2026-045 waiting for supplier Sun Pharma confirmation",
-    read: true,
-    color: "blue",
-    priority: "low",
-    link: "/suppliers",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "NOTIF-6",
-    type: "system",
-    title: "System Backup Complete",
-    message: "Automatic database and inventory backup completed successfully",
-    read: true,
-    color: "emerald",
-    priority: "low",
-    link: "/dashboard",
-    createdAt: new Date().toISOString(),
-  },
-];
-
-import { getScopedKey, isDemoAccount } from "../utils/userScope";
 
 function getDeletedSet() {
   if (typeof window === "undefined") return new Set();
@@ -113,13 +43,7 @@ function getLocalNotifications() {
       }
     }
 
-    if (isDemoAccount()) {
-      const initial = SEED_NOTIFICATIONS.filter((n) => !deletedIds.has(n.id));
-      localStorage.setItem(notifsKey, JSON.stringify(initial));
-      return initial;
-    }
-
-    // New user starts with clean welcome notification
+    // New user starts with clean welcome notification only
     const welcome = [
       {
         id: "notif-welcome",
@@ -165,9 +89,9 @@ export const notificationsFirebaseService = {
     const deletedIds = getDeletedSet();
 
     try {
-      const isCleared = typeof window !== "undefined" && localStorage.getItem(CLEARED_NOTIFS_KEY) === "true";
+      const isCleared = typeof window !== "undefined" && localStorage.getItem(getScopedKey(CLEARED_NOTIFS_KEY)) === "true";
       if (!isCleared) {
-        const snap = await getDocs(collection(db, COLLECTION_NAME));
+        const snap = await getDocs(getUserCollectionRef(db, COLLECTION_NAME));
         if (!snap.empty) {
           const firestoreList = [];
           snap.forEach((d) => {
@@ -254,7 +178,7 @@ export const notificationsFirebaseService = {
       await Promise.all(
         updated.map((n) =>
           setDoc(
-            doc(db, COLLECTION_NAME, n.id),
+            getUserDocRef(db, COLLECTION_NAME, n.id),
             { ...n, read: true, updatedAt: serverTimestamp() },
             { merge: true }
           ).catch(() => {})
@@ -273,7 +197,7 @@ export const notificationsFirebaseService = {
     try {
       const target = updated.find((n) => n.id === id) || { id, read: true };
       await setDoc(
-        doc(db, COLLECTION_NAME, id),
+        getUserDocRef(db, COLLECTION_NAME, id),
         { ...target, read: true, updatedAt: serverTimestamp() },
         { merge: true }
       );
@@ -289,7 +213,7 @@ export const notificationsFirebaseService = {
 
     try {
       await setDoc(
-        doc(db, COLLECTION_NAME, id),
+        getUserDocRef(db, COLLECTION_NAME, id),
         { ...data, updatedAt: serverTimestamp() },
         { merge: true }
       );
@@ -303,7 +227,7 @@ export const notificationsFirebaseService = {
     deletedIds.add(id);
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(DELETED_NOTIFS_KEY, JSON.stringify(Array.from(deletedIds)));
+        localStorage.setItem(getScopedKey(DELETED_NOTIFS_KEY), JSON.stringify(Array.from(deletedIds)));
       } catch (_) {}
     }
 
@@ -312,7 +236,7 @@ export const notificationsFirebaseService = {
     saveLocalNotifications(updated);
 
     try {
-      await deleteDoc(doc(db, COLLECTION_NAME, id));
+      await deleteDoc(getUserDocRef(db, COLLECTION_NAME, id));
     } catch (_) {}
 
     return { success: true, deleted: id };
@@ -321,14 +245,14 @@ export const notificationsFirebaseService = {
   async clearAll() {
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(CLEARED_NOTIFS_KEY, "true");
-        localStorage.setItem(LOCAL_NOTIFS_KEY, "[]");
+        localStorage.setItem(getScopedKey(CLEARED_NOTIFS_KEY), "true");
+        localStorage.setItem(getScopedKey(LOCAL_NOTIFS_KEY), "[]");
       } catch (_) {}
     }
     saveLocalNotifications([]);
 
     try {
-      const snap = await getDocs(collection(db, COLLECTION_NAME));
+      const snap = await getDocs(getUserCollectionRef(db, COLLECTION_NAME));
       await Promise.all(snap.docs.map((d) => deleteDoc(d.ref).catch(() => {})));
     } catch (_) {}
 
@@ -347,7 +271,7 @@ export const notificationsFirebaseService = {
     saveLocalNotifications([notif, ...list]);
 
     try {
-      await setDoc(doc(db, COLLECTION_NAME, id), {
+      await setDoc(getUserDocRef(db, COLLECTION_NAME, id), {
         ...notif,
         serverTimestamp: serverTimestamp(),
       });

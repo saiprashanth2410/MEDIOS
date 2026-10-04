@@ -1,15 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getInitialExpiryData, calculateStatus } from "../data/expiryData";
+import { calculateStatus } from "../data/expiryData";
 import { recycleBinService } from "../services/recycleBinService";
-import { getScopedKey, isDemoAccount, getUserScopeId } from "./userScope";
+import { getScopedKey, getUserScopeId } from "./userScope";
 
 const STORAGE_KEY = "pharmacyExpiry";
 const EXPIRY_UPDATED_EVENT = "meditrack_expiry_updated";
 
 /**
  * Loads the current live expiry items from user-scoped localStorage.
- * For brand new user IDs, returns [] (0 items) so they can start fresh.
- * Demo accounts receive the standard 48 FEFO items.
+ * Every user account starts with 0 items so they can track their own medicines.
  */
 export function loadExpiryItems() {
   if (typeof window === "undefined") return [];
@@ -45,18 +44,7 @@ export function loadExpiryItems() {
     console.warn("[expiryStore] Failed reading expiry items:", err);
   }
 
-  // Only demo accounts get seed 48 items by default
-  if (isDemoAccount()) {
-    const fresh = getInitialExpiryData();
-    try {
-      localStorage.setItem(scopedKey, JSON.stringify(fresh));
-    } catch (err) {
-      console.debug("[expiryStore] Could not persist default:", err);
-    }
-    return fresh;
-  }
-
-  // Real user IDs start with 0 items!
+  // All user accounts start clean with 0 items
   try {
     localStorage.setItem(scopedKey, JSON.stringify([]));
   } catch {}
@@ -264,17 +252,13 @@ export function useExpiryData() {
   }, []);
 
   const resetItems = useCallback(() => {
-    const fresh = isDemoAccount() ? getInitialExpiryData() : [];
-    saveExpiryItems(fresh);
-    setItems(fresh);
-    return fresh;
+    saveExpiryItems([]);
+    setItems([]);
+    return [];
   }, []);
 
   const loadSampleData = useCallback(() => {
-    const fresh = getInitialExpiryData();
-    saveExpiryItems(fresh);
-    setItems(fresh);
-    return fresh;
+    return [];
   }, []);
 
   const clearAllData = useCallback(() => {

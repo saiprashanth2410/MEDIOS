@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Pill,
@@ -25,8 +26,7 @@ import Navbar from "../components/dashboard/Navbar";
 import { medicinesAPI } from "../services/api";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { recycleBinService } from "../services/recycleBinService";
-import defaultMedicines from "../data/catalogMedicines.json";
-import { getScopedKey, isDemoAccount, loadSampleDataForCurrentUser, clearCurrentUserData } from "../utils/userScope";
+import { getScopedKey } from "../utils/userScope";
 import { addExpiryItem } from "../utils/expiryStore";
 
 /* =====================================================
@@ -47,7 +47,7 @@ const CATEGORIES = [
 const DEFAULT_EXPIRY = "2027-12-31";
 
 /* =====================================================
-   INITIAL MEDICINES (INSTANT LOAD — NO SPINNER)
+   INITIAL MEDICINES (PER-USER ISOLATED LOAD)
 ===================================================== */
 
 function getInitialMedicines() {
@@ -63,39 +63,7 @@ function getInitialMedicines() {
       localStorage.getItem(getScopedKey("meditrack_custom_medicines")) || "[]"
     );
 
-    // If demo account: include catalog medicines
-    if (isDemoAccount()) {
-      const merged = defaultMedicines
-        .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
-        .map((m) => {
-          const override = overrides[m.id] || overrides[m.name];
-          if (!override) return m;
-          return {
-            ...m,
-            stock: override.stock !== undefined ? override.stock : m.stock,
-            batch: override.batch || m.batch,
-            rack: override.rack || m.rack,
-            price: override.price !== undefined ? override.price : m.price,
-            expiry: override.expiry || m.expiry,
-            manufacturer: override.manufacturer || m.manufacturer,
-          };
-        });
-
-      const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
-      const catalogNames = new Set(defaultMedicines.map((m) => (m.name || "").toLowerCase()));
-
-      const activeCustom = custom.filter(
-        (m) =>
-          !deletedIds.has(String(m.id)) &&
-          !deletedIds.has(m.name) &&
-          !catalogIds.has(String(m.id)) &&
-          !catalogNames.has((m.name || "").toLowerCase())
-      );
-
-      return [...activeCustom, ...merged];
-    }
-
-    // For real user accounts: only their own medicines!
+    // Each user account starts with only their own added medicines
     return custom
       .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
       .map((m) => {
@@ -115,6 +83,7 @@ function getInitialMedicines() {
 ===================================================== */
 
 export default function Medicines() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [medicines, setMedicines] = useState(getInitialMedicines);
   const [showAddMedicine, setShowAddMedicine] = useState(false);
   const [addModalTab, setAddModalTab] = useState("manual");
@@ -124,6 +93,46 @@ export default function Medicines() {
   const [viewMode, setViewMode] = useState("grid");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 30;
+
+  const [filterType, setFilterType] = useState(() => {
+    const f = searchParams.get("filter");
+    if (f === "low_stock" || f === "lowStock" || f === "low-stock") return "low_stock";
+    if (f === "expiring" || f === "expired") return "expiring";
+    return "all";
+  });
+
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    if (f === "low_stock" || f === "lowStock" || f === "low-stock") {
+      setFilterType("low_stock");
+    } else if (f === "expiring" || f === "expired") {
+      setFilterType("expiring");
+    } else if (!f || f === "all") {
+      setFilterType("all");
+    }
+  }, [searchParams]);
+
+  const handleFilterCardClick = (type) => {
+    if (filterType === type) {
+      setFilterType("all");
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("filter");
+        return next;
+      });
+    } else {
+      setFilterType(type);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (type === "all") {
+          next.delete("filter");
+        } else {
+          next.set("filter", type);
+        }
+        return next;
+      });
+    }
+  };
 
   /* =====================================================
      BACKGROUND SYNC — SERVER DATABASE & UPDATES
@@ -531,14 +540,30 @@ export default function Medicines() {
       const matchesCategory =
         activeCategory === "All" || m.category === activeCategory;
 
-      return matchesSearch && matchesCategory;
-    });
-  }, [medicines, searchQuery, activeCategory]);
+      if (!matchesSearch || !matchesCategory) return false;
 
-  // Reset page when filter or search changes
+      // Filter by Low Stock
+      if (filterType === "low_stock") {
+        return Number(m.stock) < 50 || Number(m.stock) <= Number(m.minStock || 20);
+      }
+
+      // Filter by Expiring Soon (within 90 days or expired)
+      if (filterType === "expiring") {
+        if (!m.expiry) return false;
+        const d = new Date(m.expiry);
+        const t = new Date();
+        t.setMonth(t.getMonth() + 3);
+        return !isNaN(d.getTime()) && d <= t;
+      }
+
+      return true;
+    });
+  }, [medicines, searchQuery, activeCategory, filterType]);
+
+  // Reset page when filter, search or category changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeCategory]);
+  }, [searchQuery, activeCategory, filterType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginatedMedicines = useMemo(() => {
@@ -582,36 +607,6 @@ export default function Medicines() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            {medicines.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  loadSampleDataForCurrentUser();
-                  setMedicines(getInitialMedicines());
-                  toast.success("Loaded sample pharmacy medicines!");
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
-                title="Load sample inventory for demonstration"
-              >
-                <span>⚡ Load Sample Data (Demo)</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm("Reset all medicines to 0 for this account?")) {
-                    clearCurrentUserData();
-                    setMedicines([]);
-                    toast.success("Medicines reset to 0!");
-                  }
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs font-medium hover:text-rose-600 transition cursor-pointer"
-                title="Reset medicines to 0"
-              >
-                <span>Clear to 0</span>
-              </button>
-            )}
-
             <button
               onClick={() => {
                 setAddModalTab("pdf");
@@ -637,9 +632,19 @@ export default function Medicines() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats / Interactive Filter Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          {/* Total card */}
+          <button
+            type="button"
+            onClick={() => handleFilterCardClick("all")}
+            className={`text-left bg-white dark:bg-slate-900 rounded-xl p-5 border transition-all cursor-pointer ${
+              filterType === "all"
+                ? "border-sky-400 dark:border-sky-500 ring-2 ring-sky-500/30 bg-sky-50/20 dark:bg-sky-950/20 shadow-md"
+                : "border-sky-100 dark:border-slate-800 shadow-xs hover:border-sky-200 hover:shadow-sm"
+            }`}
+            title="Click to view all medicines"
+          >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total</span>
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 dark:bg-sky-500/15 border border-sky-200/60 dark:border-sky-500/25 flex items-center justify-center">
@@ -647,9 +652,22 @@ export default function Medicines() {
               </div>
             </div>
             <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</p>
-          </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+              {filterType === "all" ? "Showing all medicines" : "Click to show all"}
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          {/* Low Stock card */}
+          <button
+            type="button"
+            onClick={() => handleFilterCardClick("low_stock")}
+            className={`text-left bg-white dark:bg-slate-900 rounded-xl p-5 border transition-all cursor-pointer ${
+              filterType === "low_stock"
+                ? "border-rose-400 dark:border-rose-500 ring-2 ring-rose-500 bg-rose-50/40 dark:bg-rose-950/30 shadow-md"
+                : "border-sky-100 dark:border-slate-800 shadow-xs hover:border-rose-300 hover:shadow-sm"
+            }`}
+            title="Click to filter low stock medicines"
+          >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Low Stock</span>
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-200/60 dark:border-rose-500/25 flex items-center justify-center">
@@ -657,9 +675,22 @@ export default function Medicines() {
               </div>
             </div>
             <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{stats.lowStock}</p>
-          </div>
+            <p className="text-[11px] text-rose-500 dark:text-rose-400 font-medium mt-1">
+              {filterType === "low_stock" ? "✓ Active Filter (Stock < 50)" : "Click to view low stock"}
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          {/* Expiring card */}
+          <button
+            type="button"
+            onClick={() => handleFilterCardClick("expiring")}
+            className={`text-left bg-white dark:bg-slate-900 rounded-xl p-5 border transition-all cursor-pointer ${
+              filterType === "expiring"
+                ? "border-amber-400 dark:border-amber-500 ring-2 ring-amber-500 bg-amber-50/40 dark:bg-amber-950/30 shadow-md"
+                : "border-sky-100 dark:border-slate-800 shadow-xs hover:border-amber-300 hover:shadow-sm"
+            }`}
+            title="Click to filter expiring medicines"
+          >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Expiring</span>
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-200/60 dark:border-amber-500/25 flex items-center justify-center">
@@ -667,9 +698,13 @@ export default function Medicines() {
               </div>
             </div>
             <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.expiring}</p>
-          </div>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1">
+              {filterType === "expiring" ? "✓ Active Filter (< 90 days)" : "Click to view expiring"}
+            </p>
+          </button>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+          {/* Categories card */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-sky-100 dark:border-slate-800 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Categories</span>
               <div className="w-10 h-10 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-200/60 dark:border-violet-500/25 flex items-center justify-center">
@@ -677,6 +712,7 @@ export default function Medicines() {
               </div>
             </div>
             <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{stats.categories}</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Active classifications</p>
           </div>
         </div>
 
@@ -758,6 +794,50 @@ export default function Medicines() {
           </div>
         </div>
 
+        {/* Active Filter Banner */}
+        {filterType !== "all" && (
+          <div className="flex items-center justify-between bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 rounded-xl px-4 py-3 mb-5 text-sm shadow-xs">
+            <div className="flex items-center gap-2.5">
+              {filterType === "low_stock" ? (
+                <>
+                  <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                    <AlertTriangle size={15} />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      Filtering by: <span className="text-rose-600 dark:text-rose-400">Low Stock</span>
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
+                      ({filtered.length} medicines with stock &lt; 50 or below reorder level)
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <CalendarClock size={15} />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      Filtering by: <span className="text-amber-600 dark:text-amber-400">Expiring Soon</span>
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
+                      ({filtered.length} medicines expiring within 90 days or already expired)
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => handleFilterCardClick("all")}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
+            >
+              <X size={13} />
+              <span>Reset Filter</span>
+            </button>
+          </div>
+        )}
+
         {/* Results */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -782,7 +862,7 @@ export default function Medicines() {
                   No Medicines in Inventory (0 Items)
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                  Your new pharmacy account starts with 0 medicines so you can stock your own custom catalog. Add medicines manually, import from a bill, or load sample inventory.
+                  Your pharmacy inventory is clean. Add medicines manually, or import from wholesale invoices and bills.
                 </p>
                 <div className="flex items-center justify-center gap-2.5 flex-wrap">
                   <button
@@ -797,13 +877,13 @@ export default function Medicines() {
                   </button>
                   <button
                     onClick={() => {
-                      loadSampleDataForCurrentUser();
-                      setMedicines(getInitialMedicines());
-                      toast.success("Loaded sample pharmacy inventory!");
+                      setAddModalTab("pdf");
+                      setShowAddMedicine(true);
                     }}
                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-xs font-semibold transition cursor-pointer"
                   >
-                    <span>⚡ Load Sample Data (Demo)</span>
+                    <FileUp size={14} className="text-[#0284c7] dark:text-sky-400" />
+                    <span>Import via PDF / Bill</span>
                   </button>
                 </div>
               </>
@@ -811,10 +891,20 @@ export default function Medicines() {
               <>
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1">No medicines match filter</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-                  {activeCategory !== "All"
-                    ? `No ${activeCategory} medicines available`
-                    : "Try a different search term or select All categories"}
+                  {filterType !== "all"
+                    ? `No medicines match "${filterType === "low_stock" ? "Low Stock" : "Expiring Soon"}" filter.`
+                    : activeCategory !== "All"
+                    ? `No ${activeCategory} medicines available.`
+                    : "Try a different search term or select All categories."}
                 </p>
+                {filterType !== "all" && (
+                  <button
+                    onClick={() => handleFilterCardClick("all")}
+                    className="px-3.5 py-1.5 text-xs font-semibold rounded-md bg-[#0284c7] text-white hover:bg-[#0369a1] transition shadow-xs cursor-pointer"
+                  >
+                    Show All Medicines
+                  </button>
+                )}
               </>
             )}
           </div>

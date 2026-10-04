@@ -46,7 +46,7 @@ import { billingFirebaseService } from "../services/billingFirebaseService";
 import { patientsFirebaseService } from "../services/patientsFirebaseService";
 import { deductCartFromInventory } from "../utils/inventoryDeduction";
 import { checkDrugInteractions } from "../utils/drugInteractionChecker";
-import defaultMedicines from "../data/catalogMedicines.json";
+import { getScopedKey } from "../utils/userScope";
 import PrescriptionScanner from "../components/prescriptions/PrescriptionScanner";
 
 const DRAFT_KEY = "meditrack_pos_active_draft";
@@ -54,7 +54,8 @@ const DRAFT_KEY = "meditrack_pos_active_draft";
 function getSavedDraft() {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const scopedDraftKey = getScopedKey(DRAFT_KEY);
+    const raw = localStorage.getItem(scopedDraftKey);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -62,48 +63,27 @@ function getSavedDraft() {
 }
 
 function getInitialBillingCatalog() {
-  if (typeof window === "undefined") return defaultMedicines;
+  if (typeof window === "undefined") return [];
   try {
     const deletedIds = new Set(
-      JSON.parse(localStorage.getItem("meditrack_deleted_medicines") || "[]")
+      JSON.parse(localStorage.getItem(getScopedKey("meditrack_deleted_medicines")) || "[]")
     );
     const overrides = JSON.parse(
-      localStorage.getItem("meditrack_medicine_overrides") || "{}"
+      localStorage.getItem(getScopedKey("meditrack_medicine_overrides")) || "{}"
     );
     const custom = JSON.parse(
-      localStorage.getItem("meditrack_custom_medicines") || "[]"
+      localStorage.getItem(getScopedKey("meditrack_custom_medicines")) || "[]"
     );
 
-    const merged = defaultMedicines
+    return custom
       .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
       .map((m) => {
         const override = overrides[m.id] || overrides[m.name];
-        if (!override) return m;
-        return {
-          ...m,
-          stock: override.stock !== undefined ? override.stock : m.stock,
-          batch: override.batch || m.batch,
-          rack: override.rack || m.rack,
-        };
+        return override ? { ...m, ...override } : m;
       });
-
-    const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
-    const catalogNames = new Set(
-      defaultMedicines.map((m) => (m.name || "").toLowerCase())
-    );
-
-    const activeCustom = custom.filter(
-      (m) =>
-        !deletedIds.has(String(m.id)) &&
-        !deletedIds.has(m.name) &&
-        !catalogIds.has(String(m.id)) &&
-        !catalogNames.has((m.name || "").toLowerCase())
-    );
-
-    return [...activeCustom, ...merged];
   } catch (err) {
     console.debug("Initial billing catalog fallback:", err);
-    return defaultMedicines;
+    return [];
   }
 }
 
@@ -465,20 +445,24 @@ export default function Billing() {
 
     // 2. Real-time Firestore sync
     const unsub = inventoryFirebaseService.subscribeToMedicines((fbMeds) => {
-      if (fbMeds && fbMeds.length > 0) {
-        setCatalog((prev) => {
-          const map = new Map();
-          prev.forEach((p) => map.set(String(p.id), p));
-          fbMeds.forEach((m) => {
-            const existing = map.get(String(m.id));
-            if (existing) {
-              map.set(String(m.id), { ...existing, ...m });
-            } else if (m.isCustom) {
-              map.set(String(m.id), m);
-            }
+      if (Array.isArray(fbMeds)) {
+        if (fbMeds.length === 0) {
+          setCatalog([]);
+        } else {
+          setCatalog((prev) => {
+            const map = new Map();
+            prev.forEach((p) => map.set(String(p.id), p));
+            fbMeds.forEach((m) => {
+              const existing = map.get(String(m.id));
+              if (existing) {
+                map.set(String(m.id), { ...existing, ...m });
+              } else {
+                map.set(String(m.id), m);
+              }
+            });
+            return Array.from(map.values());
           });
-          return Array.from(map.values());
-        });
+        }
       }
     });
 
@@ -506,9 +490,10 @@ export default function Billing() {
           c.patientPhone ||
           c.doctorName
       );
+      const scopedDraftKey = getScopedKey(DRAFT_KEY);
       if (hasAnyContent || carts.length > 1) {
         localStorage.setItem(
-          DRAFT_KEY,
+          scopedDraftKey,
           JSON.stringify({
             carts,
             activeCartId,
@@ -516,7 +501,7 @@ export default function Billing() {
           })
         );
       } else {
-        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(scopedDraftKey);
       }
     } catch (e) {
       console.debug("Billing draft auto-save note:", e);
@@ -920,8 +905,9 @@ export default function Billing() {
     };
 
     try {
-      const existing = JSON.parse(localStorage.getItem("meditrack_day_closings") || "[]");
-      localStorage.setItem("meditrack_day_closings", JSON.stringify([record, ...existing]));
+      const closingsKey = getScopedKey("meditrack_day_closings");
+      const existing = JSON.parse(localStorage.getItem(closingsKey) || "[]");
+      localStorage.setItem(closingsKey, JSON.stringify([record, ...existing]));
       setDayCloseSuccess(true);
       toast.success("Day shift closed & statutory Z-Report archived!");
       setTimeout(() => setDayCloseSuccess(false), 4000);

@@ -70,8 +70,6 @@ export default function ExpiryManagement() {
     returnItem,
     deleteItem,
     restoreItem,
-    loadSampleData,
-    clearAllData,
   } = useExpiryData();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -253,35 +251,6 @@ export default function ExpiryManagement() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Quick Demo Sample Data Toggle */}
-            {items.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  loadSampleData();
-                  toast.success("Loaded 48 FEFO demo expiry items!");
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
-                title="Load 48 sample FEFO batches for demonstration"
-              >
-                <span>⚡ Load Sample Data (Demo)</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm("Reset all expiry items to 0 for this account?")) {
-                    clearAllData();
-                    toast.success("Expiry items reset to 0!");
-                  }
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs font-medium hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
-                title="Clear all expiry items back to 0"
-              >
-                <span>Clear to 0</span>
-              </button>
-            )}
-
             {/* Segmented Pill Tab Switcher */}
             <div className="flex items-center p-1 bg-slate-200/80 dark:bg-slate-800 rounded-xl border border-slate-300/70 dark:border-slate-700 text-xs font-medium">
               <button
@@ -599,7 +568,7 @@ export default function ExpiryManagement() {
                               No Expiring Medicines Tracked (0 Items)
                             </p>
                             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-5 leading-relaxed">
-                              Your new account is clean. Add medicine batches with expiry dates to automatically activate FEFO 90/60/30 day monitoring, or load sample demo data.
+                              Your account is clean. Add medicine batches with expiry dates to automatically activate FEFO 90/60/30 day monitoring.
                             </p>
                             <div className="flex items-center gap-2.5">
                               <button
@@ -607,15 +576,6 @@ export default function ExpiryManagement() {
                                 className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#0284c7] text-white hover:bg-[#0369a1] transition shadow-xs cursor-pointer"
                               >
                                 + Add Batch
-                              </button>
-                              <button
-                                onClick={() => {
-                                  loadSampleData();
-                                  toast.success("Loaded 48 FEFO demo expiry items!");
-                                }}
-                                className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition cursor-pointer"
-                              >
-                                ⚡ Load Sample Data (Demo)
                               </button>
                             </div>
                           </>

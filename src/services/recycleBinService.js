@@ -10,7 +10,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { getScopedKey, getUserScopeId } from "../utils/userScope";
+import { getScopedKey, getUserScopeId, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const LOCAL_KEY = "meditrack_recycle_bin";
 const FIRESTORE_COLLECTION = "recycle_bin";
@@ -56,11 +56,11 @@ export const recycleBinService = {
       // Backend offline or running purely on frontend / Vercel
     }
 
-    // 2. Try Cloud Firestore
+    // 2. Try Cloud Firestore (User Isolated)
     try {
       if (db) {
         const q = query(
-          collection(db, FIRESTORE_COLLECTION),
+          getUserCollectionRef(db, FIRESTORE_COLLECTION),
           orderBy("deletedAt", "desc"),
           limit(100)
         );
@@ -127,10 +127,10 @@ export const recycleBinService = {
       // safe fallback
     }
 
-    // 3. Persist to Cloud Firestore
+    // 3. Persist to Cloud Firestore (User Isolated)
     try {
       if (db) {
-        setDoc(doc(db, FIRESTORE_COLLECTION, trashId), trashEntry).catch(() => {});
+        setDoc(getUserDocRef(db, FIRESTORE_COLLECTION, trashId), trashEntry).catch(() => {});
       }
     } catch (fbErr) {
       console.debug("[recycleBinService] Firestore write note:", fbErr.message);
@@ -158,10 +158,10 @@ export const recycleBinService = {
       // safe fallback
     }
 
-    // 3. Remove from Cloud Firestore
+    // 3. Remove from Cloud Firestore (User Isolated)
     try {
       if (db) {
-        deleteDoc(doc(db, FIRESTORE_COLLECTION, trashId)).catch(() => {});
+        deleteDoc(getUserDocRef(db, FIRESTORE_COLLECTION, trashId)).catch(() => {});
       }
     } catch {
       // safe fallback
@@ -186,7 +186,7 @@ export const recycleBinService = {
 
     try {
       if (db) {
-        deleteDoc(doc(db, FIRESTORE_COLLECTION, trashId)).catch(() => {});
+        deleteDoc(getUserDocRef(db, FIRESTORE_COLLECTION, trashId)).catch(() => {});
       }
     } catch {
       // safe fallback
@@ -209,7 +209,7 @@ export const recycleBinService = {
 
     try {
       if (db) {
-        const q = query(collection(db, FIRESTORE_COLLECTION), limit(100));
+        const q = query(getUserCollectionRef(db, FIRESTORE_COLLECTION), limit(100));
         const snap = await getDocs(q);
         snap.forEach((d) => deleteDoc(d.ref).catch(() => {}));
       }

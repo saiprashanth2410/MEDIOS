@@ -9,10 +9,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import defaultMedicines from "../data/catalogMedicines.json";
-import { MEDICINES } from "../data/medicines";
 
-import { getScopedKey, isDemoAccount, getUserScopeId } from "../utils/userScope";
+import { getScopedKey, getUserScopeId, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const COLLECTION_NAME = "medicines";
 
@@ -29,39 +27,7 @@ function getLocalCombinedCatalog() {
       localStorage.getItem(getScopedKey("meditrack_custom_medicines")) || "[]"
     );
 
-    // Only demo accounts get seed catalog medicines
-    if (isDemoAccount()) {
-      const merged = defaultMedicines
-        .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
-        .map((m) => {
-          const override = overrides[m.id] || overrides[m.name];
-          if (!override) return m;
-          return {
-            ...m,
-            stock: override.stock !== undefined ? override.stock : m.stock,
-            batch: override.batch || m.batch,
-            rack: override.rack || m.rack,
-            price: override.price !== undefined ? override.price : m.price,
-          };
-        });
-
-      const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
-      const catalogNames = new Set(
-        defaultMedicines.map((m) => (m.name || "").toLowerCase())
-      );
-
-      const activeCustom = custom.filter(
-        (m) =>
-          !deletedIds.has(String(m.id)) &&
-          !deletedIds.has(m.name) &&
-          !catalogIds.has(String(m.id)) &&
-          !catalogNames.has((m.name || "").toLowerCase())
-      );
-
-      return [...activeCustom, ...merged];
-    }
-
-    // For real user accounts: return only medicines belonging to this user
+    // Return only this user's custom medicines
     return custom
       .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
       .map((m) => {
@@ -76,11 +42,11 @@ function getLocalCombinedCatalog() {
 
 export const inventoryFirebaseService = {
   /* =====================================================
-     REAL-TIME LISTENER FOR MEDICINES INVENTORY
+     REAL-TIME LISTENER FOR MEDICINES INVENTORY (PER USER)
   ===================================================== */
   subscribeToMedicines(callback, onError) {
     try {
-      const colRef = collection(db, COLLECTION_NAME);
+      const colRef = getUserCollectionRef(db, COLLECTION_NAME);
       const unsubscribe = onSnapshot(
         colRef,
         (snapshot) => {
@@ -104,13 +70,13 @@ export const inventoryFirebaseService = {
   },
 
   /* =====================================================
-     FETCH ALL MEDICINES ONCE (COMBINES CATALOG + FIRESTORE)
+     FETCH ALL MEDICINES ONCE (PER USER ISOLATED)
   ===================================================== */
   async getMedicines() {
     let local = getLocalCombinedCatalog();
 
     try {
-      const colRef = collection(db, COLLECTION_NAME);
+      const colRef = getUserCollectionRef(db, COLLECTION_NAME);
       const snapshot = await getDocs(colRef);
       if (!snapshot.empty) {
         const cloudMeds = [];
@@ -226,7 +192,7 @@ export const inventoryFirebaseService = {
   async addMedicine(medicine) {
     try {
       const id = String(medicine.id || medicine.code || `MED-${Date.now().toString().slice(-4)}`);
-      const docRef = doc(db, COLLECTION_NAME, id);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, id);
 
       const payload = {
         id,
@@ -279,7 +245,7 @@ export const inventoryFirebaseService = {
   async updateMedicine(id, updates) {
     try {
       const cleanId = String(id);
-      const docRef = doc(db, COLLECTION_NAME, cleanId);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, cleanId);
       const cleanUpdates = {
         ...updates,
         updatedAt: serverTimestamp(),
@@ -295,12 +261,13 @@ export const inventoryFirebaseService = {
       // Local storage overrides
       if (typeof window !== "undefined") {
         try {
-          const overrides = JSON.parse(localStorage.getItem("meditrack_medicine_overrides") || "{}");
+          const overridesKey = getScopedKey("meditrack_medicine_overrides");
+          const overrides = JSON.parse(localStorage.getItem(overridesKey) || "{}");
           overrides[cleanId] = {
             ...(overrides[cleanId] || {}),
             ...cleanUpdates,
           };
-          localStorage.setItem("meditrack_medicine_overrides", JSON.stringify(overrides));
+          localStorage.setItem(overridesKey, JSON.stringify(overrides));
           window.dispatchEvent(new Event("meditrack_stock_updated"));
         } catch (_) {}
       }
@@ -364,14 +331,15 @@ export const inventoryFirebaseService = {
   async deleteMedicine(id) {
     try {
       const cleanId = String(id);
-      const docRef = doc(db, COLLECTION_NAME, cleanId);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, cleanId);
 
       if (typeof window !== "undefined") {
         try {
-          const deleted = JSON.parse(localStorage.getItem("meditrack_deleted_medicines") || "[]");
+          const deletedKey = getScopedKey("meditrack_deleted_medicines");
+          const deleted = JSON.parse(localStorage.getItem(deletedKey) || "[]");
           if (!deleted.includes(cleanId)) {
             deleted.push(cleanId);
-            localStorage.setItem("meditrack_deleted_medicines", JSON.stringify(deleted));
+            localStorage.setItem(deletedKey, JSON.stringify(deleted));
           }
           window.dispatchEvent(new Event("meditrack_medicines_updated"));
         } catch (_) {}
@@ -387,27 +355,6 @@ export const inventoryFirebaseService = {
 
   delete(id) {
     return this.deleteMedicine(id);
-  },
-
-  /* =====================================================
-     SEED INITIAL CATALOG IF FIRESTORE IS EMPTY
-  ===================================================== */
-  async seedCatalogIfEmpty() {
-    try {
-      const existing = await this.getMedicines();
-      if (existing.length === 0 && MEDICINES.length > 0) {
-        for (const med of MEDICINES) {
-          await this.addMedicine({
-            ...med,
-            hsn: "3004",
-            gstRate: 12,
-            mrp: med.price ? Math.round(med.price * 1.15) : 60,
-          });
-        }
-      }
-    } catch (err) {
-      console.warn("[inventoryFirebase] Catalog seed notice:", err.message);
-    }
   },
 };
 

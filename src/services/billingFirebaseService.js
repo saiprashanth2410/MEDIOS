@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { inventoryFirebaseService } from "./inventoryFirebaseService";
-import { getScopedKey } from "../utils/userScope";
+import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const SALES_COLLECTION = "sales";
 const SCHED_H_COLLECTION = "schedule_h_register";
@@ -163,7 +163,7 @@ export const billingFirebaseService = {
 
       // Background Firestore sync for Schedule H
       try {
-        await setDoc(doc(db, SCHED_H_COLLECTION, regId), {
+        await setDoc(getUserDocRef(db, SCHED_H_COLLECTION, regId), {
           ...hPayload,
           createdAt: serverTimestamp(),
         });
@@ -174,7 +174,7 @@ export const billingFirebaseService = {
 
     // 3. Background Firestore sync for invoice
     try {
-      const saleDocRef = doc(db, SALES_COLLECTION, invId);
+      const saleDocRef = getUserDocRef(db, SALES_COLLECTION, invId);
       await setDoc(saleDocRef, {
         ...salePayload,
         createdAt: serverTimestamp(),
@@ -207,7 +207,7 @@ export const billingFirebaseService = {
   async getRecentInvoices(maxCount = 30) {
     const local = getLocalSales();
     try {
-      const colRef = collection(db, SALES_COLLECTION);
+      const colRef = getUserCollectionRef(db, SALES_COLLECTION);
       const q = query(colRef, orderBy("createdAt", "desc"), limit(maxCount));
       const snap = await getDocs(q);
       const firestoreList = [];
@@ -232,7 +232,7 @@ export const billingFirebaseService = {
   async getScheduleHRegister(maxCount = 100) {
     const local = getLocalSchedHLogs();
     try {
-      const colRef = collection(db, SCHED_H_COLLECTION);
+      const colRef = getUserCollectionRef(db, SCHED_H_COLLECTION);
       const q = query(colRef, orderBy("createdAt", "desc"), limit(maxCount));
       const snap = await getDocs(q);
       const firestoreList = [];

@@ -1,5 +1,5 @@
-import defaultMedicines from "../data/catalogMedicines.json";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
+import { getScopedKey } from "./userScope";
 
 /**
  * Calculates the quantity of medicine to deduct based on prescription details.
@@ -46,48 +46,27 @@ export function calculateMedicineQuantity(med) {
  * Helper to get live in-memory/persisted inventory list
  */
 function getActiveInventory() {
-  if (typeof window === "undefined") return defaultMedicines;
+  if (typeof window === "undefined") return [];
   try {
     const deletedIds = new Set(
-      JSON.parse(localStorage.getItem("meditrack_deleted_medicines") || "[]")
+      JSON.parse(localStorage.getItem(getScopedKey("meditrack_deleted_medicines")) || "[]")
     );
     const overrides = JSON.parse(
-      localStorage.getItem("meditrack_medicine_overrides") || "{}"
+      localStorage.getItem(getScopedKey("meditrack_medicine_overrides")) || "{}"
     );
     const custom = JSON.parse(
-      localStorage.getItem("meditrack_custom_medicines") || "[]"
+      localStorage.getItem(getScopedKey("meditrack_custom_medicines")) || "[]"
     );
 
-    const merged = defaultMedicines
+    return custom
       .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
       .map((m) => {
         const override = overrides[m.id] || overrides[m.name];
-        if (!override) return m;
-        return {
-          ...m,
-          stock: override.stock !== undefined ? override.stock : m.stock,
-          batch: override.batch || m.batch,
-          rack: override.rack || m.rack,
-        };
+        return override ? { ...m, ...override } : m;
       });
-
-    const activeCustom = custom
-      .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
-      .map((m) => {
-        const override = overrides[m.id] || overrides[m.name];
-        if (!override) return m;
-        return {
-          ...m,
-          stock: override.stock !== undefined ? override.stock : m.stock,
-          batch: override.batch || m.batch,
-          rack: override.rack || m.rack,
-        };
-      });
-
-    return [...activeCustom, ...merged];
   } catch (e) {
     console.debug("Failed to read active inventory:", e);
-    return defaultMedicines;
+    return [];
   }
 }
 
@@ -237,8 +216,9 @@ export function findSubstitutes(med, maxResults = 3) {
  */
 export function addMedicineToReorder(medName, requestedQty = 50) {
   try {
+    const reorderKey = getScopedKey("meditrack_reorder_list");
     const saved = JSON.parse(
-      localStorage.getItem("meditrack_reorder_list") || "[]"
+      localStorage.getItem(reorderKey) || "[]"
     );
     const existingIndex = saved.findIndex(
       (item) => item.name.toLowerCase() === medName.toLowerCase()
@@ -255,7 +235,7 @@ export function addMedicineToReorder(medName, requestedQty = 50) {
         addedAt: new Date().toISOString(),
       });
     }
-    localStorage.setItem("meditrack_reorder_list", JSON.stringify(saved));
+    localStorage.setItem(reorderKey, JSON.stringify(saved));
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("meditrack_reorder_updated"));
     }
@@ -275,9 +255,11 @@ export function deductPrescriptionInventory(prescription) {
 
   const deductedItems = [];
   try {
+    const overridesKey = getScopedKey("meditrack_medicine_overrides");
+    const customKey = getScopedKey("meditrack_custom_medicines");
     let overrides = {};
     try {
-      const saved = localStorage.getItem("meditrack_medicine_overrides");
+      const saved = localStorage.getItem(overridesKey);
       if (saved) overrides = JSON.parse(saved);
     } catch (e) {
       console.debug("Overrides read error:", e);
@@ -285,7 +267,7 @@ export function deductPrescriptionInventory(prescription) {
 
     let custom = [];
     try {
-      const savedCustom = localStorage.getItem("meditrack_custom_medicines");
+      const savedCustom = localStorage.getItem(customKey);
       if (savedCustom) custom = JSON.parse(savedCustom);
     } catch (e) {
       console.debug("Custom medicines read error:", e);
@@ -296,18 +278,12 @@ export function deductPrescriptionInventory(prescription) {
       const targetName = rxMed.name.trim().toLowerCase();
       const firstWord = targetName.split(" ")[0].replace(/[^a-zA-Z0-9]/g, "");
 
-      // Find in custom medicines or catalog
+      // Find in custom medicines
       const catalogMatch =
         custom.find(
           (m) =>
             m.name.toLowerCase() === targetName ||
             (firstWord.length >= 3 && m.name.toLowerCase().startsWith(firstWord))
-        ) ||
-        defaultMedicines.find(
-          (m) =>
-            m.name.toLowerCase() === targetName ||
-            (firstWord.length >= 3 && m.name.toLowerCase().startsWith(firstWord)) ||
-            m.fullName.toLowerCase().includes(firstWord)
         );
 
       const qty = calculateMedicineQuantity(rxMed);
@@ -355,7 +331,7 @@ export function deductPrescriptionInventory(prescription) {
     });
 
     localStorage.setItem(
-      "meditrack_medicine_overrides",
+      overridesKey,
       JSON.stringify(overrides)
     );
 
@@ -379,9 +355,11 @@ export function deductCartFromInventory(cartItems) {
 
   const deductedItems = [];
   try {
+    const overridesKey = getScopedKey("meditrack_medicine_overrides");
+    const customKey = getScopedKey("meditrack_custom_medicines");
     let overrides = {};
     try {
-      const saved = localStorage.getItem("meditrack_medicine_overrides");
+      const saved = localStorage.getItem(overridesKey);
       if (saved) overrides = JSON.parse(saved);
     } catch (e) {
       console.debug("Overrides read error:", e);
@@ -389,7 +367,7 @@ export function deductCartFromInventory(cartItems) {
 
     let custom = [];
     try {
-      const savedCustom = localStorage.getItem("meditrack_custom_medicines");
+      const savedCustom = localStorage.getItem(customKey);
       if (savedCustom) custom = JSON.parse(savedCustom);
     } catch (e) {
       console.debug("Custom medicines read error:", e);
@@ -401,12 +379,10 @@ export function deductCartFromInventory(cartItems) {
       const targetId = cartItem.id ? String(cartItem.id) : null;
       const qty = Math.max(1, Number(cartItem.quantity) || 1);
 
-      // Match in custom medicines or defaultMedicines catalog
+      // Match in user's custom medicines
       const catalogMatch =
         (targetId && custom.find((m) => String(m.id) === targetId)) ||
-        custom.find((m) => m.name.toLowerCase() === targetName) ||
-        (targetId && defaultMedicines.find((m) => String(m.id) === targetId)) ||
-        defaultMedicines.find((m) => m.name.toLowerCase() === targetName);
+        custom.find((m) => m.name.toLowerCase() === targetName);
 
       if (catalogMatch) {
         const id = catalogMatch.id;
@@ -457,7 +433,7 @@ export function deductCartFromInventory(cartItems) {
     });
 
     localStorage.setItem(
-      "meditrack_medicine_overrides",
+      overridesKey,
       JSON.stringify(overrides)
     );
 

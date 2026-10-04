@@ -14,53 +14,7 @@ import {
 } from "lucide-react";
 import { notificationsAPI } from "../../services/api";
 import { toast } from "sonner";
-
-/* =====================================================
-   FALLBACK NOTIFICATIONS
-===================================================== */
-
-const FALLBACK_NOTIFICATIONS = [
-  {
-    id: "NOTIF-1",
-    type: "expiry",
-    title: "Medicine expiring soon",
-    message: "Safedox (BATCH-1000) expires in 15 days",
-    createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    read: false,
-    color: "amber",
-    link: "/expiry",
-  },
-  {
-    id: "NOTIF-2",
-    type: "stock",
-    title: "Low stock alert",
-    message: "Flucret stock is below 10 units",
-    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-    read: false,
-    color: "red",
-    link: "/medicines",
-  },
-  {
-    id: "NOTIF-3",
-    type: "expiry",
-    title: "Batch expired",
-    message: "BATCH-0998 expired yesterday — remove from shelf",
-    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-    read: false,
-    color: "red",
-    link: "/batches",
-  },
-  {
-    id: "NOTIF-4",
-    type: "order",
-    title: "Purchase order pending",
-    message: "PO-2026-045 waiting for supplier confirmation",
-    createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-    read: true,
-    color: "blue",
-    link: "/suppliers",
-  },
-];
+import { getScopedKey } from "../../utils/userScope";
 
 /* =====================================================
    COLOR & ICON MAPS
@@ -118,10 +72,10 @@ function getInitialBellNotifications() {
   if (typeof window === "undefined") return [];
   try {
     const isCleared =
-      localStorage.getItem("meditrack_notifications_cleared") === "true";
+      localStorage.getItem(getScopedKey("meditrack_notifications_cleared")) === "true";
     if (isCleared) return [];
 
-    const saved = localStorage.getItem("meditrack_notifications");
+    const saved = localStorage.getItem(getScopedKey("meditrack_notifications"));
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) return parsed;
@@ -129,7 +83,18 @@ function getInitialBellNotifications() {
   } catch (e) {
     console.debug("Bell initial notifications fallback:", e);
   }
-  return FALLBACK_NOTIFICATIONS;
+  return [
+    {
+      id: "notif-welcome",
+      title: "Welcome to MediTrackOS",
+      message: "Your new pharmacy account is active. Add medicines and batches to begin tracking.",
+      type: "system",
+      color: "emerald",
+      createdAt: new Date().toISOString(),
+      read: false,
+      link: "/medicines",
+    },
+  ];
 }
 
 /* =====================================================
@@ -155,7 +120,7 @@ export default function NotificationBell() {
     const load = async () => {
       try {
         const isCleared =
-          localStorage.getItem("meditrack_notifications_cleared") === "true";
+          localStorage.getItem(getScopedKey("meditrack_notifications_cleared")) === "true";
         if (isCleared) {
           if (!cancelled) setNotifications([]);
           return;
@@ -164,11 +129,11 @@ export default function NotificationBell() {
         if (!cancelled && data?.notifications && Array.isArray(data.notifications)) {
           setNotifications(data.notifications);
           localStorage.setItem(
-            "meditrack_notifications",
+            getScopedKey("meditrack_notifications"),
             JSON.stringify(data.notifications)
           );
           if (data.notifications.length === 0) {
-            localStorage.setItem("meditrack_notifications_cleared", "true");
+            localStorage.setItem(getScopedKey("meditrack_notifications_cleared"), "true");
           }
         }
       } catch (err) {
@@ -195,7 +160,7 @@ export default function NotificationBell() {
     const refresh = async () => {
       try {
         const isCleared =
-          localStorage.getItem("meditrack_notifications_cleared") === "true";
+          localStorage.getItem(getScopedKey("meditrack_notifications_cleared")) === "true";
         if (isCleared) {
           if (!cancelled) setNotifications([]);
           return;
@@ -205,11 +170,11 @@ export default function NotificationBell() {
         if (!cancelled && data?.notifications && Array.isArray(data.notifications)) {
           setNotifications(data.notifications);
           localStorage.setItem(
-            "meditrack_notifications",
+            getScopedKey("meditrack_notifications"),
             JSON.stringify(data.notifications)
           );
           if (data.notifications.length === 0) {
-            localStorage.setItem("meditrack_notifications_cleared", "true");
+            localStorage.setItem(getScopedKey("meditrack_notifications_cleared"), "true");
           }
         }
       } catch (err) {
@@ -263,7 +228,7 @@ export default function NotificationBell() {
     const updated = notifications.map((n) => ({ ...n, read: true }));
     setNotifications(updated);
     try {
-      localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
+      localStorage.setItem(getScopedKey("meditrack_notifications"), JSON.stringify(updated));
       await notificationsAPI.markAllRead();
       window.dispatchEvent(new Event("meditrack_notifications_updated"));
       toast.success("All notifications marked as read");
@@ -279,7 +244,7 @@ export default function NotificationBell() {
       );
       setNotifications(updated);
       try {
-        localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
+        localStorage.setItem(getScopedKey("meditrack_notifications"), JSON.stringify(updated));
         await notificationsAPI.markRead(notif.id);
         window.dispatchEvent(new Event("meditrack_notifications_updated"));
       } catch (err) {
@@ -298,9 +263,9 @@ export default function NotificationBell() {
     const updated = notifications.filter((n) => n.id !== id && n._id !== id);
     setNotifications(updated);
     try {
-      localStorage.setItem("meditrack_notifications", JSON.stringify(updated));
+      localStorage.setItem(getScopedKey("meditrack_notifications"), JSON.stringify(updated));
       if (updated.length === 0) {
-        localStorage.setItem("meditrack_notifications_cleared", "true");
+        localStorage.setItem(getScopedKey("meditrack_notifications_cleared"), "true");
       }
       await notificationsAPI.delete(id);
       window.dispatchEvent(new Event("meditrack_notifications_updated"));
@@ -313,8 +278,8 @@ export default function NotificationBell() {
   const clearAll = async () => {
     setNotifications([]);
     try {
-      localStorage.setItem("meditrack_notifications_cleared", "true");
-      localStorage.setItem("meditrack_notifications", "[]");
+      localStorage.setItem(getScopedKey("meditrack_notifications_cleared"), "true");
+      localStorage.setItem(getScopedKey("meditrack_notifications"), "[]");
       await notificationsAPI.clearAll();
       window.dispatchEvent(new Event("meditrack_notifications_updated"));
       toast.success("Notifications cleared");

@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const COLLECTION_NAME = "prescriptions";
 const LOCAL_PRESCRIPTIONS_KEY = "meditrack_prescriptions";
@@ -16,7 +17,8 @@ const LOCAL_PRESCRIPTIONS_KEY = "meditrack_prescriptions";
 function getLocalPrescriptions() {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(LOCAL_PRESCRIPTIONS_KEY);
+    const scopedKey = getScopedKey(LOCAL_PRESCRIPTIONS_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -26,7 +28,8 @@ function getLocalPrescriptions() {
 function saveLocalPrescriptions(list) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_PRESCRIPTIONS_KEY, JSON.stringify(list));
+    const scopedKey = getScopedKey(LOCAL_PRESCRIPTIONS_KEY);
+    localStorage.setItem(scopedKey, JSON.stringify(list));
     window.dispatchEvent(new Event("meditrack_prescriptions_updated"));
   } catch (e) {
     console.debug("Local prescriptions save error:", e);
@@ -41,7 +44,7 @@ export const prescriptionsFirebaseService = {
     let all = getLocalPrescriptions();
 
     try {
-      const snap = await getDocs(collection(db, COLLECTION_NAME));
+      const snap = await getDocs(getUserCollectionRef(db, COLLECTION_NAME));
       if (!snap.empty) {
         const firestoreList = [];
         snap.forEach((d) => {
@@ -100,7 +103,7 @@ export const prescriptionsFirebaseService = {
   async get(id) {
     const local = getLocalPrescriptions().find((p) => p.id === id);
     try {
-      const docRef = doc(db, COLLECTION_NAME, id);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, id);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         return { id: snap.id, ...snap.data() };
@@ -131,7 +134,7 @@ export const prescriptionsFirebaseService = {
 
     // Save to Firestore in background
     try {
-      await setDoc(doc(db, COLLECTION_NAME, rxId), {
+      await setDoc(getUserDocRef(db, COLLECTION_NAME, rxId), {
         ...newRx,
         serverTimestamp: serverTimestamp(),
       });
@@ -158,7 +161,7 @@ export const prescriptionsFirebaseService = {
     saveLocalPrescriptions(current);
 
     try {
-      await updateDoc(doc(db, COLLECTION_NAME, id), {
+      await updateDoc(getUserDocRef(db, COLLECTION_NAME, id), {
         ...data,
         updatedAt: serverTimestamp(),
       });
@@ -178,7 +181,7 @@ export const prescriptionsFirebaseService = {
     saveLocalPrescriptions(updated);
 
     try {
-      await deleteDoc(doc(db, COLLECTION_NAME, id));
+      await deleteDoc(getUserDocRef(db, COLLECTION_NAME, id));
     } catch (err) {
       console.debug("Firestore delete prescription fallback:", err.message);
     }

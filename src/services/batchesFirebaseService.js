@@ -1,6 +1,4 @@
 import {
-  collection,
-  doc,
   setDoc,
   getDocs,
   deleteDoc,
@@ -8,8 +6,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import defaultMedicines from "../data/catalogMedicines.json";
-import { getScopedKey, isDemoAccount } from "../utils/userScope";
+import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 import { addExpiryItem } from "../utils/expiryStore";
 
 const COLLECTION_NAME = "batches";
@@ -25,22 +22,6 @@ function calculateBatchStatus(expiryDate) {
   return "Active";
 }
 
-function getInitialBatchesFromCatalog() {
-  return defaultMedicines.slice(0, 100).map((m, idx) => {
-    const expiry = m.expiry || "2027-10-31";
-    return {
-      id: `batch-${m.id || idx}`,
-      batchNumber: m.batch || `BT-${202600 + idx}`,
-      medicineName: m.name,
-      quantity: Number(m.stock) || 100,
-      expiryDate: expiry,
-      supplier: m.manufacturer || m.supplierName || "Cipla Pharmaceuticals Ltd",
-      status: calculateBatchStatus(expiry),
-      createdAt: new Date().toISOString(),
-    };
-  });
-}
-
 function getLocalBatches() {
   if (typeof window === "undefined") return [];
   const scopedKey = getScopedKey(LOCAL_BATCHES_KEY);
@@ -51,15 +32,6 @@ function getLocalBatches() {
       if (Array.isArray(parsed)) return parsed;
     }
   } catch {}
-
-  // Only demo accounts get pre-populated batches
-  if (isDemoAccount()) {
-    const initial = getInitialBatchesFromCatalog();
-    try {
-      localStorage.setItem(scopedKey, JSON.stringify(initial));
-    } catch {}
-    return initial;
-  }
 
   // Real user accounts start with 0 batches!
   try {
@@ -87,7 +59,7 @@ export const batchesFirebaseService = {
     let all = getLocalBatches();
 
     try {
-      const snap = await getDocs(collection(db, COLLECTION_NAME));
+      const snap = await getDocs(getUserCollectionRef(db, COLLECTION_NAME));
       if (!snap.empty) {
         const firestoreList = [];
         snap.forEach((d) => {
@@ -184,7 +156,7 @@ export const batchesFirebaseService = {
     }
 
     try {
-      await setDoc(doc(db, COLLECTION_NAME, id), {
+      await setDoc(getUserDocRef(db, COLLECTION_NAME, id), {
         ...newBatch,
         serverTimestamp: serverTimestamp(),
       });
@@ -218,7 +190,7 @@ export const batchesFirebaseService = {
     saveLocalBatches(current);
 
     try {
-      await updateDoc(doc(db, COLLECTION_NAME, id), {
+      await updateDoc(getUserDocRef(db, COLLECTION_NAME, id), {
         ...updatedBatch,
         updatedAt: serverTimestamp(),
       });
@@ -238,7 +210,7 @@ export const batchesFirebaseService = {
     saveLocalBatches(updated);
 
     try {
-      await deleteDoc(doc(db, COLLECTION_NAME, id));
+      await deleteDoc(getUserDocRef(db, COLLECTION_NAME, id));
     } catch (err) {
       console.debug("Firestore delete batch fallback:", err.message);
     }

@@ -17,7 +17,6 @@ import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { billingFirebaseService } from "../services/billingFirebaseService";
 import { prescriptionsFirebaseService } from "../services/prescriptionsFirebaseService";
 import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
-import defaultMedicines from "../data/catalogMedicines.json";
 
 export default function Analytics() {
   const [metrics, setMetrics] = useState([]);
@@ -37,7 +36,7 @@ export default function Analytics() {
 
         if (!isMounted) return;
 
-        const allMeds = meds?.length > 0 ? meds : defaultMedicines;
+        const allMeds = meds || [];
         const totalMeds = allMeds.length;
         const lowStock = allMeds.filter((m) => Number(m.stock) > 0 && Number(m.stock) <= (Number(m.minStock) || 20)).length;
         const outOfStock = allMeds.filter((m) => Number(m.stock) <= 0).length;

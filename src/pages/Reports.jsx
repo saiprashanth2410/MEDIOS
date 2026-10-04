@@ -15,7 +15,6 @@ import Navbar from "../components/dashboard/Navbar";
 import { billingFirebaseService } from "../services/billingFirebaseService";
 import { prescriptionsFirebaseService } from "../services/prescriptionsFirebaseService";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
-import defaultMedicines from "../data/catalogMedicines.json";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -24,7 +23,7 @@ export default function Reports() {
     { label: "Revenue (Live)", value: "₹0", change: "Live sync", trend: "up", icon: DollarSign },
     { label: "Prescriptions Filled", value: "0", change: "Verified", trend: "up", icon: ClipboardList },
     { label: "Medicines Sold", value: "0", change: "Real-time", trend: "up", icon: Pill },
-    { label: "Catalog Medicines", value: `${defaultMedicines.length} Items`, change: "In Stock", trend: "up", icon: Package },
+    { label: "Catalog Medicines", value: "0 Items", change: "In Stock", trend: "up", icon: Package },
   ]);
   const [topMedicines, setTopMedicines] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -80,7 +79,7 @@ export default function Reports() {
           }
         });
 
-        const activeCatalogCount = catalogMeds?.length || defaultMedicines.length;
+        const activeCatalogCount = catalogMeds?.length || 0;
         const filledPrescriptions = rxStats?.dispensed || 0;
 
         // Update real stats

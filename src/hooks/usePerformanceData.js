@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { billingFirebaseService } from "../services/billingFirebaseService";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
-import defaultMedicines from "../data/catalogMedicines.json";
-import { isDemoAccount } from "../utils/userScope";
 
 function getLiveMedicines() {
   try {
     const list = inventoryFirebaseService.getMedicines();
     if (Array.isArray(list)) return list;
   } catch {}
-  return isDemoAccount() ? defaultMedicines : [];
+  return [];
 }
 
 export default function usePerformanceData() {
