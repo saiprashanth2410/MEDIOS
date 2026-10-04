@@ -185,9 +185,16 @@ export default function Billing() {
   // Multi-Cart State: supports multiple concurrent customer carts (Cart 1, Cart 2, etc.)
   const initialCartsData = useMemo(() => {
     if (savedDraft?.carts && Array.isArray(savedDraft.carts) && savedDraft.carts.length > 0) {
+      const renumbered = savedDraft.carts.map((c, idx) => {
+        const isDefaultPattern = !c.name || /^Cart\s*\d+$/i.test(c.name.trim());
+        return {
+          ...c,
+          name: isDefaultPattern ? `Cart ${idx + 1}` : c.name,
+        };
+      });
       return {
-        carts: savedDraft.carts,
-        activeCartId: savedDraft.activeCartId || savedDraft.carts[0].id,
+        carts: renumbered,
+        activeCartId: savedDraft.activeCartId || renumbered[0].id,
       };
     }
     if (savedDraft?.cart && Array.isArray(savedDraft.cart) && savedDraft.cart.length > 0) {
@@ -332,15 +339,7 @@ export default function Billing() {
 
   // Add a new Cart tab
   const handleAddNewCart = () => {
-    let highestNum = carts.length;
-    carts.forEach((c) => {
-      const match = (c.name || "").match(/Cart (\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num >= highestNum) highestNum = num;
-      }
-    });
-    const newNum = highestNum + 1;
+    const newNum = carts.length + 1;
     const newId = `cart-${Date.now()}`;
     const newCart = {
       id: newId,
@@ -357,7 +356,7 @@ export default function Billing() {
     toast.success(`New Cart created: Cart ${newNum}`);
   };
 
-  // Close / Delete a Cart tab
+  // Close / Delete a Cart tab & auto-rename remaining carts
   const handleRemoveCart = (cartIdToRemove) => {
     if (carts.length <= 1) {
       handleClearCart();
@@ -375,11 +374,24 @@ export default function Billing() {
     }
     setCarts((prev) => {
       const remaining = prev.filter((c) => c.id !== cartIdToRemove);
+      const renumbered = remaining.map((c, idx) => {
+        const isDefaultPattern = !c.name || /^Cart\s*\d+$/i.test(c.name.trim());
+        return {
+          ...c,
+          name: isDefaultPattern ? `Cart ${idx + 1}` : c.name,
+        };
+      });
+
       if (activeCartId === cartIdToRemove) {
-        const nextActive = remaining[0]?.id || "cart-1";
+        const removedIndex = prev.findIndex((c) => c.id === cartIdToRemove);
+        const nextIndex = Math.min(
+          Math.max(0, removedIndex),
+          renumbered.length - 1
+        );
+        const nextActive = renumbered[nextIndex]?.id || renumbered[0]?.id || "cart-1";
         setActiveCartId(nextActive);
       }
-      return remaining;
+      return renumbered;
     });
     toast.info(`${targetCart?.name || "Cart"} closed`);
   };
@@ -1011,9 +1023,16 @@ export default function Billing() {
         toast.success(`Invoice ${invoiceNumber} generated & dispensed!`);
         if (carts.length > 1) {
           const remaining = carts.filter((c) => c.id !== activeCartId);
+          const renumbered = remaining.map((c, idx) => {
+            const isDefaultPattern = !c.name || /^Cart\s*\d+$/i.test(c.name.trim());
+            return {
+              ...c,
+              name: isDefaultPattern ? `Cart ${idx + 1}` : c.name,
+            };
+          });
           const nextWithItems =
-            remaining.find((c) => c.cart && c.cart.length > 0) || remaining[0];
-          setCarts(remaining);
+            renumbered.find((c) => c.cart && c.cart.length > 0) || renumbered[0];
+          setCarts(renumbered);
           setActiveCartId(nextWithItems.id);
         } else {
           updateActiveCart({
