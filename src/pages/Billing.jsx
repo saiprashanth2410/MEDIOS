@@ -47,6 +47,7 @@ import { patientsFirebaseService } from "../services/patientsFirebaseService";
 import { deductCartFromInventory } from "../utils/inventoryDeduction";
 import { checkDrugInteractions } from "../utils/drugInteractionChecker";
 import defaultMedicines from "../data/catalogMedicines.json";
+import PrescriptionScanner from "../components/prescriptions/PrescriptionScanner";
 
 const DRAFT_KEY = "meditrack_pos_active_draft";
 
@@ -421,6 +422,9 @@ export default function Billing() {
   const [selectedSearchIdx, setSelectedSearchIdx] = useState(0);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
+  // AI Prescription OCR Modal State
+  const [showRxScanner, setShowRxScanner] = useState(false);
+
   // Day-End Cash Register & Z-Report State
   const [openingCashFloat, setOpeningCashFloat] = useState(1000);
   const [physicalCashCount, setPhysicalCashCount] = useState("");
@@ -591,25 +595,25 @@ export default function Billing() {
   }, [catalog, searchQuery]);
 
   /* Add to Cart */
-  const handleAddToCart = (medicine) => {
+  const handleAddToCart = (medicine, desiredQty = 1, instructions = "") => {
     if (!medicine || (medicine.stock || 0) <= 0) {
       toast.error(`${medicine?.name || "Item"} is currently out of stock`);
       return;
     }
 
+    const qtyToAdd = Math.max(1, Math.min(Number(desiredQty) || 1, medicine.stock || 9999));
+
     setCart((prev) => {
       const existing = prev.find((it) => it.id === medicine.id);
       if (existing) {
-        if (existing.quantity >= (medicine.stock || 1)) {
-          toast.error(`Maximum available stock reached (${medicine.stock})`);
-          return prev;
-        }
+        const nextQty = Math.min(existing.quantity + qtyToAdd, medicine.stock || 9999);
         return prev.map((it) =>
           it.id === medicine.id
             ? {
                 ...it,
-                quantity: it.quantity + 1,
-                total: (it.quantity + 1) * it.price,
+                quantity: nextQty,
+                instructions: instructions || it.instructions,
+                total: nextQty * it.price,
               }
             : it
         );
@@ -629,14 +633,88 @@ export default function Billing() {
           schedule: medicine.schedule || "H",
           rack: medicine.rack || "R-1",
           maxStock: Number(medicine.stock || 100),
-          quantity: 1,
-          total: Number(medicine.price || medicine.sellingPrice || 45),
+          quantity: qtyToAdd,
+          instructions: instructions || "",
+          total: qtyToAdd * Number(medicine.price || medicine.sellingPrice || 45),
         },
       ];
     });
 
     setSearchQuery("");
-    toast.success(`Added ${medicine.name}`);
+    toast.success(`Added ${qtyToAdd > 1 ? `${qtyToAdd}x ` : ""}${medicine.name}`);
+  };
+
+  /* AI Prescription OCR Result Handler */
+  const handleRxScanResult = (result) => {
+    if (!result) return;
+
+    // Auto-fill Patient & Doctor if present
+    if (result.patient?.name) {
+      setPatientName(result.patient.name);
+    }
+    if (result.doctor?.name) {
+      setDoctorName(result.doctor.name);
+    }
+
+    const rxMeds = result.prescription?.medicines || [];
+    if (!Array.isArray(rxMeds) || rxMeds.length === 0) {
+      toast.info("Prescription details captured. No medicine line items detected.");
+      return;
+    }
+
+    let addedCount = 0;
+    const missing = [];
+
+    rxMeds.forEach((rxItem) => {
+      const rawName = String(rxItem.name || "").trim();
+      if (!rawName) return;
+
+      const cleanName = rawName
+        .toLowerCase()
+        .replace(/^(tab|cap|syrup|inj|tablet|capsule|syp)\.?\s+/i, "")
+        .trim();
+
+      const match = catalog.find((m) => {
+        const mName = String(m.name || "").toLowerCase();
+        const mGen = String(m.generic || "").toLowerCase();
+        return (
+          mName === cleanName ||
+          mName.includes(cleanName) ||
+          cleanName.includes(mName) ||
+          (mGen && (mGen.includes(cleanName) || cleanName.includes(mGen)))
+        );
+      });
+
+      if (match) {
+        let calcQty = 10;
+        const freqParts = String(rxItem.frequency || "").match(/\d+/g);
+        const durationMatch = String(rxItem.duration || "").match(/\d+/);
+        if (freqParts && durationMatch) {
+          const perDay = freqParts.reduce((acc, v) => acc + parseInt(v, 10), 0);
+          const days = parseInt(durationMatch[0], 10);
+          if (perDay > 0 && days > 0) calcQty = Math.max(1, perDay * days);
+        }
+
+        handleAddToCart(match, calcQty, rxItem.instructions || rxItem.frequency);
+        addedCount++;
+      } else {
+        missing.push(rawName);
+      }
+    });
+
+    if (addedCount > 0) {
+      toast.success(
+        `AI OCR matched and added ${addedCount} medicine(s) to Dispensary Cart!`,
+        { icon: "✨" }
+      );
+    }
+
+    if (missing.length > 0) {
+      toast.info(
+        `Not in stock: ${missing.join(", ")} (check generic substitutes)`,
+        { duration: 6000 }
+      );
+    }
   };
 
   const handleUpdateQty = (id, delta) => {
@@ -1289,20 +1367,34 @@ export default function Billing() {
             <div className="space-y-4">
               {/* Quick Search & Barcode Lookup */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs relative">
-                <div className="relative">
-                  <Search
-                    size={18}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="Search by common brand (e.g. Dolo 650, Calpol, Pan 40) or composition... (Press /)"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900 transition"
-                  />
+                <div className="flex items-center gap-2.5">
+                  <div className="relative flex-1">
+                    <Search
+                      size={18}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={handleSearchKeyDown}
+                      placeholder="Search by common brand (e.g. Dolo 650, Calpol, Pan 40) or composition... (Press /)"
+                      className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900 transition"
+                    />
+                  </div>
+
+                  {/* AI Prescription OCR Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowRxScanner(true)}
+                    className="h-11 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition shrink-0 cursor-pointer"
+                    title="Scan doctor prescription with AI OCR to auto-fill patient & medicines into cart"
+                  >
+                    <Sparkles size={15} className="text-amber-300" />
+                    <span className="hidden sm:inline">AI Scan Rx</span>
+                    <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono">OCR</span>
+                  </button>
                 </div>
 
                 {/* Keyboard Shortcut Hints Bar */}
@@ -3125,6 +3217,16 @@ export default function Billing() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* =====================================================
+            AI PRESCRIPTION OCR SCANNER MODAL
+        ====================================================== */}
+        {showRxScanner && (
+          <PrescriptionScanner
+            onResult={handleRxScanResult}
+            onClose={() => setShowRxScanner(false)}
+          />
         )}
       </main>
     </div>

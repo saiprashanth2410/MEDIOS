@@ -57,14 +57,14 @@ export default function AddMedicineModal({ onAdd, onClose, initialTab = "manual"
     name: "",
     generic: "",
     manufacturer: "",
-    batch: `AMX-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+    batch: ``,
     expiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0],
-    stock: 100,
-    price: 50,
-    category: "Antibiotic",
-    schedule: "OTC (Over the counter)",
+    stock: ``,
+    price: ``,
+    category: "",
+    schedule: "",
     rack: "",
   }));
 

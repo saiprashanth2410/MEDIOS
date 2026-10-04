@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner';
 import Navbar from '../components/dashboard/Navbar';
 import { useExpiryData } from '../utils/expiryStore';
+import RecycleBinSection from '../components/expiry/RecycleBinSection';
 
 const STATUS_STYLES = {
   'Expired': 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
@@ -64,6 +65,7 @@ export default function ExpiryManagement() {
     quarantineItem,
     returnItem,
     deleteItem,
+    restoreItem,
   } = useExpiryData();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,9 +80,9 @@ export default function ExpiryManagement() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to remove this item from the expiry tracking list?")) {
-      deleteItem(id);
-      toast.success("Item removed from expiry list");
+    if (window.confirm("Move this batch to the Recycle Bin? (You can recover it anytime below)")) {
+      deleteItem(id, "Removed from Expiry Tracking", "Pharmacist Admin");
+      toast.success("Batch moved to Recycle Bin (Recoverable below)", { icon: "🗑️" });
     }
   };
 
@@ -181,6 +183,13 @@ export default function ExpiryManagement() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
+            <a 
+              href="#recycle-bin"
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-2xs"
+            >
+              <Trash2 size={16} className="text-rose-500" />
+              <span>Recycle Bin</span>
+            </a>
             <button 
               onClick={exportToCSV}
               className="flex items-center gap-2 bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm"
@@ -482,6 +491,13 @@ export default function ExpiryManagement() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* =====================================================
+            RECYCLE BIN & DELETION AUDIT LOG
+        ====================================================== */}
+        <div id="recycle-bin">
+          <RecycleBinSection onRestoreItem={restoreItem} />
         </div>
 
       </main>

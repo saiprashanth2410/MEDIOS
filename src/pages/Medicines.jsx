@@ -24,6 +24,7 @@ import EditStockModal from "../components/medicines/EditStockModal";
 import Navbar from "../components/dashboard/Navbar";
 import { medicinesAPI } from "../services/api";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
+import { recycleBinService } from "../services/recycleBinService";
 import defaultMedicines from "../data/catalogMedicines.json";
 
 
@@ -269,10 +270,25 @@ export default function Medicines() {
   ===================================================== */
 
   const handleDeleteMedicine = async (medId, medName) => {
-    if (!window.confirm(`Are you sure you want to delete ${medName}?`)) return;
+    const targetMed = medicines.find((m) => m.id === medId);
 
-    // 1. Immediate UI removal
+    // 1. Immediate UI removal & log to Recycle Bin
     setMedicines((prev) => prev.filter((m) => m.id !== medId));
+
+    if (targetMed) {
+      recycleBinService.moveToTrash(
+        {
+          ...targetMed,
+          itemType: "medicine",
+          medicineName: targetMed.name || medName,
+          batchNumber: targetMed.batch || "BATCH-01",
+          quantity: Number(targetMed.stock) || 0,
+          price: Number(targetMed.price) || 0,
+        },
+        "Deleted from Medicines Catalog",
+        "Pharmacist Admin"
+      );
+    }
 
     // 2. Delete on Firestore & Server
     try {
@@ -283,7 +299,7 @@ export default function Medicines() {
 
     try {
       await medicinesAPI.delete(medId);
-      toast.success(`${medName} deleted successfully`);
+      toast.success(`${medName} moved to Recycle Bin (Recoverable in Expiry page)`, { icon: "🗑️" });
     } catch (err) {
       console.warn("Server delete fallback:", err.message);
       toast.success(`${medName} removed`);

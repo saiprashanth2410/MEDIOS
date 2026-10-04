@@ -13,6 +13,7 @@ import Sale from "./models/Sale.js";
 import Notification from "./models/Notification.js";
 import Setting from "./models/Setting.js";
 import AuthLog from "./models/AuthLog.js";
+import RecycleBin from "./models/RecycleBin.js";
 
 dotenv.config();
 
@@ -556,6 +557,89 @@ app.delete("/api/batches/:id", async (req, res) => {
     if (!result) return res.status(404).json({ error: "Not found" });
     res.json({ success: true, deleted: result });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =====================================================
+   RECYCLE BIN & DELETION AUDIT LOGS
+===================================================== */
+
+app.get("/api/recycle-bin", async (req, res) => {
+  try {
+    const { search = "", limit = 100 } = req.query;
+    const query = {};
+    if (search) {
+      query.$or = [
+        { medicineName: { $regex: search, $options: "i" } },
+        { batchNumber: { $regex: search, $options: "i" } },
+        { supplier: { $regex: search, $options: "i" } },
+      ];
+    }
+    const items = await RecycleBin.find(query)
+      .sort({ deletedAt: -1 })
+      .limit(Number(limit))
+      .lean();
+    res.json({ items, total: items.length });
+  } catch (err) {
+    console.error("Recycle bin list error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/recycle-bin", async (req, res) => {
+  try {
+    const data = req.body;
+    const binId = data.id || `trash-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const newEntry = new RecycleBin({
+      ...data,
+      id: binId,
+      deletedAt: data.deletedAt ? new Date(data.deletedAt) : new Date(),
+    });
+    await newEntry.save();
+    res.status(201).json(newEntry);
+  } catch (err) {
+    console.error("Recycle bin save error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post("/api/recycle-bin/:id/restore", async (req, res) => {
+  try {
+    const entry = await RecycleBin.findOneAndDelete({
+      $or: [{ id: req.params.id }, { _id: mongoose.isValidObjectId(req.params.id) ? req.params.id : null }],
+    });
+    if (!entry) return res.status(404).json({ error: "Item not found in recycle bin" });
+    res.json({
+      success: true,
+      restoredItem: entry.originalItem || entry,
+      message: `${entry.medicineName} restored from recycle bin`,
+    });
+  } catch (err) {
+    console.error("Recycle bin restore error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/recycle-bin/:id", async (req, res) => {
+  try {
+    const result = await RecycleBin.findOneAndDelete({
+      $or: [{ id: req.params.id }, { _id: mongoose.isValidObjectId(req.params.id) ? req.params.id : null }],
+    });
+    if (!result) return res.status(404).json({ error: "Item not found in recycle bin" });
+    res.json({ success: true, message: "Item permanently deleted" });
+  } catch (err) {
+    console.error("Recycle bin delete error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/recycle-bin", async (req, res) => {
+  try {
+    const result = await RecycleBin.deleteMany({});
+    res.json({ success: true, deletedCount: result.deletedCount, message: "Recycle bin emptied" });
+  } catch (err) {
+    console.error("Recycle bin clear error:", err);
     res.status(500).json({ error: err.message });
   }
 });

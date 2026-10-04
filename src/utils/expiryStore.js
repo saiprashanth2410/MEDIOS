@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getInitialExpiryData, calculateStatus } from "../data/expiryData";
+import { recycleBinService } from "../services/recycleBinService";
 
 const STORAGE_KEY = "pharmacyExpiry";
 const EXPIRY_UPDATED_EVENT = "meditrack_expiry_updated";
@@ -183,9 +184,26 @@ export function useExpiryData() {
     });
   }, []);
 
-  const deleteItem = useCallback((id) => {
+  const deleteItem = useCallback((id, reason = "Removed from active inventory", deletedBy = "Pharmacist Admin") => {
     setItems((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) {
+        recycleBinService.moveToTrash(target, reason, deletedBy);
+      }
       const next = prev.filter((item) => item.id !== id);
+      saveExpiryItems(next);
+      return next;
+    });
+  }, []);
+
+  const restoreItem = useCallback((restored) => {
+    if (!restored) return;
+    setItems((prev) => {
+      // Re-insert or update item
+      const exists = prev.some((i) => i.id === restored.id || i.batchNumber === restored.batchNumber);
+      const next = exists
+        ? prev.map((i) => (i.id === restored.id ? { ...restored } : i))
+        : [restored, ...prev];
       saveExpiryItems(next);
       return next;
     });
@@ -206,6 +224,7 @@ export function useExpiryData() {
     quarantineItem,
     returnItem,
     deleteItem,
+    restoreItem,
     resetItems,
   };
 }
