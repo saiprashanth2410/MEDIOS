@@ -26,8 +26,8 @@ import { medicinesAPI } from "../services/api";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { recycleBinService } from "../services/recycleBinService";
 import defaultMedicines from "../data/catalogMedicines.json";
-
-
+import { getScopedKey, isDemoAccount, loadSampleDataForCurrentUser, clearCurrentUserData } from "../utils/userScope";
+import { addExpiryItem } from "../utils/expiryStore";
 
 /* =====================================================
    CONSTANTS
@@ -51,49 +51,60 @@ const DEFAULT_EXPIRY = "2027-12-31";
 ===================================================== */
 
 function getInitialMedicines() {
-  if (typeof window === "undefined") return defaultMedicines;
+  if (typeof window === "undefined") return [];
   try {
     const deletedIds = new Set(
-      JSON.parse(localStorage.getItem("meditrack_deleted_medicines") || "[]")
+      JSON.parse(localStorage.getItem(getScopedKey("meditrack_deleted_medicines")) || "[]")
     );
     const overrides = JSON.parse(
-      localStorage.getItem("meditrack_medicine_overrides") || "{}"
+      localStorage.getItem(getScopedKey("meditrack_medicine_overrides")) || "{}"
     );
     const custom = JSON.parse(
-      localStorage.getItem("meditrack_custom_medicines") || "[]"
+      localStorage.getItem(getScopedKey("meditrack_custom_medicines")) || "[]"
     );
 
-    const merged = defaultMedicines
+    // If demo account: include catalog medicines
+    if (isDemoAccount()) {
+      const merged = defaultMedicines
+        .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
+        .map((m) => {
+          const override = overrides[m.id] || overrides[m.name];
+          if (!override) return m;
+          return {
+            ...m,
+            stock: override.stock !== undefined ? override.stock : m.stock,
+            batch: override.batch || m.batch,
+            rack: override.rack || m.rack,
+            price: override.price !== undefined ? override.price : m.price,
+            expiry: override.expiry || m.expiry,
+            manufacturer: override.manufacturer || m.manufacturer,
+          };
+        });
+
+      const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
+      const catalogNames = new Set(defaultMedicines.map((m) => (m.name || "").toLowerCase()));
+
+      const activeCustom = custom.filter(
+        (m) =>
+          !deletedIds.has(String(m.id)) &&
+          !deletedIds.has(m.name) &&
+          !catalogIds.has(String(m.id)) &&
+          !catalogNames.has((m.name || "").toLowerCase())
+      );
+
+      return [...activeCustom, ...merged];
+    }
+
+    // For real user accounts: only their own medicines!
+    return custom
       .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
       .map((m) => {
         const override = overrides[m.id] || overrides[m.name];
-        if (!override) return m;
-        return {
-          ...m,
-          stock: override.stock !== undefined ? override.stock : m.stock,
-          batch: override.batch || m.batch,
-          rack: override.rack || m.rack,
-          price: override.price !== undefined ? override.price : m.price,
-          expiry: override.expiry || m.expiry,
-          manufacturer: override.manufacturer || m.manufacturer,
-        };
+        return override ? { ...m, ...override } : m;
       });
-
-    const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
-    const catalogNames = new Set(defaultMedicines.map((m) => (m.name || "").toLowerCase()));
-
-    const activeCustom = custom.filter(
-      (m) =>
-        !deletedIds.has(String(m.id)) &&
-        !deletedIds.has(m.name) &&
-        !catalogIds.has(String(m.id)) &&
-        !catalogNames.has((m.name || "").toLowerCase())
-    );
-
-    return [...activeCustom, ...merged];
   } catch (err) {
     console.debug("Initial medicines load fallback:", err);
-    return defaultMedicines;
+    return [];
   }
 }
 
@@ -244,8 +255,9 @@ export default function Medicines() {
 
     // 3. Persist to localStorage override
     try {
+      const overridesKey = getScopedKey("meditrack_medicine_overrides");
       const overrides = JSON.parse(
-        localStorage.getItem("meditrack_medicine_overrides") || "{}"
+        localStorage.getItem(overridesKey) || "{}"
       );
       overrides[medId] = {
         stock: updatedStock,
@@ -257,7 +269,7 @@ export default function Medicines() {
       };
       if (target.name) overrides[target.name] = overrides[medId];
       localStorage.setItem(
-        "meditrack_medicine_overrides",
+        overridesKey,
         JSON.stringify(overrides)
       );
     } catch (err) {
@@ -307,13 +319,14 @@ export default function Medicines() {
 
     // 3. Persist to deleted IDs in localStorage
     try {
+      const deletedKey = getScopedKey("meditrack_deleted_medicines");
       const deleted = JSON.parse(
-        localStorage.getItem("meditrack_deleted_medicines") || "[]"
+        localStorage.getItem(deletedKey) || "[]"
       );
       if (!deleted.includes(medId)) deleted.push(medId);
       if (medName && !deleted.includes(medName)) deleted.push(medName);
       localStorage.setItem(
-        "meditrack_deleted_medicines",
+        deletedKey,
         JSON.stringify(deleted)
       );
     } catch (err) {
@@ -350,13 +363,30 @@ export default function Medicines() {
     setMedicines((prev) => [tempItem, ...prev]);
     toast.success(`${commonName} added!`);
 
+    // Auto-sync with FEFO Expiry Tracking
+    if (tempItem.expiry) {
+      try {
+        addExpiryItem({
+          id: tempItem.id,
+          medicineName: tempItem.name,
+          batchNumber: tempItem.batch || "BATCH-01",
+          quantity: tempItem.stock || tempItem.quantity || 100,
+          price: tempItem.price || tempItem.sellingPrice || 50,
+          expiryDate: tempItem.expiry,
+          supplier: tempItem.manufacturer || "In-House",
+          location: tempItem.rack || "Shelf A-1",
+        });
+      } catch (_) {}
+    }
+
     // Persist to custom medicines list in localStorage
     try {
+      const customKey = getScopedKey("meditrack_custom_medicines");
       const savedCustom = JSON.parse(
-        localStorage.getItem("meditrack_custom_medicines") || "[]"
+        localStorage.getItem(customKey) || "[]"
       );
       savedCustom.unshift(tempItem);
-      localStorage.setItem("meditrack_custom_medicines", JSON.stringify(savedCustom));
+      localStorage.setItem(customKey, JSON.stringify(savedCustom));
     } catch (err) {
       console.debug(err);
     }
@@ -552,6 +582,36 @@ export default function Medicines() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
+            {medicines.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  loadSampleDataForCurrentUser();
+                  setMedicines(getInitialMedicines());
+                  toast.success("Loaded sample pharmacy medicines!");
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                title="Load sample inventory for demonstration"
+              >
+                <span>⚡ Load Sample Data (Demo)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Reset all medicines to 0 for this account?")) {
+                    clearCurrentUserData();
+                    setMedicines([]);
+                    toast.success("Medicines reset to 0!");
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs font-medium hover:text-rose-600 transition cursor-pointer"
+                title="Reset medicines to 0"
+              >
+                <span>Clear to 0</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setAddModalTab("pdf");
@@ -713,16 +773,50 @@ export default function Medicines() {
           </p>
         </div>
 
-        {/* List */}
         {filtered.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-16 text-center shadow-sm">
-            <Pill size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1">No medicines found</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-              {activeCategory !== "All"
-                ? `No ${activeCategory} medicines available`
-                : "Try a different search"}
-            </p>
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-sky-100 dark:border-slate-800 p-16 text-center shadow-sm max-w-lg mx-auto">
+            <Pill size={44} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            {medicines.length === 0 ? (
+              <>
+                <p className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">
+                  No Medicines in Inventory (0 Items)
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                  Your new pharmacy account starts with 0 medicines so you can stock your own custom catalog. Add medicines manually, import from a bill, or load sample inventory.
+                </p>
+                <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                  <button
+                    onClick={() => {
+                      setAddModalTab("manual");
+                      setShowAddMedicine(true);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-semibold transition shadow-xs cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>+ Add Medicine</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      loadSampleDataForCurrentUser();
+                      setMedicines(getInitialMedicines());
+                      toast.success("Loaded sample pharmacy inventory!");
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-xs font-semibold transition cursor-pointer"
+                  >
+                    <span>⚡ Load Sample Data (Demo)</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1">No medicines match filter</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                  {activeCategory !== "All"
+                    ? `No ${activeCategory} medicines available`
+                    : "Try a different search term or select All categories"}
+                </p>
+              </>
+            )}
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

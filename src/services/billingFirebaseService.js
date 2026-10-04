@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { inventoryFirebaseService } from "./inventoryFirebaseService";
+import { getScopedKey } from "../utils/userScope";
 
 const SALES_COLLECTION = "sales";
 const SCHED_H_COLLECTION = "schedule_h_register";
@@ -19,7 +20,8 @@ const LOCAL_SCHED_H_KEY = "meditrack_schedule_h_logs";
 function getLocalSales() {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(LOCAL_SALES_KEY);
+    const scopedKey = getScopedKey(LOCAL_SALES_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -29,9 +31,10 @@ function getLocalSales() {
 function saveLocalSale(sale) {
   if (typeof window === "undefined" || !sale) return;
   try {
+    const scopedKey = getScopedKey(LOCAL_SALES_KEY);
     const existing = getLocalSales();
     const updated = [sale, ...existing.filter((s) => s.invoiceNumber !== sale.invoiceNumber)].slice(0, 100);
-    localStorage.setItem(LOCAL_SALES_KEY, JSON.stringify(updated));
+    localStorage.setItem(scopedKey, JSON.stringify(updated));
   } catch (err) {
     console.debug("Local sales save error:", err);
   }
@@ -40,7 +43,8 @@ function saveLocalSale(sale) {
 function getLocalSchedHLogs() {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(LOCAL_SCHED_H_KEY);
+    const scopedKey = getScopedKey(LOCAL_SCHED_H_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -50,9 +54,10 @@ function getLocalSchedHLogs() {
 function saveLocalSchedHLog(entry) {
   if (typeof window === "undefined" || !entry) return;
   try {
+    const scopedKey = getScopedKey(LOCAL_SCHED_H_KEY);
     const existing = getLocalSchedHLogs();
     const updated = [entry, ...existing.filter((s) => s.registerId !== entry.registerId)].slice(0, 150);
-    localStorage.setItem(LOCAL_SCHED_H_KEY, JSON.stringify(updated));
+    localStorage.setItem(scopedKey, JSON.stringify(updated));
   } catch (err) {
     console.debug("Local Schedule H save error:", err);
   }

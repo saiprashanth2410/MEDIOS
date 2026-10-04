@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import defaultMedicines from "../data/catalogMedicines.json";
+import { getScopedKey, isDemoAccount } from "../utils/userScope";
+import { addExpiryItem } from "../utils/expiryStore";
 
 const COLLECTION_NAME = "batches";
 const LOCAL_BATCHES_KEY = "meditrack_batches";
@@ -40,25 +42,37 @@ function getInitialBatchesFromCatalog() {
 }
 
 function getLocalBatches() {
-  if (typeof window === "undefined") return getInitialBatchesFromCatalog();
+  if (typeof window === "undefined") return [];
+  const scopedKey = getScopedKey(LOCAL_BATCHES_KEY);
   try {
-    const raw = localStorage.getItem(LOCAL_BATCHES_KEY);
-    if (raw) {
+    const raw = localStorage.getItem(scopedKey);
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {}
-  const initial = getInitialBatchesFromCatalog();
+
+  // Only demo accounts get pre-populated batches
+  if (isDemoAccount()) {
+    const initial = getInitialBatchesFromCatalog();
+    try {
+      localStorage.setItem(scopedKey, JSON.stringify(initial));
+    } catch {}
+    return initial;
+  }
+
+  // Real user accounts start with 0 batches!
   try {
-    localStorage.setItem(LOCAL_BATCHES_KEY, JSON.stringify(initial));
+    localStorage.setItem(scopedKey, JSON.stringify([]));
   } catch {}
-  return initial;
+  return [];
 }
 
 function saveLocalBatches(list) {
   if (typeof window === "undefined") return;
+  const scopedKey = getScopedKey(LOCAL_BATCHES_KEY);
   try {
-    localStorage.setItem(LOCAL_BATCHES_KEY, JSON.stringify(list));
+    localStorage.setItem(scopedKey, JSON.stringify(list));
     window.dispatchEvent(new Event("meditrack_batches_updated"));
   } catch (e) {
     console.debug("Local batches save error:", e);
@@ -150,6 +164,24 @@ export const batchesFirebaseService = {
     const current = getLocalBatches();
     const updated = [newBatch, ...current.filter((b) => b.id !== id)];
     saveLocalBatches(updated);
+
+    // Automatically sync with FEFO Expiry Tracking
+    if (newBatch.expiryDate) {
+      try {
+        addExpiryItem({
+          id: newBatch.id,
+          medicineName: newBatch.medicineName,
+          batchNumber: newBatch.batchNumber,
+          quantity: newBatch.quantity,
+          price: data.price || 50,
+          expiryDate: newBatch.expiryDate,
+          supplier: newBatch.supplier,
+          location: data.location || "Shelf A-1",
+        });
+      } catch (err) {
+        console.debug("Expiry auto-sync note:", err);
+      }
+    }
 
     try {
       await setDoc(doc(db, COLLECTION_NAME, id), {

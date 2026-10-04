@@ -37,10 +37,11 @@ import AddPrescriptionModal from "../components/prescriptions/AddPrescriptionMod
 import Navbar from "../components/dashboard/Navbar";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import usePerformanceData from "../hooks/usePerformanceData";
-import { useExpiryData } from "../utils/expiryStore";
+import { useExpiryData, addExpiryItem } from "../utils/expiryStore";
 import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
 import { billingFirebaseService } from "../services/billingFirebaseService";
 import { pharmacistsFirebaseService } from "../services/pharmacistsFirebaseService";
+import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { medicinesAPI, prescriptionsAPI, suppliersAPI, notificationsAPI } from "../services/api";
 
 /* =====================================================
@@ -192,27 +193,42 @@ export default function Dashboard() {
     hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
   const handleAddMedicine = async (newMedicine) => {
+    const medPayload = {
+      code: newMedicine.id || `med-${Date.now()}`,
+      name: newMedicine.name,
+      fullName: newMedicine.fullName || newMedicine.name,
+      brand: newMedicine.brandName || newMedicine.name,
+      generic: newMedicine.generic || "",
+      composition: newMedicine.generic || "",
+      supplierName: newMedicine.manufacturer || "",
+      supplierCode: newMedicine.manufacturerCode || "",
+      stock: Number(newMedicine.quantity) || 100,
+      quantity: Number(newMedicine.quantity) || 100,
+      sellingPrice: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+      price: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
+      mrp: Number(newMedicine.unitPrice) || 60,
+      reorderLevel: Number(newMedicine.minStock) || 10,
+      batch: newMedicine.batch || "",
+      rack: newMedicine.rack || "R-1",
+      schedule: newMedicine.schedule || "H",
+      expiry: newMedicine.expiry || "2027-12-31",
+    };
+
     try {
-      await medicinesAPI.create({
-        code: newMedicine.id || `med-${Date.now()}`,
-        name: newMedicine.name,
-        fullName: newMedicine.fullName || newMedicine.name,
-        brand: newMedicine.brandName || newMedicine.name,
-        generic: newMedicine.generic || "",
-        composition: newMedicine.generic || "",
-        supplierName: newMedicine.manufacturer || "",
-        supplierCode: newMedicine.manufacturerCode || "",
-        stock: Number(newMedicine.quantity) || 100,
-        quantity: Number(newMedicine.quantity) || 100,
-        sellingPrice: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
-        price: Number(newMedicine.sellingPrice || newMedicine.unitPrice) || 50,
-        mrp: Number(newMedicine.unitPrice) || 60,
-        reorderLevel: Number(newMedicine.minStock) || 10,
-        batch: newMedicine.batch || "",
-        rack: newMedicine.rack || "R-1",
-        schedule: newMedicine.schedule || "H",
-        expiry: newMedicine.expiry || "2027-12-31",
-      });
+      await inventoryFirebaseService.addMedicine(medPayload);
+      if (medPayload.expiry) {
+        addExpiryItem({
+          id: medPayload.code,
+          medicineName: medPayload.name,
+          batchNumber: medPayload.batch || "BATCH-01",
+          quantity: medPayload.stock,
+          price: medPayload.price,
+          expiryDate: medPayload.expiry,
+          supplier: medPayload.supplierName,
+          location: medPayload.rack,
+        });
+      }
+      await medicinesAPI.create(medPayload);
     } catch (err) {
       console.warn("Could not save medicine to DB from dashboard:", err.message);
     }

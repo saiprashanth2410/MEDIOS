@@ -10,6 +10,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getScopedKey, getUserScopeId } from "../utils/userScope";
 
 const LOCAL_KEY = "meditrack_recycle_bin";
 const FIRESTORE_COLLECTION = "recycle_bin";
@@ -18,7 +19,8 @@ const API_URL = import.meta.env.VITE_API_URL || "/api";
 function getLocalRecycleBin() {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const scopedKey = getScopedKey(LOCAL_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -28,7 +30,8 @@ function getLocalRecycleBin() {
 function saveLocalRecycleBin(items, notify = true) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(items));
+    const scopedKey = getScopedKey(LOCAL_KEY);
+    localStorage.setItem(scopedKey, JSON.stringify(items));
     if (notify) {
       window.dispatchEvent(new CustomEvent("meditrack_recycle_bin_updated", { detail: items }));
     }

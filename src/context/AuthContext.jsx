@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { auth, db } from "../config/firebase";
 import { authService } from "../services/authService";
+import { initializeNewUserScope } from "../utils/userScope";
 
 const defaultAuthValue = {
   user: null,
@@ -140,6 +141,9 @@ export function AuthProvider({ children }) {
       if (!result?.ok) {
         throw new Error(result?.message || "Registration failed.");
       }
+
+      // Initialize brand new user account with clean zero-data state
+      initializeNewUserScope(result.user.uid || result.user.email);
 
       setUser(result.user);
       localStorage.setItem("meditrack_user", JSON.stringify(result.user));

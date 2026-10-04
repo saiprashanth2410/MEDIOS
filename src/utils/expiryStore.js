@@ -1,20 +1,25 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getInitialExpiryData, calculateStatus } from "../data/expiryData";
 import { recycleBinService } from "../services/recycleBinService";
+import { getScopedKey, isDemoAccount, getUserScopeId } from "./userScope";
 
 const STORAGE_KEY = "pharmacyExpiry";
 const EXPIRY_UPDATED_EVENT = "meditrack_expiry_updated";
 
 /**
- * Loads the current live expiry items from localStorage or initializes with master FEFO items.
+ * Loads the current live expiry items from user-scoped localStorage.
+ * For brand new user IDs, returns [] (0 items) so they can start fresh.
+ * Demo accounts receive the standard 48 FEFO items.
  */
 export function loadExpiryItems() {
-  if (typeof window === "undefined") return getInitialExpiryData();
+  if (typeof window === "undefined") return [];
+  const scopedKey = getScopedKey(STORAGE_KEY);
+
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    const saved = localStorage.getItem(scopedKey);
+    if (saved !== null) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         // Re-evaluate daysLeft and FEFO tier dynamically so dates never go stale
         return parsed.map((item, idx) => {
           const { status, daysLeft, color } = calculateStatus(item.expiryDate);
@@ -37,32 +42,78 @@ export function loadExpiryItems() {
       }
     }
   } catch (err) {
-    console.warn("[expiryStore] Failed reading pharmacyExpiry from localStorage:", err);
+    console.warn("[expiryStore] Failed reading expiry items:", err);
   }
 
-  // Initialize and persist default 48 FEFO items
-  const fresh = getInitialExpiryData();
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-  } catch (err) {
-    console.debug("[expiryStore] Could not persist default:", err);
+  // Only demo accounts get seed 48 items by default
+  if (isDemoAccount()) {
+    const fresh = getInitialExpiryData();
+    try {
+      localStorage.setItem(scopedKey, JSON.stringify(fresh));
+    } catch (err) {
+      console.debug("[expiryStore] Could not persist default:", err);
+    }
+    return fresh;
   }
-  return fresh;
+
+  // Real user IDs start with 0 items!
+  try {
+    localStorage.setItem(scopedKey, JSON.stringify([]));
+  } catch {}
+  return [];
 }
 
 /**
- * Saves expiry items to localStorage and dispatches a cross-component notification event.
+ * Saves expiry items to user-scoped localStorage and dispatches a cross-component notification event.
  */
 export function saveExpiryItems(items) {
   if (typeof window === "undefined") return;
+  const scopedKey = getScopedKey(STORAGE_KEY);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(scopedKey, JSON.stringify(items));
     window.dispatchEvent(
       new CustomEvent(EXPIRY_UPDATED_EVENT, { detail: items })
     );
   } catch (err) {
-    console.error("[expiryStore] Failed saving pharmacyExpiry:", err);
+    console.error("[expiryStore] Failed saving expiry items:", err);
   }
+}
+
+/**
+ * Adds or updates an expiry item into the user's active FEFO tracking
+ */
+export function addExpiryItem(item) {
+  if (!item || !item.expiryDate) return;
+  const current = loadExpiryItems();
+  const existsIndex = current.findIndex(
+    (i) => i.id === item.id || (item.batchNumber && i.batchNumber === item.batchNumber)
+  );
+
+  const { status, daysLeft, color } = calculateStatus(item.expiryDate);
+  const formatted = {
+    id: item.id || `exp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    medicineName: item.medicineName || item.name || "Unknown Medicine",
+    batchNumber: item.batchNumber || item.batch || "N/A",
+    quantity: Number(item.quantity ?? item.stock ?? 100),
+    price: Number(item.price ?? item.sellingPrice ?? 50),
+    expiryDate: item.expiryDate,
+    daysLeft,
+    status: item.status || status,
+    color: item.status === "Quarantined" ? "gray" : item.status === "Returned" ? "blue" : color,
+    supplier: item.supplier || item.manufacturer || "Standard Supplier",
+    location: item.location || item.rack || "Shelf A-1",
+  };
+
+  let next;
+  if (existsIndex >= 0) {
+    next = [...current];
+    next[existsIndex] = { ...next[existsIndex], ...formatted };
+  } else {
+    next = [formatted, ...current];
+  }
+
+  saveExpiryItems(next);
+  return formatted;
 }
 
 /**
@@ -139,6 +190,9 @@ export function useExpiryData() {
   const [items, setItems] = useState(loadExpiryItems);
 
   useEffect(() => {
+    // Sync on user change or mount
+    setItems(loadExpiryItems());
+
     const handleUpdate = (e) => {
       if (e?.detail && Array.isArray(e.detail)) {
         setItems(e.detail);
@@ -148,7 +202,8 @@ export function useExpiryData() {
     };
 
     const handleStorage = (e) => {
-      if (e.key === STORAGE_KEY) {
+      const currentKey = getScopedKey(STORAGE_KEY);
+      if (e.key === currentKey || e.key === "meditrack_user") {
         setItems(loadExpiryItems());
       }
     };
@@ -199,7 +254,6 @@ export function useExpiryData() {
   const restoreItem = useCallback((restored) => {
     if (!restored) return;
     setItems((prev) => {
-      // Re-insert or update item
       const exists = prev.some((i) => i.id === restored.id || i.batchNumber === restored.batchNumber);
       const next = exists
         ? prev.map((i) => (i.id === restored.id ? { ...restored } : i))
@@ -210,10 +264,23 @@ export function useExpiryData() {
   }, []);
 
   const resetItems = useCallback(() => {
+    const fresh = isDemoAccount() ? getInitialExpiryData() : [];
+    saveExpiryItems(fresh);
+    setItems(fresh);
+    return fresh;
+  }, []);
+
+  const loadSampleData = useCallback(() => {
     const fresh = getInitialExpiryData();
     saveExpiryItems(fresh);
     setItems(fresh);
     return fresh;
+  }, []);
+
+  const clearAllData = useCallback(() => {
+    saveExpiryItems([]);
+    setItems([]);
+    return [];
   }, []);
 
   return {
@@ -226,5 +293,7 @@ export function useExpiryData() {
     deleteItem,
     restoreItem,
     resetItems,
+    loadSampleData,
+    clearAllData,
   };
 }

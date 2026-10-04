@@ -12,52 +12,65 @@ import { db } from "../config/firebase";
 import defaultMedicines from "../data/catalogMedicines.json";
 import { MEDICINES } from "../data/medicines";
 
+import { getScopedKey, isDemoAccount, getUserScopeId } from "../utils/userScope";
+
 const COLLECTION_NAME = "medicines";
 
 function getLocalCombinedCatalog() {
-  if (typeof window === "undefined") return defaultMedicines;
+  if (typeof window === "undefined") return [];
   try {
     const deletedIds = new Set(
-      JSON.parse(localStorage.getItem("meditrack_deleted_medicines") || "[]")
+      JSON.parse(localStorage.getItem(getScopedKey("meditrack_deleted_medicines")) || "[]")
     );
     const overrides = JSON.parse(
-      localStorage.getItem("meditrack_medicine_overrides") || "{}"
+      localStorage.getItem(getScopedKey("meditrack_medicine_overrides")) || "{}"
     );
     const custom = JSON.parse(
-      localStorage.getItem("meditrack_custom_medicines") || "[]"
+      localStorage.getItem(getScopedKey("meditrack_custom_medicines")) || "[]"
     );
 
-    const merged = defaultMedicines
+    // Only demo accounts get seed catalog medicines
+    if (isDemoAccount()) {
+      const merged = defaultMedicines
+        .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
+        .map((m) => {
+          const override = overrides[m.id] || overrides[m.name];
+          if (!override) return m;
+          return {
+            ...m,
+            stock: override.stock !== undefined ? override.stock : m.stock,
+            batch: override.batch || m.batch,
+            rack: override.rack || m.rack,
+            price: override.price !== undefined ? override.price : m.price,
+          };
+        });
+
+      const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
+      const catalogNames = new Set(
+        defaultMedicines.map((m) => (m.name || "").toLowerCase())
+      );
+
+      const activeCustom = custom.filter(
+        (m) =>
+          !deletedIds.has(String(m.id)) &&
+          !deletedIds.has(m.name) &&
+          !catalogIds.has(String(m.id)) &&
+          !catalogNames.has((m.name || "").toLowerCase())
+      );
+
+      return [...activeCustom, ...merged];
+    }
+
+    // For real user accounts: return only medicines belonging to this user
+    return custom
       .filter((m) => !deletedIds.has(String(m.id)) && !deletedIds.has(m.name))
       .map((m) => {
         const override = overrides[m.id] || overrides[m.name];
-        if (!override) return m;
-        return {
-          ...m,
-          stock: override.stock !== undefined ? override.stock : m.stock,
-          batch: override.batch || m.batch,
-          rack: override.rack || m.rack,
-          price: override.price !== undefined ? override.price : m.price,
-        };
+        return override ? { ...m, ...override } : m;
       });
-
-    const catalogIds = new Set(defaultMedicines.map((m) => String(m.id)));
-    const catalogNames = new Set(
-      defaultMedicines.map((m) => (m.name || "").toLowerCase())
-    );
-
-    const activeCustom = custom.filter(
-      (m) =>
-        !deletedIds.has(String(m.id)) &&
-        !deletedIds.has(m.name) &&
-        !catalogIds.has(String(m.id)) &&
-        !catalogNames.has((m.name || "").toLowerCase())
-    );
-
-    return [...activeCustom, ...merged];
   } catch (err) {
     console.debug("Combined inventory catalog fallback:", err);
-    return defaultMedicines;
+    return [];
   }
 }
 
@@ -233,15 +246,17 @@ export const inventoryFirebaseService = {
         gstRate: Number(medicine.gstRate ?? 12),
         expiry: String(medicine.expiry || "2027-12-31").slice(0, 30),
         isCustom: true,
+        userId: getUserScopeId(),
         updatedAt: serverTimestamp(),
       };
 
       // Local storage persistence
       if (typeof window !== "undefined") {
         try {
-          const custom = JSON.parse(localStorage.getItem("meditrack_custom_medicines") || "[]");
+          const scopedKey = getScopedKey("meditrack_custom_medicines");
+          const custom = JSON.parse(localStorage.getItem(scopedKey) || "[]");
           const updated = [payload, ...custom.filter((m) => m.id !== id && m.name !== payload.name)];
-          localStorage.setItem("meditrack_custom_medicines", JSON.stringify(updated));
+          localStorage.setItem(scopedKey, JSON.stringify(updated));
           window.dispatchEvent(new Event("meditrack_medicines_updated"));
         } catch (_) {}
       }

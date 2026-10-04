@@ -82,10 +82,13 @@ const SEED_NOTIFICATIONS = [
   },
 ];
 
+import { getScopedKey, isDemoAccount } from "../utils/userScope";
+
 function getDeletedSet() {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = localStorage.getItem(DELETED_NOTIFS_KEY);
+    const scopedKey = getScopedKey(DELETED_NOTIFS_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return new Set(raw ? JSON.parse(raw) : []);
   } catch {
     return new Set();
@@ -93,13 +96,15 @@ function getDeletedSet() {
 }
 
 function getLocalNotifications() {
-  if (typeof window === "undefined") return SEED_NOTIFICATIONS;
+  if (typeof window === "undefined") return [];
   try {
-    const isCleared = localStorage.getItem(CLEARED_NOTIFS_KEY) === "true";
+    const clearedKey = getScopedKey(CLEARED_NOTIFS_KEY);
+    const isCleared = localStorage.getItem(clearedKey) === "true";
     if (isCleared) return [];
 
     const deletedIds = getDeletedSet();
-    const raw = localStorage.getItem(LOCAL_NOTIFS_KEY);
+    const notifsKey = getScopedKey(LOCAL_NOTIFS_KEY);
+    const raw = localStorage.getItem(notifsKey);
 
     if (raw !== null) {
       const parsed = JSON.parse(raw);
@@ -108,9 +113,28 @@ function getLocalNotifications() {
       }
     }
 
-    const initial = SEED_NOTIFICATIONS.filter((n) => !deletedIds.has(n.id));
-    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(initial));
-    return initial;
+    if (isDemoAccount()) {
+      const initial = SEED_NOTIFICATIONS.filter((n) => !deletedIds.has(n.id));
+      localStorage.setItem(notifsKey, JSON.stringify(initial));
+      return initial;
+    }
+
+    // New user starts with clean welcome notification
+    const welcome = [
+      {
+        id: "notif-welcome",
+        title: "Welcome to MediTrackOS",
+        message: "Your new pharmacy account is active. Add medicines and batches to begin tracking.",
+        type: "info",
+        category: "system",
+        time: "Just now",
+        timestamp: new Date().toISOString(),
+        read: false,
+      },
+    ].filter((n) => !deletedIds.has(n.id));
+
+    localStorage.setItem(notifsKey, JSON.stringify(welcome));
+    return welcome;
   } catch (_) {
     return [];
   }
@@ -121,11 +145,13 @@ function saveLocalNotifications(list) {
   try {
     const deletedIds = getDeletedSet();
     const cleanList = (list || []).filter((n) => !deletedIds.has(n.id));
-    localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(cleanList));
+    const notifsKey = getScopedKey(LOCAL_NOTIFS_KEY);
+    const clearedKey = getScopedKey(CLEARED_NOTIFS_KEY);
+    localStorage.setItem(notifsKey, JSON.stringify(cleanList));
     if (cleanList.length === 0) {
-      localStorage.setItem(CLEARED_NOTIFS_KEY, "true");
+      localStorage.setItem(clearedKey, "true");
     } else {
-      localStorage.removeItem(CLEARED_NOTIFS_KEY);
+      localStorage.removeItem(clearedKey);
     }
     window.dispatchEvent(new Event("meditrack_notifications_updated"));
   } catch (err) {

@@ -70,6 +70,8 @@ export default function ExpiryManagement() {
     returnItem,
     deleteItem,
     restoreItem,
+    loadSampleData,
+    clearAllData,
   } = useExpiryData();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -245,12 +247,41 @@ export default function ExpiryManagement() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {activeTab === 'recycle_bin'
                 ? `Audit log of deleted medicines & expired batches (${trashCount} items in bin). Recover any item back to active inventory with 1 click.`
-                : `Live tracking across 90/60/30 day escalation tiers (Total: ${stats.total} items, ₹${(stats.totalAtRiskVal || 237300).toLocaleString('en-IN')} at risk)`
+                : `Live tracking across 90/60/30 day escalation tiers (Total: ${stats.total} items, ₹${(stats.totalAtRiskVal ?? 0).toLocaleString('en-IN')} at risk)`
               }
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Quick Demo Sample Data Toggle */}
+            {items.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  loadSampleData();
+                  toast.success("Loaded 48 FEFO demo expiry items!");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                title="Load 48 sample FEFO batches for demonstration"
+              >
+                <span>⚡ Load Sample Data (Demo)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Reset all expiry items to 0 for this account?")) {
+                    clearAllData();
+                    toast.success("Expiry items reset to 0!");
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs font-medium hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
+                title="Clear all expiry items back to 0"
+              >
+                <span>Clear to 0</span>
+              </button>
+            )}
+
             {/* Segmented Pill Tab Switcher */}
             <div className="flex items-center p-1 bg-slate-200/80 dark:bg-slate-800 rounded-xl border border-slate-300/70 dark:border-slate-700 text-xs font-medium">
               <button
@@ -560,18 +591,48 @@ export default function ExpiryManagement() {
                 ) : (
                   <tr>
                     <td colSpan="8" className="px-6 py-14 text-center">
-                      <div className="flex flex-col items-center justify-center">
+                      <div className="flex flex-col items-center justify-center max-w-md mx-auto">
                         <Package size={44} className="text-slate-300 dark:text-slate-600 mb-3" />
-                        <p className="text-base font-semibold text-slate-800 dark:text-slate-200">No items match your filter</p>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-4">
-                          Try selecting "All FEFO Batches" or resetting the FEFO dataset.
-                        </p>
-                        <button
-                          onClick={() => handleFilterChange('All')}
-                          className="px-3.5 py-1.5 text-xs font-semibold rounded-md bg-[#0284c7] text-white hover:bg-[#0369a1] transition shadow-xs"
-                        >
-                          Show All Batches
-                        </button>
+                        {items.length === 0 ? (
+                          <>
+                            <p className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                              No Expiring Medicines Tracked (0 Items)
+                            </p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-5 leading-relaxed">
+                              Your new account is clean. Add medicine batches with expiry dates to automatically activate FEFO 90/60/30 day monitoring, or load sample demo data.
+                            </p>
+                            <div className="flex items-center gap-2.5">
+                              <button
+                                onClick={() => navigate('/batches')}
+                                className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#0284c7] text-white hover:bg-[#0369a1] transition shadow-xs cursor-pointer"
+                              >
+                                + Add Batch
+                              </button>
+                              <button
+                                onClick={() => {
+                                  loadSampleData();
+                                  toast.success("Loaded 48 FEFO demo expiry items!");
+                                }}
+                                className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition cursor-pointer"
+                              >
+                                ⚡ Load Sample Data (Demo)
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-base font-semibold text-slate-800 dark:text-slate-200">No items match your filter</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-4">
+                              Try selecting "All FEFO Batches" or resetting the filter.
+                            </p>
+                            <button
+                              onClick={() => handleFilterChange('All')}
+                              className="px-3.5 py-1.5 text-xs font-semibold rounded-md bg-[#0284c7] text-white hover:bg-[#0369a1] transition shadow-xs"
+                            >
+                              Show All Batches
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

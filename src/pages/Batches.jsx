@@ -9,6 +9,7 @@ import Navbar from '../components/dashboard/Navbar';
 import { batchesFirebaseService } from '../services/batchesFirebaseService';
 import { batchesAPI } from '../services/api';
 import { toast } from 'sonner';
+import { loadSampleDataForCurrentUser, clearCurrentUserData } from '../utils/userScope';
 
 const BATCH_STATUS_STYLES = {
   'Active': 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800/40',
@@ -232,7 +233,39 @@ const Batches = () => {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Batch Management</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track medicine batches, expiry dates, and stock levels.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {stats.total === 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  loadSampleDataForCurrentUser();
+                  fetchBatches();
+                  fetchStats();
+                  toast.success("Loaded sample batches!");
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                title="Load sample batches for demonstration"
+              >
+                <span>⚡ Load Sample Data (Demo)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Reset all batches to 0 for this account?")) {
+                    clearCurrentUserData();
+                    fetchBatches();
+                    fetchStats();
+                    toast.success("Batches reset to 0!");
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs font-medium hover:text-rose-600 transition cursor-pointer"
+                title="Reset batches to 0"
+              >
+                <span>Clear to 0</span>
+              </button>
+            )}
+
             <button
               onClick={exportToCSV}
               className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-2xs"
