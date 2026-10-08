@@ -5,7 +5,27 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/api/clinical/interactions",
+      "destination": "/api/interactions"
+    },
+    {
+      "source": "/api/clinical/compliance",
+      "destination": "/api/compliance"
+    },
+    {
+      "source": "/api/billing/audit",
+      "destination": "/api/audit"
+    },
+    {
+      "source": "/api/:match*",
+      "destination": "/api/:match*"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

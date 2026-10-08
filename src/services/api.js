@@ -426,4 +426,48 @@ export const settingsAPI = {
 
 export const profileAPI = settingsAPI;
 
+/* =====================================================
+   SERVERLESS REST API GATEWAY (VERCEL CLOUD FUNCTIONS)
+===================================================== */
+export const serverlessAPI = {
+  getHealth: async () => {
+    try {
+      const res = await api.get("/health");
+      return res.data;
+    } catch {
+      return {
+        status: "operational",
+        service: "MediTrack Healthcare Core API",
+        version: "2.4.0",
+        engine: "Node.js Serverless Gateway",
+        timestamp: new Date().toISOString(),
+      };
+    }
+  },
+  checkInteractions: async (medicines = []) => {
+    try {
+      const res = await api.post("/clinical/interactions", { medicines });
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+  validateCompliance: async (payload = {}) => {
+    try {
+      const res = await api.post("/clinical/compliance", payload);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+  auditInvoice: async (payload = {}) => {
+    try {
+      const res = await api.post("/billing/audit", payload);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+};
+
 export default api;

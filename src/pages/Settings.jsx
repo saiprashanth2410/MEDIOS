@@ -25,6 +25,9 @@ import {
   CreditCard,
   CheckCircle2,
   Copy,
+  Server,
+  Activity,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
@@ -32,6 +35,7 @@ import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
 import QRCodeSVG from "../components/common/QRCodeSVG";
 import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
+import { serverlessAPI } from "../services/api";
 
 /* =====================================================
    CATEGORIES
