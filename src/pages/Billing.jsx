@@ -152,8 +152,9 @@ export default function Billing() {
     };
   }, []);
 
-  // Inventory state initialized with all 505 catalog medicines + custom medicines
+  // Inventory state initialized with custom medicines; synced live from Firestore
   const [catalog, setCatalog] = useState(getInitialBillingCatalog);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState(() => savedDraft?.activeTab || "pos");
   const isRegisterTab = ["day_close", "schedule_h", "refills"].includes(activeTab);
@@ -445,6 +446,7 @@ export default function Billing() {
 
     // 2. Real-time Firestore sync
     const unsub = inventoryFirebaseService.subscribeToMedicines((fbMeds) => {
+      setCatalogLoading(false); // ✅ first Firestore response received
       if (Array.isArray(fbMeds)) {
         if (fbMeds.length === 0) {
           setCatalog([]);
@@ -1413,7 +1415,12 @@ export default function Billing() {
                 {/* Dropdown Results */}
                 {searchQuery.trim().length > 0 && (
                   <div className="absolute left-4 right-4 top-[84px] z-30 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 max-h-[340px] overflow-y-auto">
-                    {searchResults.length > 0 ? (
+                    {catalogLoading ? (
+                      <div className="p-5 flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Loading your medicines catalog…</p>
+                      </div>
+                    ) : searchResults.length > 0 ? (
                       searchResults.map((med, idx) => {
                         const isSelected = idx === selectedSearchIdx;
                         return (
