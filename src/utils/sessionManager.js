@@ -117,3 +117,4 @@ export function saveSessionLog(log) {
     console.warn("Failed to persist session log:", err);
   }
 }
+
