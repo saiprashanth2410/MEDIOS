@@ -32,6 +32,7 @@ import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
 import QRCodeSVG from "../components/common/QRCodeSVG";
 import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
+import { openQuickNavigation } from "../components/common/GlobalQuickNavigationModal";
 
 /* =====================================================
    CATEGORIES
@@ -723,27 +724,36 @@ export default function Settings() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {[
-                          { key: "Alt + B", label: "Retail POS Billing" },
-                          { key: "Alt + D", label: "Dashboard Overview" },
-                          { key: "Alt + M", label: "Medicines Inventory" },
-                          { key: "Alt + P", label: "Prescriptions" },
-                          { key: "Alt + E", label: "Expiry Management" },
-                          { key: "Alt + N", label: "Notifications & Alerts" },
-                          { key: "Alt + S", label: "Settings & Profile" },
-                          { key: "Alt + Z", label: "Day-End Register" },
-                          { key: "?", label: "POS Cheat-Sheet" },
+                          { key: "Alt + B", label: "Retail POS Billing", path: "/billing" },
+                          { key: "Alt + D", label: "Dashboard Overview", path: "/dashboard" },
+                          { key: "Alt + M", label: "Medicines Inventory", path: "/medicines" },
+                          { key: "Alt + P", label: "Prescriptions", path: "/prescriptions" },
+                          { key: "Alt + E", label: "Expiry Management", path: "/expiry" },
+                          { key: "Alt + N", label: "Notifications & Alerts", path: "/notifications" },
+                          { key: "Alt + S", label: "Settings & Profile", path: "/settings" },
+                          { key: "Alt + Z", label: "Day-End Register", path: "/billing?tab=day_close" },
+                          { key: "?", label: "POS Cheat-Sheet", isCheatSheet: true },
                         ].map((nav) => (
-                          <div
+                          <button
                             key={nav.key}
-                            className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs"
+                            type="button"
+                            onClick={() => {
+                              if (nav.isCheatSheet) {
+                                openQuickNavigation();
+                              } else if (nav.path) {
+                                navigate(nav.path);
+                              }
+                            }}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-slate-800/80 transition text-xs text-left cursor-pointer group"
+                            title={nav.isCheatSheet ? "Open POS Cheat-Sheet (?)" : `Jump to ${nav.label} (${nav.key})`}
                           >
-                            <span className="text-slate-700 dark:text-slate-300 font-medium truncate">
+                            <span className="text-slate-700 dark:text-slate-300 group-hover:text-sky-600 dark:group-hover:text-sky-400 font-medium truncate">
                               {nav.label}
                             </span>
-                            <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700 shrink-0">
+                            <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-bold bg-slate-100 dark:bg-slate-800 group-hover:bg-sky-100 dark:group-hover:bg-sky-950/60 text-slate-600 dark:text-slate-300 group-hover:text-sky-700 dark:group-hover:text-sky-300 rounded border border-slate-200 dark:border-slate-700 group-hover:border-sky-300 dark:group-hover:border-sky-700 shrink-0">
                               {nav.key}
                             </kbd>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>

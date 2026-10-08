@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Search,
@@ -156,13 +157,35 @@ export default function Billing() {
   const [catalog, setCatalog] = useState(getInitialBillingCatalog);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState(() => savedDraft?.activeTab || "pos");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
+    if (tabFromUrl && ["pos", "history", "day_close", "schedule_h", "refills"].includes(tabFromUrl)) {
+      return tabFromUrl;
+    }
+    return savedDraft?.activeTab || "pos";
+  });
   const isRegisterTab = ["day_close", "schedule_h", "refills"].includes(activeTab);
-  const [registerSubTab, setRegisterSubTab] = useState(() =>
-    ["day_close", "schedule_h", "refills"].includes(savedDraft?.activeTab)
+  const [registerSubTab, setRegisterSubTab] = useState(() => {
+    const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
+    if (tabFromUrl && ["day_close", "schedule_h", "refills"].includes(tabFromUrl)) {
+      return tabFromUrl;
+    }
+    return ["day_close", "schedule_h", "refills"].includes(savedDraft?.activeTab)
       ? savedDraft.activeTab
-      : "day_close"
-  );
+      : "day_close";
+  });
+
+  // Sync tab if URL search parameter changes
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["pos", "history", "day_close", "schedule_h", "refills"].includes(tabParam)) {
+      setActiveTab(tabParam);
+      if (["day_close", "schedule_h", "refills"].includes(tabParam)) {
+        setRegisterSubTab(tabParam);
+      }
+    }
+  }, [searchParams]);
 
   // Multi-Cart State: supports multiple concurrent customer carts (Cart 1, Cart 2, etc.)
   const initialCartsData = useMemo(() => {
