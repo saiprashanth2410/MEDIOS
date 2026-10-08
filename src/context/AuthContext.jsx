@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { auth, db } from "../config/firebase";
 import { authService } from "../services/authService";
 import { initializeNewUserScope } from "../utils/userScope";
+import { syncActiveDeviceSession } from "../utils/sessionManager";
 
 const defaultAuthValue = {
   user: null,
@@ -69,6 +70,7 @@ export function AuthProvider({ children }) {
 
           setUser(currentUser);
           localStorage.setItem("meditrack_user", JSON.stringify(currentUser));
+          syncActiveDeviceSession(currentUser);
         } else {
           setUser(null);
           localStorage.removeItem("meditrack_user");
@@ -96,6 +98,7 @@ export function AuthProvider({ children }) {
 
       setUser(result.user);
       localStorage.setItem("meditrack_user", JSON.stringify(result.user));
+      syncActiveDeviceSession(result.user);
       toast.success(`Welcome back, ${result.user.name || "Pharmacist"}!`);
       return { ok: true, user: result.user };
     } catch (err) {
@@ -120,6 +123,7 @@ export function AuthProvider({ children }) {
 
       setUser(result.user);
       localStorage.setItem("meditrack_user", JSON.stringify(result.user));
+      syncActiveDeviceSession(result.user);
       toast.success(`Signed in with Google as ${result.user.name}!`);
       return { ok: true, user: result.user };
     } catch (err) {

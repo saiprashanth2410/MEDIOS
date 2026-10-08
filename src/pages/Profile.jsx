@@ -35,7 +35,6 @@ import { profileAPI } from "../services/api";
 import { authService } from "../services/authService";
 import AvatarModal from "../components/profile/AvatarModal";
 import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
-import { getOrCreateCurrentSession, getSavedSessionLogs } from "../utils/sessionManager";
 
 const FIELD_BASE =
   "w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 disabled:bg-slate-50 dark:disabled:bg-slate-800/50 disabled:text-slate-500 dark:text-white disabled:cursor-not-allowed";
@@ -328,69 +327,9 @@ export default function Profile() {
     );
   };
 
-  const [authLogs, setAuthLogs] = useState([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-
-  const fetchAuthLogs = async () => {
-    try {
-      setLoadingLogs(true);
-      const currentSess = getOrCreateCurrentSession(user);
-      const localLogs = getSavedSessionLogs();
-
-      let serverLogs = [];
-      try {
-        const res = await authService.getAuthLogs({ limit: 30 });
-        if (res?.logs && Array.isArray(res.logs)) {
-          serverLogs = res.logs;
-        }
-      } catch {
-        // Backend logging is optional
-      }
-
-      // Combine logs with current active session guaranteed at the top
-      const logMap = new Map();
-      logMap.set(currentSess.id, currentSess);
-
-      serverLogs.forEach((l) => {
-        const id = l._id || l.id;
-        if (id && !logMap.has(id)) {
-          logMap.set(id, l);
-        }
-      });
-
-      localLogs.forEach((l) => {
-        const id = l._id || l.id;
-        if (id && !logMap.has(id)) {
-          logMap.set(id, l);
-        }
-      });
-
-      const combined = Array.from(logMap.values()).sort((a, b) => {
-        if (a.isCurrent) return -1;
-        if (b.isCurrent) return 1;
-        return new Date(b.entryTime || 0) - new Date(a.entryTime || 0);
-      });
-
-      setAuthLogs(combined);
-    } catch (err) {
-      console.warn("Failed to load auth logs:", err);
-      // Fallback: at least show the real current active session
-      setAuthLogs([getOrCreateCurrentSession(user)]);
-    } finally {
-      setLoadingLogs(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "sessions") {
-      fetchAuthLogs();
-    }
-  }, [activeTab, user]);
-
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
     { id: "security", label: "Security", icon: ShieldCheck },
-    { id: "sessions", label: "Session Logs", icon: Clock },
     { id: "preferences", label: "Preferences", icon: Settings },
   ];
 
@@ -931,161 +870,7 @@ export default function Profile() {
               </>
             )}
 
-            {/* SESSIONS TAB */}
-            {activeTab === "sessions" && (
-              <div className="space-y-6 animate-fade-in">
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Clock size={18} className="text-[#0284c7] dark:text-sky-400" />
-                        <h2 className="font-bold text-base text-slate-800 dark:text-white">
-                          Authentication &amp; Session Audit Trail
-                        </h2>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Live authentication audit trail and access records with entry timestamps, duration, and verified client details.
-                      </p>
-                    </div>
 
-                    <button
-                      type="button"
-                      onClick={fetchAuthLogs}
-                      disabled={loadingLogs}
-                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition cursor-pointer self-start sm:self-auto disabled:opacity-50"
-                    >
-                      <RefreshCw size={13} className={loadingLogs ? "animate-spin" : ""} />
-                      <span>Refresh Logs</span>
-                    </button>
-                  </div>
-
-                  {/* Summary badges */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 my-5">
-                    <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/40">
-                      <p className="text-[11px] text-teal-700 dark:text-teal-300 font-medium">Logged Sessions</p>
-                      <p className="text-xl font-bold text-teal-800 dark:text-teal-200 mt-0.5">{authLogs.length}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/60 dark:border-sky-800/40">
-                      <p className="text-[11px] text-sky-700 dark:text-sky-300 font-medium">Current Status</p>
-                      <p className="text-sm font-bold text-sky-800 dark:text-sky-200 mt-1 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Active Session
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 col-span-2 sm:col-span-1">
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Security Protocol</p>
-                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1">
-                        256-bit TLS Encrypted
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* LOGS TABLE */}
-                  {loadingLogs ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-slate-400">
-                      <Loader2 size={24} className="animate-spin text-[#0284c7] mb-2" />
-                      <p className="text-xs">Loading session audit logs...</p>
-                    </div>
-                  ) : authLogs.length === 0 ? (
-                    <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                      <Clock size={28} className="mx-auto mb-2 opacity-50" />
-                      <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No session logs found yet</p>
-                      <p className="text-xs mt-1">Access logs will record automatically upon authentication.</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
-                            <th className="py-3 px-3">User & Provider</th>
-                            <th className="py-3 px-3">Action</th>
-                            <th className="py-3 px-3">Entry Time</th>
-                            <th className="py-3 px-3">Logout Time</th>
-                            <th className="py-3 px-3">Duration</th>
-                            <th className="py-3 px-3">Device / IP</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                          {authLogs.map((log) => {
-                            const entryDate = log.entryTime ? new Date(log.entryTime) : null;
-                            const logoutDate = log.logoutTime ? new Date(log.logoutTime) : null;
-                            const isGoogle = log.provider === "google";
-
-                            return (
-                              <tr key={log._id || log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
-                                <td className="py-3 px-3">
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                        isGoogle
-                                          ? "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                                      }`}
-                                    >
-                                      {log.provider || "credentials"}
-                                    </span>
-                                    <span className="font-medium text-slate-700 dark:text-slate-200">
-                                      {log.userName || log.email}
-                                    </span>
-                                    {log.isCurrent && (
-                                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                        Current Device
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3 capitalize text-slate-600 dark:text-slate-400">
-                                  {log.action?.replace("_", " ") || "login"}
-                                </td>
-                                <td className="py-3 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                  {entryDate
-                                    ? entryDate.toLocaleString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        second: "2-digit",
-                                      })
-                                    : "—"}
-                                </td>
-                                <td className="py-3 px-3 font-mono text-[11px] whitespace-nowrap">
-                                  {logoutDate ? (
-                                    <span className="text-slate-600 dark:text-slate-400">
-                                      {logoutDate.toLocaleString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        second: "2-digit",
-                                      })}
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                      Active Now
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-3 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                                  {log.isCurrent || !logoutDate
-                                    ? "Active now"
-                                    : log.sessionDurationSeconds > 0
-                                    ? `${Math.floor(log.sessionDurationSeconds / 60)}m ${log.sessionDurationSeconds % 60}s`
-                                    : "< 1m"}
-                                </td>
-                                <td className="py-3 px-3 text-slate-500 dark:text-slate-400 text-[11px]">
-                                  {log.device || "Desktop Web"}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>

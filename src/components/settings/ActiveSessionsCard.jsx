@@ -17,6 +17,12 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
 import { getScopedKey } from "../../utils/userScope";
+import {
+  getDeviceSessionId,
+  syncActiveDeviceSession,
+  revokeDeviceSession,
+  subscribeToActiveSessions,
+} from "../../utils/sessionManager";
 
 // ─── Real Browser Detection ─────────────────────────────────────────────
 function detectBrowser() {
@@ -82,25 +88,7 @@ export default function ActiveSessionsCard() {
   const browser = detectBrowser();
   const os = detectOS();
   const device = detectDevice();
-
-  // Load and manage sessions storage
-  const loadSessionsData = useCallback(() => {
-    try {
-      const storageKey = getScopedKey("meditrack_other_sessions");
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setOtherSessions(parsed);
-          return;
-        }
-      }
-      // Clean slate: no fake duplicate sessions by default!
-      setOtherSessions([]);
-    } catch {
-      setOtherSessions([]);
-    }
-  }, []);
+  const currentSessionId = getDeviceSessionId();
 
   // Fetch real IP and network location asynchronously
   const fetchNetworkInfo = useCallback(async () => {
@@ -109,18 +97,14 @@ export default function ActiveSessionsCard() {
     const timer = setTimeout(() => controller.abort(), 3000);
 
     try {
-      // Fast, lightweight IP check
       const res = await fetch("https://api.ipify.org?format=json", {
         signal: controller.signal,
       });
       if (res.ok) {
         const data = await res.json();
-        if (data?.ip) {
-          setIpAddress(data.ip);
-        }
+        if (data?.ip) setIpAddress(data.ip);
       }
 
-      // Try geolocating IP
       const geoRes = await fetch("https://ipapi.co/json/", {
         signal: controller.signal,
       });
@@ -131,7 +115,6 @@ export default function ActiveSessionsCard() {
         }
       }
     } catch {
-      // Fallback gracefully to system location and local IP
       setLocation(getSystemLocation());
     } finally {
       clearTimeout(timer);
@@ -139,21 +122,36 @@ export default function ActiveSessionsCard() {
     }
   }, []);
 
+  // 1. Initialize session start time and fetch network
   useEffect(() => {
-    // 1. Session start time
     let start = sessionStorage.getItem("meditrack_session_start");
     if (!start) {
       start = new Date().toISOString();
       sessionStorage.setItem("meditrack_session_start", start);
     }
     setSessionStartTime(new Date(start));
-
-    // 2. Load other sessions
-    loadSessionsData();
-
-    // 3. Fetch real network info
     fetchNetworkInfo();
-  }, [loadSessionsData, fetchNetworkInfo]);
+  }, [fetchNetworkInfo]);
+
+  // 2. Sync this device's session to Firestore so other devices (Phone/PC) can see it!
+  useEffect(() => {
+    if (user) {
+      syncActiveDeviceSession(user, { location, ip: ipAddress });
+    }
+  }, [user, location, ipAddress]);
+
+  // 3. Real-time multi-device subscription: listens to Firestore for Phone, Laptop, etc.
+  useEffect(() => {
+    const unsubscribe = subscribeToActiveSessions((allSessions) => {
+      // Filter out this current device to display all other logged-in devices
+      const others = (allSessions || []).filter((s) => s.id !== currentSessionId);
+      setOtherSessions(others);
+    });
+
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [currentSessionId]);
 
   // Format session start time
   const formattedSessionTime = sessionStartTime
@@ -164,30 +162,24 @@ export default function ActiveSessionsCard() {
       })
     : "Just now";
 
-  // Revoke a specific other session
-  const handleRevokeSession = (sessionId) => {
-    const updated = otherSessions.filter((s) => s.id !== sessionId);
-    setOtherSessions(updated);
-    try {
-      localStorage.setItem(
-        getScopedKey("meditrack_other_sessions"),
-        JSON.stringify(updated)
-      );
+  // Revoke a specific other session from Firestore
+  const handleRevokeSession = async (sessionId) => {
+    const success = await revokeDeviceSession(sessionId);
+    if (success) {
+      setOtherSessions((prev) => prev.filter((s) => s.id !== sessionId));
       toast.success("Device session revoked successfully");
-    } catch {
+    } else {
       toast.error("Failed to revoke session");
     }
   };
 
-  // Revoke all other sessions
-  const handleRevokeAllOtherSessions = () => {
-    setOtherSessions([]);
-    try {
-      localStorage.removeItem(getScopedKey("meditrack_other_sessions"));
-      toast.success("All other active sessions have been signed out");
-    } catch {
-      toast.error("Failed to revoke sessions");
+  // Revoke all other sessions from Firestore
+  const handleRevokeAllOtherSessions = async () => {
+    for (const s of otherSessions) {
+      await revokeDeviceSession(s.id);
     }
+    setOtherSessions([]);
+    toast.success("All other active sessions have been signed out");
   };
 
   const DeviceIcon =
