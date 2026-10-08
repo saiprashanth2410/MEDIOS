@@ -62,14 +62,14 @@ export default function Profile() {
     return {
       name: user?.name || "Pharmacist",
       email: user?.email || "",
-      phone: user?.phone || "+91 98765 43210",
+      phone: user?.phone || "",
       role: user?.role || "Chief Pharmacist",
-      license: savedPharm?.license || user?.license || "TN/PH/2026/0892",
-      pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
-      pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
-      branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
+      license: savedPharm?.license || user?.license || "",
+      pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy",
+      pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || (user?.uid ? `PH-${user.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
+      branch: savedPharm?.branch || user?.branch || "Main Branch",
       upiId: savedPharm?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "",
-      joinDate: user?.joinDate || "24 Sep 2024",
+      joinDate: user?.joinDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       avatar: (() => {
         const localPref = typeof window !== "undefined" ? localStorage.getItem("meditrack_user_avatar_preference") : null;
         if (localPref !== null) return localPref;
@@ -121,9 +121,9 @@ export default function Profile() {
                 "meditrack_pharmacy_details",
                 JSON.stringify({
                   name: data.pharmacy.name,
-                  branch: data.pharmacy.address || "Tiruvannamalai",
-                  pharmacyId: data.pharmacy.licenseNumber || "DL-TN-CH-2024-0045",
-                  license: data.personal?.license || "TN/PH/2026/0892",
+                  branch: data.pharmacy.address || prev.branch || "Main Branch",
+                  pharmacyId: data.pharmacy.licenseNumber || prev.pharmacyId || "",
+                  license: data.personal?.license || prev.license || "",
                 })
               );
               window.dispatchEvent(new Event("meditrack_pharmacy_updated"));
@@ -186,10 +186,10 @@ export default function Profile() {
     }
 
     const updatedPharmacy = {
-      name: form.pharmacy || "MediTrack Pharmacy & Health Store",
-      branch: form.branch || "Tiruvannamalai",
-      pharmacyId: form.pharmacyId || "DL-TN-CH-2024-0045",
-      license: form.license || "TN/PH/2026/0892",
+      name: form.pharmacy || user?.pharmacy || "MediTrack Pharmacy",
+      branch: form.branch || user?.branch || "Main Branch",
+      pharmacyId: form.pharmacyId || user?.pharmacyId || (user?.uid ? `PH-${user.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
+      license: form.license || user?.license || "",
       upiId: form.upiId || "",
     };
     try {
@@ -252,13 +252,13 @@ export default function Profile() {
     setForm({
       name: user?.name || "",
       email: user?.email || "",
-      phone: user?.phone || "+91 98765 43210",
+      phone: user?.phone || "",
       role: user?.role || "Chief Pharmacist",
-      license: savedPharm?.license || user?.license || "TN/PH/2026/0892",
-      pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
-      pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
-      branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
-      joinDate: user?.joinDate || "24 Sep 2024",
+      license: savedPharm?.license || user?.license || "",
+      pharmacy: savedPharm?.name || user?.pharmacy || "MediTrack Pharmacy",
+      pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || (user?.uid ? `PH-${user.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
+      branch: savedPharm?.branch || user?.branch || "Main Branch",
+      joinDate: user?.joinDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       avatar: localPref !== null ? localPref : (user?.avatar || ""),
     });
     setEditing(false);

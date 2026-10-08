@@ -205,7 +205,7 @@ export const patientsFirebaseService = {
     patientPhone,
     items = [],
     pharmacyName = "MediTrack Pharmacy",
-    branch = "Tiruvannamalai",
+    branch = "Main Branch",
   }) {
     if (!patientPhone || !Array.isArray(items) || items.length === 0) return [];
     const cleanPhone = String(patientPhone).replace(/\D/g, "");

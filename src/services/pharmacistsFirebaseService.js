@@ -25,13 +25,13 @@ function getActiveLoggedInPharmacist() {
           {
             id: "PH-001",
             name: user?.name || "Pharmacist",
-            email: user?.email || "pharmacist@meditrack.ai",
-            phone: user?.phone || "+91 98765 43210",
-            license: details?.license || user?.license || "TN/PH/2026/0892",
+            email: user?.email || "",
+            phone: user?.phone || "",
+            license: details?.license || user?.license || "Reg. Pharmacist",
             role: user?.role || "Chief Pharmacist",
-            shift: "Morning (9AM - 5PM)",
+            shift: "General Shift",
             status: "active",
-            joinDate: user?.joinDate || "24 Sep 2024",
+            joinDate: user?.joinDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
           },
         ];
       }

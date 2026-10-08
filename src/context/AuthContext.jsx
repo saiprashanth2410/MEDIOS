@@ -46,6 +46,11 @@ export function AuthProvider({ children }) {
         if (fbUser) {
           let role = "Chief Pharmacist";
           let pharmacy = "MediTrack Central";
+          let license = "";
+          let pharmacyId = "";
+          let branch = "";
+          let phone = "";
+          let upiId = "";
           let avatarPref = undefined;
 
           try {
@@ -54,6 +59,11 @@ export function AuthProvider({ children }) {
               const data = userSnap.data();
               role = data.role || role;
               pharmacy = data.pharmacy || pharmacy;
+              license = data.license || "";
+              pharmacyId = data.pharmacyId || "";
+              branch = data.branch || "";
+              phone = data.phone || "";
+              upiId = data.upiId || "";
               if (data.avatarPreference !== undefined) {
                 avatarPref = data.avatarPreference;
               }
@@ -62,11 +72,28 @@ export function AuthProvider({ children }) {
             // Keep default role on permission or offline
           }
 
+          // Check local pharmacy override
+          try {
+            const rawPharm = localStorage.getItem("meditrack_pharmacy_details");
+            if (rawPharm) {
+              const p = JSON.parse(rawPharm);
+              if (p.name) pharmacy = p.name;
+              if (p.license) license = p.license;
+              if (p.pharmacyId) pharmacyId = p.pharmacyId;
+              if (p.branch) branch = p.branch;
+            }
+          } catch (_) {}
+
           // Check local avatar preference override (e.g. user explicitly reset to initials)
           const localAvatarPref = localStorage.getItem("meditrack_user_avatar_preference");
           if (localAvatarPref !== null) {
             avatarPref = localAvatarPref;
           }
+
+          // Dynamic unique fallbacks per user (NO static Tiruvannamalai hardcodes)
+          const finalPharmacyId = pharmacyId || `PH-${fbUser.uid.slice(0, 6).toUpperCase()}`;
+          const finalBranch = branch || "Main Dispensary";
+          const finalLicense = license || "DL-Pending (Update in Profile)";
 
           // Use avatar preference if set (even if empty string for initials), else fall back to Google photo
           const finalAvatar =
@@ -81,6 +108,11 @@ export function AuthProvider({ children }) {
             email: fbUser.email,
             role,
             pharmacy,
+            license: finalLicense,
+            pharmacyId: finalPharmacyId,
+            branch: finalBranch,
+            phone,
+            upiId,
             photoURL: fbUser.photoURL || "",
             avatar: finalAvatar,
           };
@@ -203,17 +235,17 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((updates) => {
     setUser((prev) => {
       const updated = { ...prev, ...updates };
+      if (updated?.uid) {
+        setDoc(
+          doc(db, "users", updated.uid),
+          { ...updates, updatedAt: serverTimestamp() },
+          { merge: true }
+        ).catch((err) => console.debug("[AuthContext] user sync err:", err));
+      }
       if (updates?.avatar !== undefined) {
         try {
           const avatarVal = updates.avatar || "";
           localStorage.setItem("meditrack_user_avatar_preference", avatarVal);
-          if (updated?.uid) {
-            setDoc(
-              doc(db, "users", updated.uid),
-              { avatarPreference: avatarVal, updatedAt: serverTimestamp() },
-              { merge: true }
-            ).catch((err) => console.debug("[AuthContext] avatarPreference sync err:", err));
-          }
         } catch (_) {}
       }
       localStorage.setItem("meditrack_user", JSON.stringify(updated));

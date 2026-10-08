@@ -487,17 +487,17 @@ export default function Dashboard() {
                 <InfoRow
                   icon={Building2}
                   label="Pharmacy ID"
-                  value={user?.pharmacyId || "DL-TN-CH-2024-0045"}
+                  value={user?.pharmacyId || (user?.uid ? `PH-${user.uid.slice(0, 6).toUpperCase()}` : "PH-001")}
                 />
                 <InfoRow
                   icon={BadgeCheck}
                   label="License No."
-                  value={user?.license || "TN/PH/2026/0892"}
+                  value={user?.license || "Configure in Profile"}
                 />
                 <InfoRow
                   icon={MapPin}
                   label="Branch"
-                  value={user?.branch || "Tiruvannamalai"}
+                  value={user?.branch || "Main Dispensary"}
                 />
                 <InfoRow
                   icon={Stethoscope}

@@ -387,14 +387,25 @@ export const settingsAPI = {
       try {
         const saved = localStorage.getItem("meditrack_pharmacy_details");
         if (saved) return JSON.parse(saved);
+        const userRaw = localStorage.getItem("meditrack_user");
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          return {
+            name: u.pharmacy || "MediTrack Pharmacy",
+            branch: u.branch || "Main Branch",
+            license: u.license || "",
+            pharmacyId: u.pharmacyId || (u.uid ? `PH-${u.uid.slice(0, 6).toUpperCase()}` : ""),
+            taxGst: u.taxGst || "",
+          };
+        }
       } catch (_) {}
     }
     return {
-      name: "MediTrack Pharmacy & Health Store",
-      branch: "Tiruvannamalai",
-      license: "TN/PH/2026/0892",
-      pharmacyId: "DL-TN-CH-2024-0045",
-      taxGst: "33AAAAA0000A1Z5",
+      name: "MediTrack Pharmacy",
+      branch: "Main Branch",
+      license: "",
+      pharmacyId: "",
+      taxGst: "",
     };
   },
 

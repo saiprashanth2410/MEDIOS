@@ -75,10 +75,10 @@ export const billingFirebaseService = {
     totals,
     paymentMethod = "Cash",
     pharmacistName = "Chief Pharmacist",
-    pharmacyName = "MediTrack Pharmacy & Health Store",
-    pharmacyBranch = "Tiruvannamalai",
-    pharmacyLicense = "TN/PH/2026/0892",
-    pharmacyId = "DL-TN-CH-2024-0045",
+    pharmacyName = "MediTrack Pharmacy",
+    pharmacyBranch = "Main Dispensary",
+    pharmacyLicense = "DL-Pending",
+    pharmacyId = "PH-001",
   }) {
     const invId = invoiceNumber || `INV-${Date.now().toString().slice(-6)}`;
     const nowIso = new Date().toISOString();

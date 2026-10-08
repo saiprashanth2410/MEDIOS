@@ -103,35 +103,45 @@ function getLivePharmacyDetails() {
         }
       }
       const rawUser = localStorage.getItem("meditrack_user");
-      if (rawUser) {
-        const u = JSON.parse(rawUser);
-        if (u?.pharmacy) {
-          return {
-            name: u.pharmacy,
-            branch: u.branch || "Tiruvannamalai",
-            license: u.license || "TN/PH/2026/0892",
-            pharmacyId: u.pharmacyId || "DL-TN-CH-2024-0045",
-            upiId: savedUpi || u.upiId || "meditrack@upi",
-          };
-        }
+      const u = rawUser ? JSON.parse(rawUser) : {};
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.name || u.pharmacy || "MediTrack Pharmacy",
+          branch: parsed.branch || u.branch || "Main Branch",
+          license: parsed.license || u.license || "DL-Pending",
+          pharmacyId: parsed.pharmacyId || u.pharmacyId || (u.uid ? `PH-${u.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
+          upiId: savedUpi || parsed.upiId || u.upiId || "",
+        };
+      }
+
+      if (u?.pharmacy) {
+        return {
+          name: u.pharmacy,
+          branch: u.branch || "Main Branch",
+          license: u.license || "DL-Pending",
+          pharmacyId: u.pharmacyId || (u.uid ? `PH-${u.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
+          upiId: savedUpi || u.upiId || "",
+        };
       }
       if (savedUpi) {
         return {
-          name: "MediTrack Pharmacy & Health Store",
-          branch: "Tiruvannamalai",
-          license: "TN/PH/2026/0892",
-          pharmacyId: "DL-TN-CH-2024-0045",
+          name: u.pharmacy || "MediTrack Pharmacy",
+          branch: u.branch || "Main Branch",
+          license: u.license || "DL-Pending",
+          pharmacyId: u.pharmacyId || (u.uid ? `PH-${u.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
           upiId: savedUpi,
         };
       }
     } catch (_) {}
   }
   return {
-    name: "MediTrack Pharmacy & Health Store",
-    branch: "Tiruvannamalai",
-    license: "TN/PH/2026/0892",
-    pharmacyId: "DL-TN-CH-2024-0045",
-    upiId: "meditrack@upi",
+    name: "MediTrack Pharmacy",
+    branch: "Main Branch",
+    license: "DL-Pending",
+    pharmacyId: "PH-001",
+    upiId: "",
   };
 }
 
@@ -1068,10 +1078,10 @@ export default function Billing() {
         totals,
         paymentMethod,
         pharmacistName: user?.name || "Chief Pharmacist",
-        pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
-        pharmacyBranch: activePharm.branch || user?.branch || "Tiruvannamalai",
-        pharmacyLicense: activePharm.license || user?.license || "TN/PH/2026/0892",
-        pharmacyId: activePharm.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
+        pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy",
+        pharmacyBranch: activePharm.branch || user?.branch || "Main Branch",
+        pharmacyLicense: activePharm.license || user?.license || "DL-Pending",
+        pharmacyId: activePharm.pharmacyId || user?.pharmacyId || (user?.uid ? `PH-${user.uid.slice(0, 6).toUpperCase()}` : "PH-001"),
       });
 
       if (result.ok) {
@@ -1098,8 +1108,8 @@ export default function Billing() {
               patientName: patientName.trim() || "Customer",
               patientPhone: patientPhone.trim(),
               items: cart,
-              pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
-              branch: activePharm.branch || user?.branch || "Tiruvannamalai",
+              pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy",
+              branch: activePharm.branch || user?.branch || "Main Branch",
             });
             const freshRefills = await patientsFirebaseService.getRefillReminders();
             setRefillReminders(freshRefills);
@@ -1113,9 +1123,9 @@ export default function Billing() {
           invoiceNumber,
           date: new Date().toLocaleDateString("en-IN"),
           time: new Date().toLocaleTimeString("en-IN"),
-          pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy & Health Store",
-          pharmacyBranch: activePharm.branch || user?.branch || "Tiruvannamalai",
-          pharmacyLicense: activePharm.license || user?.license || "TN/PH/2026/0892",
+          pharmacyName: activePharm.name || user?.pharmacy || "MediTrack Pharmacy",
+          pharmacyBranch: activePharm.branch || user?.branch || "Main Branch",
+          pharmacyLicense: activePharm.license || user?.license || "DL-Pending",
         });
 
         toast.success(`Invoice ${invoiceNumber} generated & dispensed!`);
@@ -2868,13 +2878,13 @@ export default function Billing() {
               <div id="print-section" className="space-y-4">
                 <div className="text-center pb-3 border-b border-slate-200">
                   <h2 className="text-lg font-bold uppercase tracking-wide">
-                    {completedSale.pharmacyName || pharmacyInfo.name || user?.pharmacy || "MediTrack Pharmacy & Health Store"}
+                    {completedSale.pharmacyName || pharmacyInfo.name || user?.pharmacy || "MediTrack Pharmacy"}
                   </h2>
                   <p className="text-[11px] text-slate-500">
-                    Drug License: {completedSale.pharmacyLicense || pharmacyInfo.license || "TN/PH/2026/0892"} · GSTIN: 33AAAAA0000A1Z5
+                    Drug License: {completedSale.pharmacyLicense || pharmacyInfo.license || user?.license || "DL-Pending"} · GSTIN: {pharmacyInfo.taxGst || user?.taxGst || "Retail / Exempt"}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {completedSale.pharmacyBranch || pharmacyInfo.branch || "Tiruvannamalai"}
+                    {completedSale.pharmacyBranch || pharmacyInfo.branch || user?.branch || "Main Dispensary"}
                   </p>
                   <div className="mt-2 inline-block px-3 py-0.5 rounded bg-slate-100 text-xs font-bold text-slate-700">
                     RETAIL TAX INVOICE (CASH / UPI MEMO)
@@ -3111,10 +3121,10 @@ export default function Billing() {
               <div id="print-section" className="space-y-4 font-mono text-xs">
                 <div className="text-center pb-3 border-b-2 border-dashed border-slate-300 font-sans">
                   <h2 className="text-lg font-black uppercase tracking-wide">
-                    {pharmacyInfo.name || user?.pharmacy || "MediTrack Pharmacy & Health Store"}
+                    {pharmacyInfo.name || user?.pharmacy || "MediTrack Pharmacy"}
                   </h2>
                   <p className="text-[11px] text-slate-500">
-                    {pharmacyInfo.branch || "Tiruvannamalai"} · Lic: {pharmacyInfo.license || "TN/PH/2026/0892"}
+                    {pharmacyInfo.branch || user?.branch || "Main Dispensary"} · Lic: {pharmacyInfo.license || user?.license || "DL-Pending"}
                   </p>
                   <div className="mt-2 inline-block px-3 py-1 rounded bg-slate-100 text-xs font-black tracking-wider uppercase text-slate-800">
                     DAILY REGISTER CLOSING SUMMARY (Z-REPORT)
