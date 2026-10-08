@@ -1559,6 +1559,11 @@ export default function Billing() {
                             </div>
                             <p className="mt-1 font-medium leading-relaxed">{alert.messageEn}</p>
                             <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed font-sans">{alert.messageTa}</p>
+                            {alert.clinicalAction && (
+                              <p className="mt-1.5 text-[11px] font-semibold text-rose-800 dark:text-rose-300">
+                                💡 Clinical Action: {alert.clinicalAction}
+                              </p>
+                            )}
                           </div>
                         </div>
 

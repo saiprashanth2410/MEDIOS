@@ -1,24 +1,142 @@
 /**
- * Drug-Drug Interaction (DDI) & Clinical Overdose Engine
- * Specifically tuned for Indian retail & hospital pharmacy practice.
+ * Comprehensive Clinical Drug-Drug Interaction (DDI) & Patient Safety Engine
+ * Built for Indian Retail & Hospital Pharmacy Practice.
+ * Covers Pharmacokinetic, Pharmacodynamic, Enzyme (CYP450), and Clinical Toxicity Interactions.
  */
 
-const DRUG_CLASSES = {
-  PARACETAMOL: ["paracetamol", "acetaminophen", "dolo", "calpol", "crocin", "pacimol", "pyregesic", "combiflam", "sumo"],
-  NSAID: ["ibuprofen", "diclofenac", "aceclofenac", "naproxen", "ketorolac", "piroxicam", "mefenamic", "combiflam", "voveran", "zerodol", "hifenac"],
-  BLOOD_THINNER: ["aspirin", "ecosprin", "clopidogrel", "clopilet", "warfarin", "acitrom", "heparin", "dabigatran", "apixaban", "rivaroxaban"],
-  NITRATE: ["sorbitrate", "monotrate", "isosorbide", "nitroglycerin", "angispan", "nitrocontin"],
-  PDE5_INHIBITOR: ["sildenafil", "tadalafil", "manforce", "caverta", "megalis"],
-  FLUOROQUINOLONE: ["ciprofloxacin", "ciprobid", "ciplox", "levofloxacin", "levomac", "ofloxacin", "zenflox", "norfloxacin", "norbactin"],
-  ANTACID_CALCIUM: ["gelusil", "digene", "sucralfate", "sucrafil", "calcium", "shelcal", "antacid", "aluminum hydroxide", "magnesium"],
-  ACE_ARB: ["telmisartan", "telma", "losartan", "losar", "ramipril", "cardace", "enalapril", "olmesartan"],
-  POTASSIUM_SPARING: ["spironolactone", "aldactone", "eplerenone", "triamterene"],
-  STATIN: ["atorvastatin", "atorva", "atorlip", "rosuvastatin", "rosuvas", "rosave", "simvastatin"],
-  MACROLIDE: ["clarithromycin", "claribid", "erythromycin", "erythrocin", "azithromycin", "azithral"],
-  BENZO_SEDATIVE: ["alprazolam", "alprax", "restyl", "clonazepam", "clona", "diazepam", "lorazepam", "ativan"],
-  SEDATING_ANTIHISTAMINE: ["cetirizine", "cetzine", "levocetirizine", "levocet", "chlorpheniramine", "cpm", "diphenhydramine", "hydroxyzine", "atarax", "corex", "ascoril"],
-  PPI: ["pantoprazole", "pan 40", "pan d", "pantocid", "omeprazole", "omez", "rabeprazole", "rabicer", "rabemac", "esomeprazole", "nexpro"],
-  METFORMIN: ["metformin", "glycomet", "gluconorm", "gliphage"],
+export const DRUG_CLASSES = {
+  PARACETAMOL: [
+    "paracetamol", "acetaminophen", "dolo", "calpol", "crocin", "pacimol",
+    "pyregesic", "combiflam", "sumo", "febrex", "p-650", "panadol", "paracip"
+  ],
+  NSAID: [
+    "ibuprofen", "diclofenac", "aceclofenac", "naproxen", "ketorolac",
+    "piroxicam", "mefenamic", "indomethacin", "combiflam", "voveran",
+    "zerodol", "hifenac", "meftal", "brufen", "dynapar"
+  ],
+  BLOOD_THINNER: [
+    "aspirin", "ecosprin", "clopidogrel", "clopilet", "deplatt", "warfarin",
+    "acitrom", "heparin", "dabigatran", "apixaban", "eliquis", "rivaroxaban", "xarelto"
+  ],
+  CLOPIDOGREL: [
+    "clopidogrel", "clopilet", "deplatt", "ceruvit", "noklot"
+  ],
+  NITRATE: [
+    "sorbitrate", "monotrate", "isosorbide", "nitroglycerin", "angispan",
+    "nitrocontin", "imdur"
+  ],
+  PDE5_INHIBITOR: [
+    "sildenafil", "tadalafil", "vardenafil", "manforce", "caverta", "megalis", "suhagra"
+  ],
+  FLUOROQUINOLONE: [
+    "ciprofloxacin", "ciprobid", "ciplox", "levofloxacin", "levomac",
+    "ofloxacin", "zenflox", "norfloxacin", "norbactin", "moxifloxacin", "avelox", "maflo"
+  ],
+  ANTACID_CALCIUM: [
+    "gelusil", "digene", "sucralfate", "sucrafil", "calcium", "shelcal",
+    "antacid", "aluminum hydroxide", "magnesium hydroxide", "omee mps", "cipcal"
+  ],
+  ACE_ARB: [
+    "telmisartan", "telma", "losartan", "losar", "ramipril", "cardace",
+    "enalapril", "olmesartan", "valsartan", "candesartan", "envas"
+  ],
+  POTASSIUM_SPARING: [
+    "spironolactone", "aldactone", "eplerenone", "planep", "triamterene", "amiloride"
+  ],
+  STATIN: [
+    "atorvastatin", "atorva", "atorlip", "rosuvastatin", "rosuvas", "rosave",
+    "simvastatin", "pravastatin", "lipitor", "crestor"
+  ],
+  MACROLIDE: [
+    "clarithromycin", "claribid", "erythromycin", "erythrocin", "azithromycin",
+    "azithral", "roxithromycin", "zady"
+  ],
+  BENZO_SEDATIVE: [
+    "alprazolam", "alprax", "restyl", "clonazepam", "clona", "lonazep",
+    "diazepam", "valium", "lorazepam", "ativan", "zolpidem", "nitrazepam"
+  ],
+  SEDATING_ANTIHISTAMINE: [
+    "cetirizine", "cetzine", "levocetirizine", "levocet", "chlorpheniramine",
+    "cpm", "diphenhydramine", "hydroxyzine", "atarax", "pheniramine", "avil",
+    "promethazine", "phenergan", "corex", "ascoril", "grilinctus"
+  ],
+  PPI: [
+    "pantoprazole", "pan 40", "pan d", "pantocid", "omeprazole", "omez",
+    "rabeprazole", "rabicer", "rabemac", "esomeprazole", "nexpro", "lansoprazole"
+  ],
+  OMEPRAZOLE_ESOMEPRAZOLE: [
+    "omeprazole", "omez", "esomeprazole", "nexpro", "esomac"
+  ],
+  METFORMIN: [
+    "metformin", "glycomet", "gluconorm", "gliphage", "obimet", "janumet"
+  ],
+  AZOLE_ANTIFUNGAL: [
+    "fluconazole", "flucos", "zocon", "forcan", "itraconazole", "itrasys",
+    "canditral", "ketoconazole", "nizral", "voriconazole"
+  ],
+  METHOTREXATE: [
+    "methotrexate", "folitrax", "imutrex", "oncotrex"
+  ],
+  DIGOXIN: [
+    "digoxin", "lanoxin", "digicor"
+  ],
+  ANTIARRHYTHMIC_CCB: [
+    "amiodarone", "cordarone", "verapamil", "calaptin", "diltiazem", "dilzem"
+  ],
+  SSRI_ANTIDEPRESSANT: [
+    "fluoxetine", "fludac", "sertraline", "daxid", "escitalopram", "nexito",
+    "cipralex", "paroxetine", "fluvoxamine"
+  ],
+  TRAMADOL_OPIOID: [
+    "tramadol", "ultram", "tramacip", "contramal", "ultracet", "codeine",
+    "codistar", "morphine", "fentanyl"
+  ],
+  LITHIUM: [
+    "lithium", "licab", "lithosun"
+  ],
+  ALLOPURINOL: [
+    "allopurinol", "zyloric", "purinol"
+  ],
+  AZATHIOPRINE: [
+    "azathioprine", "azoran", "imuran", "6-mercaptopurine", "purinethol"
+  ],
+  CORTICOSTEROID: [
+    "prednisolone", "wysolone", "omnacortil", "dexamethasone", "dexona",
+    "betamethasone", "betnesol", "methylprednisolone", "medrol", "hydrocortisone"
+  ],
+  FIBRATE: [
+    "gemfibrozil", "lopid", "fenofibrate", "lipicard", "fenolip"
+  ],
+  BETA_BLOCKER: [
+    "atenolol", "aten", "betacard", "metoprolol", "betaloc", "metolar",
+    "propranolol", "ciplar", "carvedilol", "carca", "bisoprolol", "concor", "labetalol"
+  ],
+  ORAL_CONTRACEPTIVE: [
+    "ethinylestradiol", "mala-d", "saheli", "femilon", "ovral", "levonorgestrel", "ipill"
+  ],
+  CYP_INDUCER_ANTIEPILEPTIC: [
+    "rifampicin", "r-cin", "carbamazepine", "tegretol", "mazetol",
+    "phenytoin", "eptoin", "phenobarbital"
+  ],
+  THEOPHYLLINE: [
+    "theophylline", "deriphyllin", "theoped", "aminophylline"
+  ],
+  THYROID_HORMONE: [
+    "levothyroxine", "eltroxin", "thyronorm", "thyrox"
+  ],
+  ORAL_IRON: [
+    "ferrous", "autrin", "dexorange", "fefol", "orofer", "hepcil", "iron"
+  ],
+  SULFONYLUREA: [
+    "glimepiride", "amaryl", "glemep", "gliclazide", "diamicron",
+    "glipizide", "glybovin", "glibenclamide", "daonil"
+  ],
+  LINEZOLID: [
+    "linezolid", "lizomac", "linid", "lizolid"
+  ],
+  METRONIDAZOLE: [
+    "metronidazole", "flagyl", "metrogyl", "ornidazole"
+  ],
 };
 
 function matchDrugClass(itemName, genericName, classList) {
@@ -33,165 +151,461 @@ export function checkDrugInteractions(cartItems = []) {
 
   const alerts = [];
 
-  // Helper to test pairs
   for (let i = 0; i < cartItems.length; i++) {
     for (let j = i + 1; j < cartItems.length; j++) {
       const itemA = cartItems[i];
       const itemB = cartItems[j];
 
-      // 1. Nitrates + PDE5 Inhibitors (CRITICAL)
-      const isNitrateA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.NITRATE);
-      const isNitrateB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.NITRATE);
-      const isPde5A = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.PDE5_INHIBITOR);
-      const isPde5B = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.PDE5_INHIBITOR);
+      const matchA = (cls) => matchDrugClass(itemA.name, itemA.generic, cls);
+      const matchB = (cls) => matchDrugClass(itemB.name, itemB.generic, cls);
 
-      if ((isNitrateA && isPde5B) || (isNitrateB && isPde5A)) {
+      const checkPair = (cls1, cls2) => {
+        const a1 = matchA(cls1);
+        const b2 = matchB(cls2);
+        if (a1 && b2) return { match: true, first: itemA, second: itemB };
+        const a2 = matchA(cls2);
+        const b1 = matchB(cls1);
+        if (a2 && b1) return { match: true, first: itemB, second: itemA };
+        return { match: false };
+      };
+
+      // 1. NITRATES + PDE5 INHIBITORS (CRITICAL - Life Threatening)
+      const rNitratePde5 = checkPair(DRUG_CLASSES.NITRATE, DRUG_CLASSES.PDE5_INHIBITOR);
+      if (rNitratePde5.match) {
         alerts.push({
           id: `ddi-nitrate-pde5-${i}-${j}`,
           severity: "CRITICAL",
           drugA: itemA.name,
           drugB: itemB.name,
+          mechanism: "Synergistic cGMP accumulation causing profound systemic vasodilation",
+          clinicalAction: "Absolute Contraindication. Do NOT dispense concurrently.",
           title: "Fatal Hypotension Risk (ஆபத்தான குறைந்த ரத்த அழுத்தம்)",
-          messageEn: `Combining Nitrates (${isNitrateA ? itemA.name : itemB.name}) and Sildenafil/Tadalafil (${isPde5A ? itemA.name : itemB.name}) can cause a catastrophic, life-threatening drop in blood pressure. Contraindicated.`,
-          messageTa: `நைட்ரேட் மற்றும் சில்டெனாபில் மாத்திரைகளை ஒன்றாக உட்கொள்வது உயிருக்கே ஆபத்தான தீவிர ரத்த அழுத்த வீழ்ச்சியை (Sudden Collapse) உண்டாக்கும். கொடுக்கக்கூடாது!`,
+          messageEn: `Combining Nitrates (${rNitratePde5.first.name}) and PDE-5 Inhibitors (${rNitratePde5.second.name}) causes a catastrophic drop in blood pressure and circulatory collapse. Contraindicated.`,
+          messageTa: `நைட்ரேட் மற்றும் சில்டெனாபில்/தடலாபில் மாத்திரைகளை ஒன்றாக உட்கொள்வது உயிருக்கே ஆபத்தான தீவிர ரத்த அழுத்த வீழ்ச்சியை (Sudden Collapse) உண்டாக்கும். கொடுக்கக்கூடாது!`,
         });
       }
 
-      // 2. Blood Thinners + NSAIDs (HIGH RISK)
-      const isBloodThinnerA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.BLOOD_THINNER);
-      const isBloodThinnerB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.BLOOD_THINNER);
-      const isNsaidA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.NSAID);
-      const isNsaidB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.NSAID);
+      // 2. WARFARIN / BLOOD THINNERS + AZOLE ANTIFUNGALS (CRITICAL)
+      const rThinnerAzole = checkPair(DRUG_CLASSES.BLOOD_THINNER, DRUG_CLASSES.AZOLE_ANTIFUNGAL);
+      if (rThinnerAzole.match) {
+        alerts.push({
+          id: `ddi-thinner-azole-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "CYP2C9 enzyme inhibition causes 300-500% spike in anticoagulant levels",
+          clinicalAction: "Monitor INR closely or consider alternative antifungal.",
+          title: "Severe Hemorrhage / Bleeding Danger (தீவிர உட்புற ரத்தப்போக்கு அபாயம்)",
+          messageEn: `Azole Antifungals (${rThinnerAzole.second.name}) strongly inhibit the metabolism of Blood Thinners (${rThinnerAzole.first.name}), causing dangerously elevated INR and fatal hemorrhage.`,
+          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மருந்துகளுடன் பூஞ்சை மாத்திரைகள் (Fluconazole) சேரும்போது ரத்தம் உறையாமல் தீவிர ரத்தப்போக்கு ஏற்படும் அபாயம் உள்ளது.`,
+        });
+      }
 
-      if ((isBloodThinnerA && isNsaidB) || (isBloodThinnerB && isNsaidA)) {
+      // 3. METHOTREXATE + NSAID / PPI (CRITICAL)
+      const rMtxNsaid = checkPair(DRUG_CLASSES.METHOTREXATE, DRUG_CLASSES.NSAID);
+      const rMtxPpi = checkPair(DRUG_CLASSES.METHOTREXATE, DRUG_CLASSES.PPI);
+      if (rMtxNsaid.match || rMtxPpi.match) {
+        const culprit = rMtxNsaid.match ? rMtxNsaid.second.name : rMtxPpi.second.name;
+        alerts.push({
+          id: `ddi-mtx-toxicity-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Inhibition of renal OAT3 transporters reduces Methotrexate clearance",
+          clinicalAction: "Avoid NSAIDs/PPIs during high-dose MTX; use Paracetamol with doctor review.",
+          title: "Fatal Bone Marrow Suppression (எலும்பு மச்சை செயலிழப்பு அபாயம்)",
+          messageEn: `Combining Methotrexate with ${culprit} decreases renal clearance of MTX, leading to toxic accumulation, severe pancytopenia, and acute kidney failure.`,
+          messageTa: `மெத்தோட்ரெக்ஸேட் மருந்துடன் வலி நிவாரணிகள் அல்லது அமிலத்தன்மை மாத்திரைகள் எடுப்பது விஷத்தன்மையை உண்டாக்கி ரத்த அணுக்களை மிகக் கடுமையாக குறைக்கும்.`,
+        });
+      }
+
+      // 4. DIGOXIN + AMIODARONE / VERAPAMIL (CRITICAL)
+      const rDigoxinCcb = checkPair(DRUG_CLASSES.DIGOXIN, DRUG_CLASSES.ANTIARRHYTHMIC_CCB);
+      if (rDigoxinCcb.match) {
+        alerts.push({
+          id: `ddi-digoxin-ccb-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "P-glycoprotein efflux inhibition and additive negative dromotropy",
+          clinicalAction: "Reduce Digoxin dose by 50% and monitor ECG/serum levels.",
+          title: "Fatal Digoxin Cardiotoxicity & Heart Block (இதயத் துடிப்பு முடக்கம்)",
+          messageEn: `Combining Digoxin (${rDigoxinCcb.first.name}) with ${rDigoxinCcb.second.name} doubles serum digoxin levels and causes life-threatening bradycardia, AV block, and fatal arrhythmias.`,
+          messageTa: `டைகாக்சின் மாத்திரையுடன் அமிலோடரோன்/வெராபமில் சேர்ந்தால் மருந்து நச்சாகி இதயத் துடிப்பு முடங்கி உயிருக்கே ஆபத்தாகலாம்.`,
+        });
+      }
+
+      // 5. SSRI ANTIDEPRESSANT + TRAMADOL / LINEZOLID (CRITICAL)
+      const rSsriTramadol = checkPair(DRUG_CLASSES.SSRI_ANTIDEPRESSANT, DRUG_CLASSES.TRAMADOL_OPIOID);
+      const rSsriLinezolid = checkPair(DRUG_CLASSES.SSRI_ANTIDEPRESSANT, DRUG_CLASSES.LINEZOLID);
+      if (rSsriTramadol.match || rSsriLinezolid.match) {
+        alerts.push({
+          id: `ddi-serotonin-syndrome-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Additive hyper-serotonergic stimulation at 5-HT1A and 5-HT2A receptors",
+          clinicalAction: "Do NOT dispense together. Severe risk of malignant hyperthermia.",
+          title: "Life-Threatening Serotonin Syndrome (செரோடோனின் விஷ பாதிப்பு)",
+          messageEn: `Combining SSRI Antidepressants with Tramadol or Linezolid can trigger Serotonin Syndrome — marked by hyperthermia, muscle rigidity, seizures, and autonomic collapse.`,
+          messageTa: `மன அழுத்த மாத்திரைகளுடன் ட்ரமடால்/லைனெஸோலிட் மருந்துகளை ஒன்றாக கொடுப்பது கடுமையான உடல் நடுக்கம், அதீத காய்ச்சல் மற்றும் வலிப்பு உண்டாக்கும் (Serotonin Syndrome).`,
+        });
+      }
+
+      // 6. ALLOPURINOL + AZATHIOPRINE / 6-MP (CRITICAL)
+      const rAlloAza = checkPair(DRUG_CLASSES.ALLOPURINOL, DRUG_CLASSES.AZATHIOPRINE);
+      if (rAlloAza.match) {
+        alerts.push({
+          id: `ddi-allo-aza-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Xanthine oxidase inhibition blocks Azathioprine catabolism",
+          clinicalAction: "Reduce Azathioprine dose to 25% or avoid combination entirely.",
+          title: "Severe Bone Marrow Aplasia & Leukopenia (கடுமையான ரத்த சோகை & வெள்ளை அணு இழப்பு)",
+          messageEn: `Allopurinol (${rAlloAza.first.name}) inhibits the breakdown of Azathioprine (${rAlloAza.second.name}), causing lethal bone marrow suppression and opportunistic infections.`,
+          messageTa: `அலோபூரினால் மற்றும் அஸாதயோப்ரின் மாத்திரைகளை ஒன்றாக உட்கொண்டால் எலும்பு மச்சை பாதிக்கப்பட்டு ரத்த வெள்ளை அணுக்கள் முற்றிலும் அழிந்துவிடும்.`,
+        });
+      }
+
+      // 7. BETA BLOCKER + VERAPAMIL / DILTIAZEM (CRITICAL)
+      const rBetaCcb = checkPair(DRUG_CLASSES.BETA_BLOCKER, DRUG_CLASSES.ANTIARRHYTHMIC_CCB);
+      if (rBetaCcb.match) {
+        alerts.push({
+          id: `ddi-beta-ccb-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Dual depression of SA and AV node conduction and cardiac inotropy",
+          clinicalAction: "Contraindicated. Severe bradycardia and cardiogenic shock risk.",
+          title: "Complete Heart Block & Cardiac Arrest (தீவிர இதய செயலிழப்பு எச்சரிக்கை)",
+          messageEn: `Concurrent use of Beta Blockers (${rBetaCcb.first.name}) and Non-Dihydropyridine CCBs (${rBetaCcb.second.name}) causes profound bradycardia, AV nodal arrest, and acute heart failure.`,
+          messageTa: `பீட்டா பிளாக்கர் மற்றும் வெராபமில்/டில்டியாசம் மருந்துகள் ஒன்றாக உட்கொண்டால் இதயத்துடிப்பு மிகவும் குறைந்து இதயம் நின்றுபோகும் அபாயம் உள்ளது.`,
+        });
+      }
+
+      // 8. OPIOID + BENZODIAZEPINE (CRITICAL - FDA Black Box Warning)
+      const rOpioidBenzo = checkPair(DRUG_CLASSES.TRAMADOL_OPIOID, DRUG_CLASSES.BENZO_SEDATIVE);
+      if (rOpioidBenzo.match) {
+        alerts.push({
+          id: `ddi-opioid-benzo-${i}-${j}`,
+          severity: "CRITICAL",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Synergistic GABA-A and mu-opioid respiratory central depression",
+          clinicalAction: "FDA Black Box Warning. Limit dosage and monitor breathing.",
+          title: "Fatal Respiratory Arrest & Coma (சுவாச முடக்கம் & கோமா அபாயம்)",
+          messageEn: `Combining Opioid analgesics (${rOpioidBenzo.first.name}) with Benzodiazepine sedatives (${rOpioidBenzo.second.name}) results in profound sedation, respiratory depression, coma, and death.`,
+          messageTa: `வலி நிவாரணி ஓபியாய்டு மற்றும் தூக்க மாத்திரைகளை ஒன்றாக உட்கொள்வது மூச்சுத்திணறல், கோமா மற்றும் மரணத்தை விளைவிக்கலாம் (FDA Black Box Warning).`,
+        });
+      }
+
+      // 9. BLOOD THINNERS + NSAIDs (HIGH)
+      const rThinnerNsaid = checkPair(DRUG_CLASSES.BLOOD_THINNER, DRUG_CLASSES.NSAID);
+      if (rThinnerNsaid.match) {
         alerts.push({
           id: `ddi-thinner-nsaid-${i}-${j}`,
           severity: "HIGH",
           drugA: itemA.name,
           drugB: itemB.name,
+          mechanism: "Antiplatelet action combined with gastric mucosal erosion and COX inhibition",
+          clinicalAction: "Use Paracetamol for analgesia or co-prescribe gastroprotection (PPI).",
           title: "Severe GI Bleeding Risk (தீவிர இரைப்பை ரத்தப்போக்கு அபாயம்)",
-          messageEn: `Combining Antiplatelet/Blood Thinner (${isBloodThinnerA ? itemA.name : itemB.name}) with NSAID painkiller (${isNsaidA ? itemA.name : itemB.name}) significantly increases gastric ulceration and gastrointestinal hemorrhage risk.`,
-          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மாத்திரையுடன் வலி நிவாரணி (NSAID) கொடுப்பது குடல் அல்சர் மற்றும் உட்புற ரத்தப்போக்கு அபாயத்தை பலமடங்கு அதிகரிக்கும். மருத்துவரிடம் ஆலோசிக்கவும்.`,
+          messageEn: `Combining Blood Thinners (${rThinnerNsaid.first.name}) with NSAID painkillers (${rThinnerNsaid.second.name}) increases gastrointestinal hemorrhage risk by up to 500%.`,
+          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மாத்திரையுடன் வலி நிவாரணி (NSAID) கொடுப்பது குடல் அல்சர் மற்றும் உட்புற ரத்தப்போக்கு அபாயத்தை பலமடங்கு அதிகரிக்கும்.`,
         });
       }
 
-      // 3. Duplicate Paracetamol / Toxicity (> 4000mg/day liver danger)
-      const isParacetamolA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.PARACETAMOL);
-      const isParacetamolB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.PARACETAMOL);
+      // 10. CLOPIDOGREL + OMEPRAZOLE / ESOMEPRAZOLE (HIGH)
+      const rClopidogrelOmez = checkPair(DRUG_CLASSES.CLOPIDOGREL, DRUG_CLASSES.OMEPRAZOLE_ESOMEPRAZOLE);
+      if (rClopidogrelOmez.match) {
+        alerts.push({
+          id: `ddi-clopidogrel-omez-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Competitive CYP2C19 inhibition prevents activation of clopidogrel prodrug",
+          clinicalAction: "Switch Omeprazole to Pantoprazole or Rabeprazole for safer cardiac protection.",
+          title: "Cardiac Stent Thrombosis / Stroke Risk (மாரடைப்பு & பக்கவாதம் தடுப்பு தோல்வி)",
+          messageEn: `Omeprazole/Esomeprazole (${rClopidogrelOmez.second.name}) blocks the bioactivation of Clopidogrel (${rClopidogrelOmez.first.name}), nullifying antiplatelet protection. Switch to Pantoprazole.`,
+          messageTa: `ஒமிப்ரசோல் மாத்திரை குளோபிடோகிரல் மருந்தின் வீரியத்தை தடுத்து பக்கவாதம் மற்றும் மாரடைப்பு அபாயத்தை அதிகரிக்கும். பண்டோப்ரசோல் பரிந்துரைக்கவும்.`,
+        });
+      }
 
+      // 11. FLUOROQUINOLONES + SYSTEMIC CORTICOSTEROIDS (HIGH)
+      const rQuinoloneSteroid = checkPair(DRUG_CLASSES.FLUOROQUINOLONE, DRUG_CLASSES.CORTICOSTEROID);
+      if (rQuinoloneSteroid.match) {
+        alerts.push({
+          id: `ddi-tendon-rupture-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Synergistic extracellular matrix degradation in load-bearing connective tissue",
+          clinicalAction: "Avoid concurrent use, particularly in elderly or athletes. Watch for heel pain.",
+          title: "Achilles Tendon Rupture Danger (தசைநார் கிழிதல் & தசை வாதம் அபாயம்)",
+          messageEn: `Co-administration of Fluoroquinolones (${rQuinoloneSteroid.first.name}) and Corticosteroids (${rQuinoloneSteroid.second.name}) exponentially increases the risk of severe tendinitis and Achilles tendon rupture.`,
+          messageTa: `சிப்ரோஃப்ளோக்சசின் போன்ற ஆன்டிபயாடிக்குகளுடன் ஸ்டீராய்டு மாத்திரைகள் சேரும்போது கணுக்கால் தசைநார் கிழிந்து (Tendon Rupture) நிரந்தர ஊனம் ஏற்படலாம்.`,
+        });
+      }
+
+      // 12. STATIN + MACROLIDE (HIGH)
+      const rStatinMacro = checkPair(DRUG_CLASSES.STATIN, DRUG_CLASSES.MACROLIDE);
+      if (rStatinMacro.match) {
+        alerts.push({
+          id: `ddi-statin-macro-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "CYP3A4 inhibition elevates statin AUC up to 10-fold",
+          clinicalAction: "Temporarily withhold Statin during macrolide therapy or use Azithromycin.",
+          title: "Severe Rhabdomyolysis & Muscle Breakdown (தசை சிதைவு & சிறுநீரக பாதிப்பு)",
+          messageEn: `Macrolide antibiotics (${rStatinMacro.second.name}) block the clearance of Statins (${rStatinMacro.first.name}), precipitating acute rhabdomyolysis, severe myopathy, and kidney failure.`,
+          messageTa: `கொலஸ்ட்ரால் மாத்திரையுடன் கிளாரித்ரோமைசின் சேர்த்தால் தசை சிதைவு மற்றும் சிறுநீரக செயலிழப்பு (Rhabdomyolysis) ஏற்படும் அபாயம் உள்ளது.`,
+        });
+      }
+
+      // 13. STATIN + GEMFIBROZIL / FIBRATES (HIGH)
+      const rStatinFibrate = checkPair(DRUG_CLASSES.STATIN, DRUG_CLASSES.FIBRATE);
+      if (rStatinFibrate.match) {
+        alerts.push({
+          id: `ddi-statin-fibrate-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "OATP1B1 inhibition and glucuronidation pathway competition",
+          clinicalAction: "Avoid Gemfibrozil with Statins; if triglyceride lowering needed, use Fenofibrate cautiously.",
+          title: "Myopathy & Acute Renal Failure (தீவிர தசை வலி மற்றும் சிறுநீரக பாதிப்பு)",
+          messageEn: `Combining Statins (${rStatinFibrate.first.name}) with Gemfibrozil/Fibrates (${rStatinFibrate.second.name}) markedly increases statin exposure and acute kidney failure.`,
+          messageTa: `கொலஸ்ட்ரால் மற்றும் ட்ரைகிளிசரைடு மாத்திரைகளை ஒன்றாக கொடுக்கும்போது தசை சிதைந்து சிறுநீரகம் செயலிழக்கும் அபாயம் உள்ளது.`,
+        });
+      }
+
+      // 14. ACE INHIBITOR / ARB + POTASSIUM-SPARING DIURETIC (HIGH)
+      const rAceKSpared = checkPair(DRUG_CLASSES.ACE_ARB, DRUG_CLASSES.POTASSIUM_SPARING);
+      if (rAceKSpared.match) {
+        alerts.push({
+          id: `ddi-hyperkalemia-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Additively blunts renal aldosterone-mediated potassium excretion",
+          clinicalAction: "Check serum potassium and creatinine within 1 week of initiation.",
+          title: "Dangerous Hyperkalemia Risk (உயர்ந்த பொட்டாசியம் & இதய துடிப்பு மாற்றம்)",
+          messageEn: `Combining Telmisartan/ACE-inhibitor (${rAceKSpared.first.name}) with Spironolactone (${rAceKSpared.second.name}) causes dangerous potassium retention and fatal cardiac arrhythmia.`,
+          messageTa: `டெல்மிசார்டன் மற்றும் ஸ்பைரோனோலாக்டோன் ஒன்றாக எடுக்கும்போது ரத்தத்தில் பொட்டாசியம் அளவு அளவுக்கு அதிகமாக உயர்ந்து இதய துடிப்பில் மாறுபாடு ஏற்படலாம்.`,
+        });
+      }
+
+      // 15. LITHIUM + ACE / ARB / NSAID (HIGH)
+      const rLithiumAce = checkPair(DRUG_CLASSES.LITHIUM, DRUG_CLASSES.ACE_ARB);
+      const rLithiumNsaid = checkPair(DRUG_CLASSES.LITHIUM, DRUG_CLASSES.NSAID);
+      if (rLithiumAce.match || rLithiumNsaid.match) {
+        const culprit = rLithiumAce.match ? rLithiumAce.second.name : rLithiumNsaid.second.name;
+        alerts.push({
+          id: `ddi-lithium-toxicity-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Decreased proximal tubule sodium excretion causes secondary lithium retention",
+          clinicalAction: "Reduce Lithium dose and monitor serum lithium levels frequently.",
+          title: "Severe Lithium Neurotoxicity (லித்தியம் விஷத்தன்மை & நடுக்கம்)",
+          messageEn: `Concomitant use of Lithium with ${culprit} impairs renal lithium clearance, causing lithium toxicity marked by coarse tremors, ataxia, and confusion.`,
+          messageTa: `லித்தியம் மாத்திரையுடன் வலி நிவாரணி அல்லது ரத்த அழுத்த மாத்திரை சேரும்போது மூளை மற்றும் சிறுநீரகத்தில் லித்தியம் நச்சுத்தன்மை கூடும்.`,
+        });
+      }
+
+      // 16. SULFONYLUREA + AZOLE ANTIFUNGAL (HIGH)
+      const rSulfonylAzole = checkPair(DRUG_CLASSES.SULFONYLUREA, DRUG_CLASSES.AZOLE_ANTIFUNGAL);
+      if (rSulfonylAzole.match) {
+        alerts.push({
+          id: `ddi-hypoglycemia-azole-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "CYP2C9 enzyme inhibition slows oral hypoglycemic clearance",
+          clinicalAction: "Monitor blood glucose closely; temporarily decrease sulfonylurea dose.",
+          title: "Severe Hypoglycemia & Loss of Consciousness (தீவிர குறைந்த சர்க்கரை அபாயம்)",
+          messageEn: `Fluconazole (${rSulfonylAzole.second.name}) inhibits the metabolism of Glimepiride/Gliclazide (${rSulfonylAzole.first.name}), causing severe, refractory hypoglycemia and fainting.`,
+          messageTa: `சர்க்கரை மாத்திரையுடன் பூஞ்சை மருந்து (Fluconazole) சேரும்போது சர்க்கரை அளவு ஆபத்தான அளவுக்கு குறைந்து மயக்கம் ஏற்படும் (Severe Hypoglycemia).`,
+        });
+      }
+
+      // 17. ORAL CONTRACEPTIVE + CYP INDUCERS (HIGH)
+      const rOcpInducer = checkPair(DRUG_CLASSES.ORAL_CONTRACEPTIVE, DRUG_CLASSES.CYP_INDUCER_ANTIEPILEPTIC);
+      if (rOcpInducer.match) {
+        alerts.push({
+          id: `ddi-ocp-failure-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Hepatic CYP3A4 upregulation accelerates steroid hormone catabolism",
+          clinicalAction: "Advise non-hormonal / barrier contraception during therapy and 28 days post.",
+          title: "Contraceptive Failure & Unintended Pregnancy (கருத்தடை தோல்வி எச்சரிக்கை)",
+          messageEn: `Enzyme Inducers (${rOcpInducer.second.name}) dramatically reduce circulating levels of Oral Contraceptives (${rOcpInducer.first.name}), causing contraceptive failure.`,
+          messageTa: `வலிப்பு/டிபி மாத்திரைகள் கருத்தடை மாத்திரைகளின் வீரியத்தை முற்றிலும் குறைத்து தேவையற்ற கர்ப்பத்தை உண்டாக்கும் அபாயம் உள்ளது.`,
+        });
+      }
+
+      // 18. THEOPHYLLINE + FLUOROQUINOLONE / MACROLIDE (HIGH)
+      const rTheoQuinolone = checkPair(DRUG_CLASSES.THEOPHYLLINE, DRUG_CLASSES.FLUOROQUINOLONE);
+      const rTheoMacro = checkPair(DRUG_CLASSES.THEOPHYLLINE, DRUG_CLASSES.MACROLIDE);
+      if (rTheoQuinolone.match || rTheoMacro.match) {
+        const culprit = rTheoQuinolone.match ? rTheoQuinolone.second.name : rTheoMacro.second.name;
+        alerts.push({
+          id: `ddi-theophylline-toxicity-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "CYP1A2 inhibition reduces theophylline clearance by up to 50%",
+          clinicalAction: "Monitor serum theophylline; reduce dose by 30-50% to prevent seizures.",
+          title: "Theophylline Toxicity & Tachyarrhythmias (சுவாச மருந்து நச்சுத்தன்மை)",
+          messageEn: `Combining Deriphyllin/Theophylline with ${culprit} induces theophylline toxicity with severe nausea, ventricular tachycardia, and seizures.`,
+          messageTa: `ஆஸ்துமா மருந்து (டெரிபிலின்) மற்றும் ஆன்டிபயாடிக் ஒன்றாக எடுக்கும்போது நெஞ்சு படபடப்பு, வாந்தி மற்றும் வலிப்பு ஏற்படலாம்.`,
+        });
+      }
+
+      // 19. BENZO SEDATIVE + SEDATING ANTIHISTAMINE (HIGH)
+      const rBenzoAntihist = checkPair(DRUG_CLASSES.BENZO_SEDATIVE, DRUG_CLASSES.SEDATING_ANTIHISTAMINE);
+      if (rBenzoAntihist.match) {
+        alerts.push({
+          id: `ddi-cns-depression-${i}-${j}`,
+          severity: "HIGH",
+          drugA: itemA.name,
+          drugB: itemB.name,
+          mechanism: "Additive central histamine H1 and GABAergic neuronal inhibition",
+          clinicalAction: "Warn patient against driving and operating heavy machinery.",
+          title: "Extreme Sedation & Motor Impairment (அதி தீவிர தூக்கம் & மயக்கம்)",
+          messageEn: `Combining Sedatives (${rBenzoAntihist.first.name}) with Sedating Antihistamines/Cough Syrups (${rBenzoAntihist.second.name}) severely impairs central alertness and respiration.`,
+          messageTa: `தூக்க மாத்திரையுடன் சளி/அலர்ஜி மாத்திரையை ஒன்றாக சாப்பிட்டால் அதீத மயக்கம், தூக்கம் மற்றும் கவனம் இழப்பு ஏற்படும். வாகனம் ஓட்டக்கூடாது.`,
+        });
+      }
+
+      // 20. DUPLICATE PARACETAMOL OVERDOSE (HIGH)
+      const isParacetamolA = matchA(DRUG_CLASSES.PARACETAMOL);
+      const isParacetamolB = matchB(DRUG_CLASSES.PARACETAMOL);
       if (isParacetamolA && isParacetamolB) {
         alerts.push({
           id: `ddi-duplicate-pcm-${i}-${j}`,
           severity: "HIGH",
           drugA: itemA.name,
           drugB: itemB.name,
+          mechanism: "Glutathione depletion via excessive toxic NAPQI metabolite accumulation",
+          clinicalAction: "Instruct patient to take ONLY one paracetamol-containing medicine.",
           title: "Duplicate Paracetamol / Hepatotoxicity Risk (கல்லீரல் பாதிப்பு & ஓவர்டோஸ் அபாயம்)",
-          messageEn: `Both "${itemA.name}" and "${itemB.name}" contain Paracetamol/Acetaminophen. Taking both concurrently risks toxic overdose exceeding 4000mg/day, leading to acute liver failure.`,
-          messageTa: `இரண்டு மருந்துகளிலுமே பாராசிட்டமால் உள்ளது. இரண்டையும் ஒன்றாக சாப்பிட்டால் பாராசிட்டமால் அளவு மிதமிஞ்சி கல்லீரலுக்கு தீவிர பாதிப்பு ஏற்படும்!`,
+          messageEn: `Both "${itemA.name}" and "${itemB.name}" contain Paracetamol. Concurrent use risks exceeding the 4000mg/day safe threshold, causing irreversible acute liver necrosis.`,
+          messageTa: `இரண்டு மருந்துகளிலுமே பாராசிட்டமால் உள்ளது. இரண்டையும் ஒன்றாக சாப்பிட்டால் பாராசிட்டமால் அளவு மிதமிஞ்சி கல்லீரலுக்கு தீவிர பாதிப்பு ஏற்படும்! ஒன்றை மட்டும் சாப்பிடவும்.`,
         });
       }
 
-      // 4. Duplicate NSAID Painkillers (Ulcer / Kidney failure)
+      // 21. DUPLICATE NSAID PAINKILLERS (MODERATE)
+      const isNsaidA = matchA(DRUG_CLASSES.NSAID);
+      const isNsaidB = matchB(DRUG_CLASSES.NSAID);
       if (isNsaidA && isNsaidB && !isParacetamolA && !isParacetamolB) {
         alerts.push({
           id: `ddi-duplicate-nsaid-${i}-${j}`,
           severity: "MODERATE",
           drugA: itemA.name,
           drugB: itemB.name,
+          mechanism: "Dual COX-1 and COX-2 blockade without synergistic analgesic benefit",
+          clinicalAction: "Prescribe only one NSAID class analgesic to protect stomach and kidneys.",
           title: "Duplicate NSAID Painkillers (இரட்டை வலி நிவாரணி எச்சரிக்கை)",
-          messageEn: `Both "${itemA.name}" and "${itemB.name}" are NSAID painkillers. Concurrent use increases acute kidney injury and stomach erosion without added pain relief.`,
-          messageTa: `இரண்டுமே வலி நிவாரணிகள் (NSAIDs). இரண்டையும் ஒன்றாக கொடுப்பதால் சிறுநீரகம் மற்றும் இரைப்பை பாதிக்கப்படலாம். ஒன்றை மட்டும் தேர்வு செய்யவும்.`,
+          messageEn: `Both "${itemA.name}" and "${itemB.name}" are NSAID painkillers. Concurrent use exponentially increases gastric ulcer risk and renal strain without improving pain relief.`,
+          messageTa: `இரண்டுமே வலி நிவாரணிகள் (NSAIDs). இரண்டையும் ஒன்றாக கொடுப்பதால் இரைப்பை அல்சர் மற்றும் சிறுநீரக பாதிப்பு கூடும். ஒன்றை மட்டும் தேர்வு செய்யவும்.`,
         });
       }
 
-      // 5. Duplicate PPI Acid Suppressants
-      const isPpiA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.PPI);
-      const isPpiB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.PPI);
+      // 22. DUPLICATE PPI ACID SUPPRESSANTS (MODERATE)
+      const isPpiA = matchA(DRUG_CLASSES.PPI);
+      const isPpiB = matchB(DRUG_CLASSES.PPI);
       if (isPpiA && isPpiB) {
         alerts.push({
           id: `ddi-duplicate-ppi-${i}-${j}`,
           severity: "MODERATE",
           drugA: itemA.name,
           drugB: itemB.name,
+          mechanism: "Redundant proton pump H+/K+-ATPase enzyme inhibition",
+          clinicalAction: "Choose one single acid reducer to avoid hypochlorhydria.",
           title: "Duplicate Acid Suppressant (இரட்டை அல்சர் மாத்திரை)",
           messageEn: `Both "${itemA.name}" and "${itemB.name}" are Proton Pump Inhibitors (PPIs). Only one acid blocker is clinically necessary.`,
-          messageTa: `இரண்டுமே அல்சர்/அமிலத்தன்மை குறைக்கும் மருந்துகள் (PPIs). ஒன்று மட்டுமே போதுமானது.`,
+          messageTa: `இரண்டுமே அல்சர்/அமிலத்தன்மை குறைக்கும் மருந்துகள் (PPIs). இரண்டு தேவையில்லை, ஒன்று மட்டுமே போதுமானது.`,
         });
       }
 
-      // 6. Fluoroquinolones + Antacids / Calcium (Chelation blocks absorption)
-      const isQuinoloneA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.FLUOROQUINOLONE);
-      const isQuinoloneB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.FLUOROQUINOLONE);
-      const isAntacidA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.ANTACID_CALCIUM);
-      const isAntacidB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.ANTACID_CALCIUM);
-
-      if ((isQuinoloneA && isAntacidB) || (isQuinoloneB && isAntacidA)) {
+      // 23. FLUOROQUINOLONES + ANTACIDS / CALCIUM (MODERATE)
+      const rQuinoloneAntacid = checkPair(DRUG_CLASSES.FLUOROQUINOLONE, DRUG_CLASSES.ANTACID_CALCIUM);
+      if (rQuinoloneAntacid.match) {
         alerts.push({
-          id: `ddi-chelation-${i}-${j}`,
+          id: `ddi-chelation-quinolone-${i}-${j}`,
           severity: "MODERATE",
           drugA: itemA.name,
           drugB: itemB.name,
-          title: "Antibiotic Absorption Failure (ஆன்டிபயாடிக் வேலை செய்யாது)",
-          messageEn: `Antacids/Calcium (${isAntacidA ? itemA.name : itemB.name}) bind with Fluoroquinolones (${isQuinoloneA ? itemA.name : itemB.name}), reducing antibiotic absorption by up to 90%. Space doses by at least 2 hours.`,
+          mechanism: "Polyvalent cation chelation forms insoluble, unabsorbable complexes",
+          clinicalAction: "Administer Fluoroquinolone at least 2 hours before or 4 hours after antacids.",
+          title: "Antibiotic Absorption Failure (ஆன்டிபயாடிக் வேலை செய்யாது - Chelation)",
+          messageEn: `Antacids/Calcium (${rQuinoloneAntacid.second.name}) bind with Fluoroquinolones (${rQuinoloneAntacid.first.name}), reducing antibiotic absorption by up to 90%. Separate doses by 2 hours.`,
           messageTa: `ஜெலுசில்/ஆன்டாசிட் மற்றும் சிப்ரோஃப்ளோக்சசின் போன்றவற்றை ஒன்றாக உட்கொண்டால், ஆன்டிபயாடிக் மருந்து உடலில் உறிஞ்சப்படாமல் வீணாகிவிடும். 2 மணி நேர இடைவெளி தேவை.`,
         });
       }
 
-      // 7. ACE Inhibitor/ARB + Potassium-Sparing Diuretic (Hyperkalemia)
-      const isAceA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.ACE_ARB);
-      const isAceB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.ACE_ARB);
-      const isKSparedA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.POTASSIUM_SPARING);
-      const isKSparedB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.POTASSIUM_SPARING);
-
-      if ((isAceA && isKSparedB) || (isAceB && isKSparedA)) {
+      // 24. LEVOTHYROXINE + CALCIUM / IRON / ANTACIDS (MODERATE)
+      const rThyroidChelate = checkPair(DRUG_CLASSES.THYROID_HORMONE, DRUG_CLASSES.ANTACID_CALCIUM);
+      const rThyroidIron = checkPair(DRUG_CLASSES.THYROID_HORMONE, DRUG_CLASSES.ORAL_IRON);
+      if (rThyroidChelate.match || rThyroidIron.match) {
+        const binder = rThyroidChelate.match ? rThyroidChelate.second.name : rThyroidIron.second.name;
         alerts.push({
-          id: `ddi-hyperkalemia-${i}-${j}`,
-          severity: "HIGH",
+          id: `ddi-thyroid-chelate-${i}-${j}`,
+          severity: "MODERATE",
           drugA: itemA.name,
           drugB: itemB.name,
-          title: "Dangerous Hyperkalemia Risk (உயர்ந்த பொட்டாசியம் அபாயம்)",
-          messageEn: `Combining Telmisartan/ACE-inhibitor (${isAceA ? itemA.name : itemB.name}) with Spironolactone (${isKSparedA ? itemA.name : itemB.name}) causes dangerous potassium retention (arrhythmia risk). Serum K+ monitoring required.`,
-          messageTa: `டெல்மிசார்டன் மற்றும் ஸ்பைரோனோலாக்டோன் ஒன்றாக எடுக்கும்போது ரத்தத்தில் பொட்டாசியம் அளவு அளவுக்கு அதிகமாக உயர்ந்து இதய துடிப்பில் மாறுபாடு ஏற்படலாம்.`,
+          mechanism: "Adsorption and insoluble chelate formation in the proximal small bowel",
+          clinicalAction: "Separate doses by at least 4 hours. Take Levothyroxine on an empty stomach.",
+          title: "Thyroid Hormone Malabsorption (தைராய்டு மாத்திரை உறிஞ்சுதல் தோல்வி)",
+          messageEn: `Calcium, Iron, or Antacids (${binder}) bind to Levothyroxine, blocking absorption and leading to unmanaged hypothyroidism. Space doses by at least 4 hours.`,
+          messageTa: `தைராய்டு மாத்திரையுடன் கால்சியம் அல்லது இரும்புச்சத்து மாத்திரைகளை ஒன்றாக உட்கொண்டால் தைராய்டு மருந்து வேலை செய்யாது. குறைந்தபட்சம் 4 மணி நேர இடைவெளி தேவை.`,
         });
       }
 
-      // 8. Statin + Clarithromycin (Severe Myopathy / Rhabdomyolysis)
-      const isStatinA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.STATIN);
-      const isStatinB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.STATIN);
-      const isMacrolideA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.MACROLIDE);
-      const isMacrolideB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.MACROLIDE);
-
-      if ((isStatinA && isMacrolideB) || (isStatinB && isMacrolideA)) {
+      // 25. ORAL IRON + CALCIUM / ANTACIDS (MODERATE)
+      const rIronAntacid = checkPair(DRUG_CLASSES.ORAL_IRON, DRUG_CLASSES.ANTACID_CALCIUM);
+      if (rIronAntacid.match) {
         alerts.push({
-          id: `ddi-statin-macro-${i}-${j}`,
-          severity: "HIGH",
+          id: `ddi-iron-chelate-${i}-${j}`,
+          severity: "MODERATE",
           drugA: itemA.name,
           drugB: itemB.name,
-          title: "Severe Muscle Damage Risk / Rhabdomyolysis (தசை சிதைவு அபாயம்)",
-          messageEn: `Macrolides (${isMacrolideA ? itemA.name : itemB.name}) inhibit CYP3A4 metabolism of Statins (${isStatinA ? itemA.name : itemB.name}), multiplying statin blood levels and causing severe muscle breakdown (Rhabdomyolysis).`,
-          messageTa: `கொலஸ்ட்ரால் மாத்திரையுடன் கிளாரித்ரோமைசின் சேர்த்தால் தசை சிதைவு மற்றும் கடுமையான தசை வலி (Myopathy) ஏற்படும் அபாயம் உள்ளது.`,
-        });
-      }
-
-      // 9. Benzo Sedatives + Sedating Antihistamines (Severe CNS/Respiratory Depression)
-      const isBenzoA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.BENZO_SEDATIVE);
-      const isBenzoB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.BENZO_SEDATIVE);
-      const isAntihistA = matchDrugClass(itemA.name, itemA.generic, DRUG_CLASSES.SEDATING_ANTIHISTAMINE);
-      const isAntihistB = matchDrugClass(itemB.name, itemB.generic, DRUG_CLASSES.SEDATING_ANTIHISTAMINE);
-
-      if ((isBenzoA && isAntihistB) || (isBenzoB && isAntihistA)) {
-        alerts.push({
-          id: `ddi-cns-depression-${i}-${j}`,
-          severity: "HIGH",
-          drugA: itemA.name,
-          drugB: itemB.name,
-          title: "Extreme Sedation & Respiratory Depression (அதி தீவிர தூக்கம் & மூச்சுத்திணறல்)",
-          messageEn: `Combining Sedatives (${isBenzoA ? itemA.name : itemB.name}) and Sedating Antihistamines/Cough syrups (${isAntihistA ? itemA.name : itemB.name}) severely impairs central nervous system and breathing reflex.`,
-          messageTa: `தூக்க மாத்திரையுடன் சளி/அலர்ஜி மாத்திரையை ஒன்றாக சாப்பிட்டால் அதீத மயக்கம், தூக்கம் மற்றும் மூச்சுத்திணறல் ஏற்படும் அபாயம் உள்ளது.`,
+          mechanism: "Divalent cation competition and neutralization of gastric acidic pH",
+          clinicalAction: "Take Iron on an empty stomach or with Vitamin C; space antacids by 2 hours.",
+          title: "Reduced Iron Absorption (இரும்புச்சத்து உறிஞ்சுதல் குறைவு)",
+          messageEn: `Antacids and Calcium supplements (${rIronAntacid.second.name}) reduce the dissolution and absorption of Iron (${rIronAntacid.first.name}). Separate by 2-3 hours.`,
+          messageTa: `ஜெலுசில் அல்லது கால்சியம் மாத்திரைகளுடன் அயர்ன் டானிக்/மாத்திரை சாப்பிட்டால் இரும்புச்சத்து உடலில் தங்காது. 2 மணி நேர இடைவெளி தேவை.`,
         });
       }
     }
   }
 
   return alerts;
+}
+
+/**
+ * Returns a high-level clinical risk score for an active medicine list.
+ */
+export function getClinicalRiskSummary(cartItems = []) {
+  const alerts = checkDrugInteractions(cartItems);
+  const critical = alerts.filter((a) => a.severity === "CRITICAL").length;
+  const high = alerts.filter((a) => a.severity === "HIGH").length;
+  const moderate = alerts.filter((a) => a.severity === "MODERATE").length;
+
+  let riskTier = "LOW";
+  if (critical > 0) riskTier = "CRITICAL";
+  else if (high > 0) riskTier = "HIGH";
+  else if (moderate > 0) riskTier = "MODERATE";
+
+  return {
+    totalAlerts: alerts.length,
+    criticalCount: critical,
+    highCount: high,
+    moderateCount: moderate,
+    riskTier,
+    alerts,
+  };
 }
