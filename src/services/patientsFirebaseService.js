@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const COLLECTION_NAME = "patients";
 const REFILL_COLLECTION = "refill_reminders";
@@ -18,7 +19,8 @@ const LOCAL_REFILL_KEY = "meditrack_refill_reminders";
 function getLocalPatients() {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const scopedKey = getScopedKey(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -28,7 +30,8 @@ function getLocalPatients() {
 function saveLocalPatients(data) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    const scopedKey = getScopedKey(LOCAL_STORAGE_KEY);
+    localStorage.setItem(scopedKey, JSON.stringify(data));
   } catch (e) {
     console.debug("Local patient cache save error:", e);
   }
@@ -37,7 +40,8 @@ function saveLocalPatients(data) {
 function getLocalRefills() {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(LOCAL_REFILL_KEY);
+    const scopedKey = getScopedKey(LOCAL_REFILL_KEY);
+    const raw = localStorage.getItem(scopedKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -47,7 +51,8 @@ function getLocalRefills() {
 function saveLocalRefills(data) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_REFILL_KEY, JSON.stringify(data));
+    const scopedKey = getScopedKey(LOCAL_REFILL_KEY);
+    localStorage.setItem(scopedKey, JSON.stringify(data));
     window.dispatchEvent(new Event("meditrack_refills_updated"));
   } catch (e) {
     console.debug("Local refills cache save error:", e);
@@ -72,7 +77,7 @@ export const patientsFirebaseService = {
 
     // 2. Query Firestore
     try {
-      const docRef = doc(db, COLLECTION_NAME, cleanPhone);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, cleanPhone);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const patientData = { id: snap.id, ...snap.data() };
@@ -149,7 +154,7 @@ export const patientsFirebaseService = {
 
     // 2. Persist to Firestore
     try {
-      const docRef = doc(db, COLLECTION_NAME, cleanPhone);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, cleanPhone);
       await setDoc(
         docRef,
         {
@@ -173,7 +178,7 @@ export const patientsFirebaseService = {
     const localList = Object.values(local);
 
     try {
-      const colRef = collection(db, COLLECTION_NAME);
+      const colRef = getUserCollectionRef(db, COLLECTION_NAME);
       const snap = await getDocs(colRef);
       const firestoreList = [];
       snap.forEach((d) => firestoreList.push({ id: d.id, ...d.data() }));
@@ -268,7 +273,7 @@ export const patientsFirebaseService = {
 
       // Async Firestore persistence
       try {
-        await setDoc(doc(db, REFILL_COLLECTION, reminderId), {
+        await setDoc(getUserDocRef(db, REFILL_COLLECTION, reminderId), {
           ...reminderRecord,
           serverTimestamp: serverTimestamp(),
         });
@@ -323,7 +328,7 @@ export const patientsFirebaseService = {
     let list = getLocalRefills();
 
     try {
-      const snap = await getDocs(collection(db, REFILL_COLLECTION));
+      const snap = await getDocs(getUserCollectionRef(db, REFILL_COLLECTION));
       if (!snap.empty) {
         const cloudList = [];
         snap.forEach((d) => cloudList.push({ id: d.id, ...d.data() }));
@@ -367,7 +372,7 @@ export const patientsFirebaseService = {
     saveLocalRefills(updated);
 
     try {
-      await updateDoc(doc(db, REFILL_COLLECTION, id), {
+      await updateDoc(getUserDocRef(db, REFILL_COLLECTION, id), {
         status: "sent",
         sentAt: serverTimestamp(),
       });
@@ -387,7 +392,7 @@ export const patientsFirebaseService = {
     saveLocalRefills(updated);
 
     try {
-      await updateDoc(doc(db, REFILL_COLLECTION, id), {
+      await updateDoc(getUserDocRef(db, REFILL_COLLECTION, id), {
         status: "refilled",
         refilledAt: serverTimestamp(),
       });
@@ -405,7 +410,7 @@ export const patientsFirebaseService = {
     saveLocalRefills(updated);
 
     try {
-      await deleteDoc(doc(db, REFILL_COLLECTION, id));
+      await deleteDoc(getUserDocRef(db, REFILL_COLLECTION, id));
     } catch (_) {}
 
     return { ok: true };

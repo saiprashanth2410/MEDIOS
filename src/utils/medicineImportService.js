@@ -1,25 +1,27 @@
 import defaultMedicines from "../data/catalogMedicines.json";
 import { medicinesAPI } from "../services/api";
+import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
+import { getScopedKey } from "./userScope";
 
 const STORAGE_CUSTOM_MEDICINES = "meditrack_custom_medicines";
 const STORAGE_OVERRIDES = "meditrack_medicine_overrides";
 const STORAGE_DELETED = "meditrack_deleted_medicines";
 
 /**
- * Returns the current active inventory including default catalog,
- * custom created medicines, and any stock/batch overrides.
+ * Returns the current active inventory including custom created medicines
+ * and any stock/batch overrides.
  */
 export function getLiveInventory() {
   if (typeof window === "undefined") return defaultMedicines;
   try {
     const deletedIds = new Set(
-      JSON.parse(localStorage.getItem(STORAGE_DELETED) || "[]")
+      JSON.parse(localStorage.getItem(getScopedKey(STORAGE_DELETED)) || "[]")
     );
     const overrides = JSON.parse(
-      localStorage.getItem(STORAGE_OVERRIDES) || "{}"
+      localStorage.getItem(getScopedKey(STORAGE_OVERRIDES)) || "{}"
     );
     const custom = JSON.parse(
-      localStorage.getItem(STORAGE_CUSTOM_MEDICINES) || "[]"
+      localStorage.getItem(getScopedKey(STORAGE_CUSTOM_MEDICINES)) || "[]"
     );
 
     const mergedCatalog = defaultMedicines
@@ -123,14 +125,14 @@ export async function applyImportBatch(itemsToApply) {
   let overrides = {};
 
   try {
-    const savedCustom = localStorage.getItem(STORAGE_CUSTOM_MEDICINES);
+    const savedCustom = localStorage.getItem(getScopedKey(STORAGE_CUSTOM_MEDICINES));
     if (savedCustom) customMedicines = JSON.parse(savedCustom);
   } catch (e) {
     console.debug(e);
   }
 
   try {
-    const savedOverrides = localStorage.getItem(STORAGE_OVERRIDES);
+    const savedOverrides = localStorage.getItem(getScopedKey(STORAGE_OVERRIDES));
     if (savedOverrides) overrides = JSON.parse(savedOverrides);
   } catch (e) {
     console.debug(e);
@@ -163,7 +165,12 @@ export async function applyImportBatch(itemsToApply) {
       };
       if (med.name) overrides[med.name] = overrides[med.id];
 
-      // Update MongoDB backend
+      // Update Firestore backend
+      try {
+        inventoryFirebaseService.updateStock(med.id, finalStock).catch(() => {});
+      } catch (_) {}
+
+      // Update API backend
       try {
         await medicinesAPI.update(med.id, {
           code: med.id,
@@ -215,7 +222,12 @@ export async function applyImportBatch(itemsToApply) {
       // Add to custom list
       customMedicines.unshift(newMed);
 
-      // Save to MongoDB backend
+      // Save to Firestore
+      try {
+        inventoryFirebaseService.createMedicine(newMed).catch(() => {});
+      } catch (_) {}
+
+      // Save to API backend
       try {
         await medicinesAPI.create({
           ...newMed,
@@ -230,10 +242,10 @@ export async function applyImportBatch(itemsToApply) {
     }
   }
 
-  // Persist updated states to localStorage
+  // Persist updated states to scoped localStorage
   try {
-    localStorage.setItem(STORAGE_CUSTOM_MEDICINES, JSON.stringify(customMedicines));
-    localStorage.setItem(STORAGE_OVERRIDES, JSON.stringify(overrides));
+    localStorage.setItem(getScopedKey(STORAGE_CUSTOM_MEDICINES), JSON.stringify(customMedicines));
+    localStorage.setItem(getScopedKey(STORAGE_OVERRIDES), JSON.stringify(overrides));
   } catch (err) {
     console.error("[medicineImportService] Persist error:", err);
   }

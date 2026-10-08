@@ -1,5 +1,8 @@
+import { getScopedKey } from "../utils/userScope";
+import catalogMedicines from "./catalogMedicines.json";
+
 /* =====================================================
-   MEDICINES DATABASE (Demo)
+   MEDICINES DATABASE
 ===================================================== */
 
 export const MEDICINES = [
@@ -77,6 +80,72 @@ export const MEDICINES = [
 
 export function findMedicineByBarcode(barcode) {
   if (!barcode) return null;
-  const clean = String(barcode).trim();
-  return MEDICINES.find((m) => m.barcode === clean) || null;
+  const clean = String(barcode).trim().toLowerCase();
+
+  // 1. Check user-scoped custom inventory
+  try {
+    const customKey = getScopedKey("meditrack_custom_medicines");
+    const rawCustom = typeof window !== "undefined" ? localStorage.getItem(customKey) : null;
+    if (rawCustom) {
+      const customList = JSON.parse(rawCustom);
+      const match = customList.find(
+        (m) =>
+          String(m.barcode || "").toLowerCase() === clean ||
+          String(m.id || "").toLowerCase() === clean ||
+          String(m.code || "").toLowerCase() === clean ||
+          String(m.batch || "").toLowerCase() === clean
+      );
+      if (match) return match;
+    }
+  } catch (_) {}
+
+  // 2. Check user-scoped batches
+  try {
+    const batchesKey = getScopedKey("meditrack_batches");
+    const rawBatches = typeof window !== "undefined" ? localStorage.getItem(batchesKey) : null;
+    if (rawBatches) {
+      const batchesList = JSON.parse(rawBatches);
+      const match = batchesList.find(
+        (b) =>
+          String(b.barcode || "").toLowerCase() === clean ||
+          String(b.batchNumber || "").toLowerCase() === clean ||
+          String(b.id || "").toLowerCase() === clean
+      );
+      if (match) {
+        return {
+          id: match.id || match.batchNumber,
+          barcode: match.barcode || clean,
+          name: match.medicineName || match.name,
+          generic: match.generic || "",
+          batch: match.batchNumber || match.batch,
+          expiry: match.expiryDate || match.expiry,
+          stock: match.quantity || match.stock || 0,
+          price: match.price || match.mrp || 0,
+          rack: match.rack || "R-1",
+        };
+      }
+    }
+  } catch (_) {}
+
+  // 3. Check national catalog database
+  try {
+    if (Array.isArray(catalogMedicines)) {
+      const catMatch = catalogMedicines.find(
+        (m) =>
+          String(m.barcode || "").toLowerCase() === clean ||
+          String(m.id || "").toLowerCase() === clean ||
+          String(m.code || "").toLowerCase() === clean
+      );
+      if (catMatch) return catMatch;
+    }
+  } catch (_) {}
+
+  // 4. Reference match fallback
+  return (
+    MEDICINES.find(
+      (m) =>
+        String(m.barcode || "").toLowerCase() === clean ||
+        String(m.id || "").toLowerCase() === clean
+    ) || null
+  );
 }

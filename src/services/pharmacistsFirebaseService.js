@@ -8,6 +8,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
 
 const COLLECTION_NAME = "pharmacists";
 const LOCAL_KEY = "meditrack_pharmacists";
@@ -42,8 +43,9 @@ function getActiveLoggedInPharmacist() {
 
 function getLocalPharmacists() {
   if (typeof window === "undefined") return getActiveLoggedInPharmacist();
+  const scopedKey = getScopedKey(LOCAL_KEY);
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const raw = localStorage.getItem(scopedKey);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -51,15 +53,16 @@ function getLocalPharmacists() {
   } catch (_) {}
   const fallback = getActiveLoggedInPharmacist();
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(fallback));
+    localStorage.setItem(scopedKey, JSON.stringify(fallback));
   } catch (_) {}
   return fallback;
 }
 
 function saveLocalPharmacists(list) {
   if (typeof window === "undefined") return;
+  const scopedKey = getScopedKey(LOCAL_KEY);
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
+    localStorage.setItem(scopedKey, JSON.stringify(list));
     window.dispatchEvent(new Event("meditrack_pharmacists_updated"));
   } catch (e) {
     console.debug("Local pharmacists save error:", e);
@@ -70,7 +73,7 @@ export const pharmacistsFirebaseService = {
   async list() {
     let local = getLocalPharmacists();
     try {
-      const colRef = collection(db, COLLECTION_NAME);
+      const colRef = getUserCollectionRef(db, COLLECTION_NAME);
       const snap = await getDocs(colRef);
       if (!snap.empty) {
         const firestoreItems = [];
@@ -101,7 +104,7 @@ export const pharmacistsFirebaseService = {
     saveLocalPharmacists(updated);
 
     try {
-      const docRef = doc(db, COLLECTION_NAME, id);
+      const docRef = getUserDocRef(db, COLLECTION_NAME, id);
       await setDoc(docRef, {
         ...payload,
         serverTimestamp: serverTimestamp(),
@@ -126,7 +129,7 @@ export const pharmacistsFirebaseService = {
     saveLocalPharmacists(current);
 
     try {
-      const docRef = doc(db, COLLECTION_NAME, String(id));
+      const docRef = getUserDocRef(db, COLLECTION_NAME, String(id));
       await updateDoc(docRef, { ...updates, updatedAt: serverTimestamp() });
     } catch (e) {
       console.debug("[pharmacistsFirebase] update note:", e.message);
@@ -140,7 +143,7 @@ export const pharmacistsFirebaseService = {
     saveLocalPharmacists(updated);
 
     try {
-      const docRef = doc(db, COLLECTION_NAME, String(id));
+      const docRef = getUserDocRef(db, COLLECTION_NAME, String(id));
       await deleteDoc(docRef);
     } catch (e) {
       console.debug("[pharmacistsFirebase] delete note:", e.message);
