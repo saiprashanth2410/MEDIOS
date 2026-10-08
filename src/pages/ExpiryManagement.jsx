@@ -357,7 +357,7 @@ export default function ExpiryManagement() {
               </div>
             </div>
             <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{stats.critical}</p>
-            <p className="text-[10px] text-rose-500/80 dark:text-rose-400/80 mt-0.5 font-medium">≤ 30 days (₹{(stats.criticalVal || 24500).toLocaleString('en-IN')})</p>
+            <p className="text-[10px] text-rose-500/80 dark:text-rose-400/80 mt-0.5 font-medium">≤ 30 days </p>
           </button>
 
           {/* Warning (31-60d) */}
@@ -377,7 +377,7 @@ export default function ExpiryManagement() {
               </div>
             </div>
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.warning}</p>
-            <p className="text-[10px] text-amber-500/80 dark:text-amber-400/80 mt-0.5 font-medium">31–60 days (₹{(stats.warningVal || 67800).toLocaleString('en-IN')})</p>
+            <p className="text-[10px] text-amber-500/80 dark:text-amber-400/80 mt-0.5 font-medium">31–60 days </p>
           </button>
 
           {/* Review (61-90d) */}
@@ -397,7 +397,7 @@ export default function ExpiryManagement() {
               </div>
             </div>
             <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.review}</p>
-            <p className="text-[10px] text-yellow-600/80 dark:text-yellow-400/80 mt-0.5 font-medium">61–90 days (₹{(stats.reviewVal || 145000).toLocaleString('en-IN')})</p>
+            <p className="text-[10px] text-yellow-600/80 dark:text-yellow-400/80 mt-0.5 font-medium">61–90 days </p>
           </button>
 
           {/* Quarantined */}
