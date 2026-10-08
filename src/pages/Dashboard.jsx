@@ -24,10 +24,8 @@ import {
   Truck,
   Thermometer,
   Droplets,
-  Factory,
   ShoppingCart,
   Info,
-  Star,
   Receipt,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -38,11 +36,10 @@ import Navbar from "../components/dashboard/Navbar";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import usePerformanceData from "../hooks/usePerformanceData";
 import { useExpiryData, addExpiryItem } from "../utils/expiryStore";
-import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
 import { billingFirebaseService } from "../services/billingFirebaseService";
 import { pharmacistsFirebaseService } from "../services/pharmacistsFirebaseService";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
-import { medicinesAPI, prescriptionsAPI, suppliersAPI, notificationsAPI } from "../services/api";
+import { medicinesAPI, prescriptionsAPI, notificationsAPI } from "../services/api";
 
 /* =====================================================
    COLOR STYLES
@@ -95,7 +92,6 @@ export default function Dashboard() {
   const [showAddMedicine, setShowAddMedicine] = useState(false);
   const [showAddPrescription, setShowAddPrescription] = useState(false);
 
-  const [topSuppliers, setTopSuppliers] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [shipments, setShipments] = useState([]);
   const [pharmacistCount, setPharmacistCount] = useState(1);
@@ -106,40 +102,7 @@ export default function Dashboard() {
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Fetch real top suppliers
-    suppliersFirebaseService
-      .list({ limit: 4 })
-      .then((res) => {
-        if (!isMounted || !res?.suppliers) return;
-        const mapped = res.suppliers.slice(0, 4).map((s) => ({
-          name: s.name,
-          onTime: s.metrics?.onTimeDelivery || 95,
-          quality: s.metrics?.qualityScore || 98,
-          leadTime: s.deliveryTime || s.leadTime || "24-48 hrs",
-          risk: s.status === "active" ? "low" : "medium",
-          rating: s.rating || 4.8,
-          riskReason:
-            s.status === "active" ? "Verified active partner" : "Verification pending",
-        }));
-        setTopSuppliers(mapped);
-      })
-      .catch(() => {
-        suppliersAPI.list({ limit: 4 }).then((res) => {
-          if (!isMounted || !res?.suppliers) return;
-          const mapped = res.suppliers.slice(0, 4).map((s) => ({
-            name: s.name,
-            onTime: s.metrics?.onTimeDelivery || 95,
-            quality: s.metrics?.qualityScore || 98,
-            leadTime: s.leadTime || "3 days",
-            risk: s.status === "active" ? "low" : "medium",
-            rating: s.rating || 4.8,
-            riskReason: "Active verified partner",
-          }));
-          setTopSuppliers(mapped);
-        }).catch((err) => console.debug("Suppliers sync fallback:", err));
-      });
-
-    // 2. Fetch real recent dispensing activity and sales
+    // 1. Fetch real recent dispensing activity and sales
     billingFirebaseService
       .getRecentInvoices(10)
       .then((sales) => {
@@ -507,84 +470,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* TOP SUPPLIERS */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Factory size={14} className="text-[#0284c7] dark:text-sky-400" />
-                  <h3 className="font-semibold text-sm sm:text-[15px] text-slate-900 dark:text-slate-100 tracking-tight">
-                    Top Suppliers
-                  </h3>
-                </div>
-                <button
-                  onClick={() => navigate("/suppliers")}
-                  className="text-[10px] font-medium text-[#0284c7] dark:text-sky-400 hover:underline"
-                >
-                  View all
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {topSuppliers.map((supplier) => (
-                  <div
-                    key={supplier.name}
-                    className="p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">
-                        {supplier.name}
-                      </span>
-                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                        <Star size={11} className="fill-amber-400 text-amber-400" />
-                        <span>{supplier.rating}</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-[10px] mb-2">
-                      <div>
-                        <p className="text-slate-400 dark:text-slate-500">
-                          On-time
-                        </p>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
-                          {supplier.onTime}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400 dark:text-slate-500">
-                          Quality
-                        </p>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
-                          {supplier.quality}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400 dark:text-slate-500">Lead</p>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
-                          {supplier.leadTime}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
-                      <span
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 ${
-                          supplier.risk === "low"
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40"
-                            : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40"
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${supplier.risk === "low" ? "bg-emerald-500" : "bg-amber-500"}`} />
-                        {supplier.risk === "low" ? "Low Risk" : "Medium Risk"}
-                      </span>
-                      <button
-                        className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition"
-                        title={supplier.riskReason}
-                      >
-                        <Info size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* PHARMACY INFO */}
             <div className="bg-white dark:bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
