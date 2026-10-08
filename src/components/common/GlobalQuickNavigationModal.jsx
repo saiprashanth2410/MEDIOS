@@ -359,3 +359,4 @@ export default function GlobalQuickNavigationModal() {
     </div>
   );
 }
+
