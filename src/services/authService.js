@@ -45,10 +45,15 @@ export const authService = {
       const fbUser = userCredential.user;
 
       let role = "Chief Pharmacist";
+      let avatarPref = undefined;
       try {
         const userDocSnap = await getDoc(doc(db, "users", fbUser.uid));
         if (userDocSnap.exists()) {
-          role = userDocSnap.data().role || role;
+          const docData = userDocSnap.data();
+          role = docData.role || role;
+          if (docData.avatarPreference !== undefined) {
+            avatarPref = docData.avatarPreference;
+          }
         } else {
           // create default user profile in Firestore
           await setDoc(
@@ -66,12 +71,25 @@ export const authService = {
         console.warn("[authService] Firestore user profile sync warning:", docErr.message);
       }
 
+      if (typeof window !== "undefined") {
+        const localAvatarPref = localStorage.getItem("meditrack_user_avatar_preference");
+        if (localAvatarPref !== null) {
+          avatarPref = localAvatarPref;
+        }
+      }
+
+      const finalAvatar =
+        avatarPref !== undefined
+          ? avatarPref
+          : (fbUser.photoURL || "");
+
       const userData = {
         uid: fbUser.uid,
         id: fbUser.uid,
         name: fbUser.displayName || fbUser.email.split("@")[0].replace(/\./g, " "),
         email: fbUser.email,
         role,
+        avatar: finalAvatar,
         photoURL: fbUser.photoURL || "",
       };
 
@@ -105,11 +123,16 @@ export const authService = {
       const fbUser = result.user;
 
       let role = "Chief Pharmacist";
+      let avatarPref = undefined;
       try {
         const userDocRef = doc(db, "users", fbUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          role = userDocSnap.data().role || role;
+          const docData = userDocSnap.data();
+          role = docData.role || role;
+          if (docData.avatarPreference !== undefined) {
+            avatarPref = docData.avatarPreference;
+          }
         } else {
           await setDoc(
             userDocRef,
@@ -127,12 +150,24 @@ export const authService = {
         console.warn("[authService] Firestore Google User profile sync warning:", docErr.message);
       }
 
+      if (typeof window !== "undefined") {
+        const localAvatarPref = localStorage.getItem("meditrack_user_avatar_preference");
+        if (localAvatarPref !== null) {
+          avatarPref = localAvatarPref;
+        }
+      }
+
+      const finalAvatar =
+        avatarPref !== undefined
+          ? avatarPref
+          : (fbUser.photoURL || "");
+
       const userData = {
         uid: fbUser.uid,
         id: fbUser.uid,
         name: fbUser.displayName || fbUser.email.split("@")[0].replace(/\./g, " "),
         email: fbUser.email,
-        avatar: fbUser.photoURL || "",
+        avatar: finalAvatar,
         photoURL: fbUser.photoURL || "",
         role,
         provider: "google",

@@ -70,7 +70,11 @@ export default function Profile() {
       branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
       upiId: savedPharm?.upiId || user?.upiId || localStorage.getItem("meditrack_upi_id") || "",
       joinDate: user?.joinDate || "24 Sep 2024",
-      avatar: user?.avatar || "",
+      avatar: (() => {
+        const localPref = typeof window !== "undefined" ? localStorage.getItem("meditrack_user_avatar_preference") : null;
+        if (localPref !== null) return localPref;
+        return user?.avatar || "";
+      })(),
     };
   });
 
@@ -97,6 +101,7 @@ export default function Profile() {
         if (cancelled || !data) return;
 
         if (data.personal) {
+          const localPref = typeof window !== "undefined" ? localStorage.getItem("meditrack_user_avatar_preference") : null;
           setForm((prev) => ({
             ...prev,
             name: data.personal.name || prev.name,
@@ -105,7 +110,7 @@ export default function Profile() {
             role: data.personal.role || prev.role,
             license: data.personal.license || prev.license,
             joinDate: data.personal.joinDate || prev.joinDate,
-            avatar: data.personal.avatar || prev.avatar,
+            avatar: localPref !== null ? localPref : (data.personal.avatar !== undefined ? data.personal.avatar : prev.avatar),
             pharmacy: data.pharmacy?.name || prev.pharmacy,
             branch: data.pharmacy?.address || prev.branch,
             pharmacyId: data.pharmacy?.licenseNumber || prev.pharmacyId,
@@ -126,7 +131,7 @@ export default function Profile() {
               console.debug(e);
             }
           }
-          if (data.personal.avatar && !user?.avatar) {
+          if (localPref === null && data.personal.avatar && !user?.avatar) {
             updateUser({ avatar: data.personal.avatar });
           }
         }
@@ -147,9 +152,11 @@ export default function Profile() {
   const userName = user?.name || form.name || "Pharmacist";
 
   const handleAvatarSave = async (newAvatar) => {
-    setForm((prev) => ({ ...prev, avatar: newAvatar }));
-    updateUser({ avatar: newAvatar });
+    const avatarVal = newAvatar || "";
+    setForm((prev) => ({ ...prev, avatar: avatarVal }));
+    updateUser({ avatar: avatarVal });
     try {
+      localStorage.setItem("meditrack_user_avatar_preference", avatarVal);
       await profileAPI.update({
         personal: {
           name: form.name,
@@ -158,13 +165,13 @@ export default function Profile() {
           role: form.role,
           license: form.license,
           joinDate: form.joinDate,
-          avatar: newAvatar,
+          avatar: avatarVal,
         },
       });
-      toast.success(newAvatar ? "Avatar updated successfully!" : "Avatar reset to initials");
+      toast.success(avatarVal ? "Avatar updated successfully!" : "Avatar reset to initials");
     } catch (err) {
       console.debug("Avatar sync fallback:", err);
-      toast.success("Avatar updated!");
+      toast.success(avatarVal ? "Avatar updated successfully!" : "Avatar reset to initials");
     }
   };
 
@@ -241,6 +248,7 @@ export default function Profile() {
       if (raw) savedPharm = JSON.parse(raw);
     } catch (_) {}
 
+    const localPref = typeof window !== "undefined" ? localStorage.getItem("meditrack_user_avatar_preference") : null;
     setForm({
       name: user?.name || "",
       email: user?.email || "",
@@ -251,7 +259,7 @@ export default function Profile() {
       pharmacyId: savedPharm?.pharmacyId || user?.pharmacyId || "DL-TN-CH-2024-0045",
       branch: savedPharm?.branch || user?.branch || "Tiruvannamalai",
       joinDate: user?.joinDate || "24 Sep 2024",
-      avatar: user?.avatar || "",
+      avatar: localPref !== null ? localPref : (user?.avatar || ""),
     });
     setEditing(false);
   };

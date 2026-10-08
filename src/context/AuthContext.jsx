@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { auth, db } from "../config/firebase";
 import { authService } from "../services/authService";
@@ -46,16 +46,33 @@ export function AuthProvider({ children }) {
         if (fbUser) {
           let role = "Chief Pharmacist";
           let pharmacy = "MediTrack Central";
+          let avatarPref = undefined;
+
           try {
             const userSnap = await getDoc(doc(db, "users", fbUser.uid));
             if (userSnap.exists()) {
               const data = userSnap.data();
               role = data.role || role;
               pharmacy = data.pharmacy || pharmacy;
+              if (data.avatarPreference !== undefined) {
+                avatarPref = data.avatarPreference;
+              }
             }
           } catch {
             // Keep default role on permission or offline
           }
+
+          // Check local avatar preference override (e.g. user explicitly reset to initials)
+          const localAvatarPref = localStorage.getItem("meditrack_user_avatar_preference");
+          if (localAvatarPref !== null) {
+            avatarPref = localAvatarPref;
+          }
+
+          // Use avatar preference if set (even if empty string for initials), else fall back to Google photo
+          const finalAvatar =
+            avatarPref !== undefined
+              ? avatarPref
+              : (fbUser.photoURL || "");
 
           const currentUser = {
             uid: fbUser.uid,
@@ -65,7 +82,7 @@ export function AuthProvider({ children }) {
             role,
             pharmacy,
             photoURL: fbUser.photoURL || "",
-            avatar: fbUser.photoURL || "",
+            avatar: finalAvatar,
           };
 
           setUser(currentUser);
@@ -186,6 +203,19 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((updates) => {
     setUser((prev) => {
       const updated = { ...prev, ...updates };
+      if (updates?.avatar !== undefined) {
+        try {
+          const avatarVal = updates.avatar || "";
+          localStorage.setItem("meditrack_user_avatar_preference", avatarVal);
+          if (updated?.uid) {
+            setDoc(
+              doc(db, "users", updated.uid),
+              { avatarPreference: avatarVal, updatedAt: serverTimestamp() },
+              { merge: true }
+            ).catch((err) => console.debug("[AuthContext] avatarPreference sync err:", err));
+          }
+        } catch (_) {}
+      }
       localStorage.setItem("meditrack_user", JSON.stringify(updated));
       return updated;
     });

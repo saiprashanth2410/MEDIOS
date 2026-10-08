@@ -64,7 +64,8 @@ export default function AvatarModal({ currentAvatar, userName, onClose, onSave }
 
   const handleRemove = () => {
     setSelectedAvatar("");
-    toast.info("Avatar reset to initial letter");
+    onSave("");
+    onClose();
   };
 
   return (
