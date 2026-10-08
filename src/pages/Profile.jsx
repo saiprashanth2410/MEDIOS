@@ -34,6 +34,7 @@ import { detectLocation } from "../services/locationService";
 import { profileAPI } from "../services/api";
 import { authService } from "../services/authService";
 import AvatarModal from "../components/profile/AvatarModal";
+import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
 
 const FIELD_BASE =
   "w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 disabled:bg-slate-50 dark:disabled:bg-slate-800/50 disabled:text-slate-500 dark:text-white disabled:cursor-not-allowed";
@@ -765,55 +766,7 @@ export default function Profile() {
                 </div>
 
                 {/* Active Sessions */}
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
-                  <div className="flex items-center gap-2 mb-5">
-                    <Smartphone size={16} className="text-[#0284c7] dark:text-sky-400" />
-                    <h3 className="font-bold text-[15px]">Active Sessions</h3>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/30">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-white dark:bg-slate-800 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center">
-                          <Globe size={16} className="text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                            Current Session
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Safari · macOS · Chennai
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100/80 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        ACTIVE
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                          <Smartphone size={16} className="text-slate-500 dark:text-slate-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                            iPhone · Safari
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            2 days ago · Chennai
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => toast.success("Session revoked")}
-                        className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline"
-                      >
-                        Revoke
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ActiveSessionsCard />
               </>
             )}
 

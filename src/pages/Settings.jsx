@@ -31,6 +31,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
 import QRCodeSVG from "../components/common/QRCodeSVG";
+import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
 
 /* =====================================================
    CATEGORIES
@@ -64,10 +65,10 @@ const CATEGORIES = [
   },
   {
     id: "security",
-    label: "Security",
+    label: "Security & Sessions",
     icon: Lock,
-    header: "Security",
-    description: "Keep your account safe",
+    header: "Security & Active Sessions",
+    description: "Manage account password, authenticated devices, and active sessions",
     items: [
       {
         id: "change-password",
@@ -602,6 +603,13 @@ export default function Settings() {
                         {theme === "system" && " (detected from system)"}
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* SECURITY & ACTIVE SESSIONS PANEL (Only in Security tab) */}
+                {currentCategory.id === "security" && (
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30">
+                    <ActiveSessionsCard />
                   </div>
                 )}
 
