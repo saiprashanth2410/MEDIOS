@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ScanProvider } from "./context/ScanContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import GlobalQuickNavigationModal from "./components/common/GlobalQuickNavigationModal";
 
 // Pages — Static imports prevent "text/html is not a valid JavaScript MIME type" chunk 404s
 import Login from "./pages/Login";
@@ -27,7 +26,6 @@ function App() {
   return (
     <ErrorBoundary>
       <ScanProvider>
-        <GlobalQuickNavigationModal />
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />

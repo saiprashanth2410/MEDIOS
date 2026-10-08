@@ -17,14 +17,12 @@ import {
   ChevronDown,
   ShieldCheck,
   Receipt,
-  Command,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useScan } from "../../context/ScanContext";
 import { medicinesAPI } from "../../services/api";
 import BarcodeScanner from "../scanner/BarcodeScanner";
 import NotificationBell from "./NotificationBell";
-import { openQuickNavigation } from "../common/GlobalQuickNavigationModal";
 
 const NAV_GROUPS = [
   {
@@ -186,20 +184,6 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Quick Navigation Shortcuts */}
-            <button
-              onClick={openQuickNavigation}
-              className="flex items-center gap-1.5 bg-white/15 dark:bg-slate-800 dark:border dark:border-slate-700/80 hover:bg-white/20 dark:hover:bg-slate-700 text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-2xs cursor-pointer"
-              title="Global Quick Navigation (Press ? or Alt hotkeys)"
-              aria-label="Quick Navigation"
-            >
-              <Command size={13} className="text-sky-200 dark:text-sky-400" />
-              <span className="hidden sm:inline">Shortcuts</span>
-              <kbd className="hidden md:inline px-1 py-0.2 font-mono text-[9px] font-bold bg-black/20 dark:bg-slate-900 rounded text-white/80 border border-white/20 dark:border-slate-700">
-                ?
-              </kbd>
-            </button>
-
             {/* Scan */}
             <button
               onClick={() => setShowScanner(true)}
