@@ -1,18 +1,31 @@
 import {
-  collection,
   doc,
   setDoc,
   getDocs,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getUserCollectionRef, getUserDocRef, getUserScopeId } from "../utils/userScope";
 
 const COLLECTION_NAME = "suppliers";
 
 let memorySuppliers = null;
+let currentScopeId = null; // track whose data is cached
 const firestoreOverrides = new Map();
 const deletedCodes = new Set();
 let isInitialized = false;
+
+// Reset cache when user changes (different pharmacy account)
+function ensureCorrectUserScope() {
+  const scopeId = getUserScopeId();
+  if (scopeId !== currentScopeId) {
+    memorySuppliers = null;
+    firestoreOverrides.clear();
+    deletedCodes.clear();
+    isInitialized = false;
+    currentScopeId = scopeId;
+  }
+}
 
 const DEFAULT_TOP_SUPPLIERS = [
   {
@@ -93,6 +106,8 @@ const DEFAULT_TOP_SUPPLIERS = [
 ];
 
 async function loadMasterCatalog() {
+  // Suppliers master catalog is used only as a SEARCH REFERENCE, not pre-loaded per user
+  // Each user's Firestore subcollection holds THEIR own added suppliers (starts empty)
   if (memorySuppliers && memorySuppliers.length > 0) return memorySuppliers;
   try {
     const res = await fetch("/data/suppliersCatalog.json");
@@ -106,14 +121,14 @@ async function loadMasterCatalog() {
   } catch (err) {
     console.debug("[suppliers] Catalog fetch fallback:", err);
   }
-
-  memorySuppliers = DEFAULT_TOP_SUPPLIERS;
+  // Return empty — no default suppliers for any user account
+  memorySuppliers = [];
   return memorySuppliers;
 }
 
 async function syncFirestore() {
   try {
-    const colRef = collection(db, COLLECTION_NAME);
+    const colRef = getUserCollectionRef(db, COLLECTION_NAME);
     const snap = await getDocs(colRef);
     firestoreOverrides.clear();
     deletedCodes.clear();
@@ -133,29 +148,20 @@ async function syncFirestore() {
 }
 
 async function getAllSuppliers() {
-  const master = await loadMasterCatalog();
+  ensureCorrectUserScope();
   if (!isInitialized) {
     await syncFirestore();
   }
 
-  const createdSuppliers = [];
-  const updatedMap = new Map();
-
-  firestoreOverrides.forEach((val, code) => {
-    const inMaster = master.some((m) => m.code === code);
-    if (!inMaster) {
-      createdSuppliers.push(val);
-    } else {
-      updatedMap.set(code, val);
+  // Return only this user's created/saved suppliers
+  const userSuppliers = [];
+  firestoreOverrides.forEach((val) => {
+    if (!deletedCodes.has(val.code)) {
+      userSuppliers.push(val);
     }
   });
 
-  return [
-    ...createdSuppliers,
-    ...master
-      .filter((m) => !deletedCodes.has(m.code))
-      .map((m) => (updatedMap.has(m.code) ? { ...m, ...updatedMap.get(m.code) } : m)),
-  ];
+  return userSuppliers;
 }
 
 export const suppliersFirebaseService = {
@@ -207,7 +213,7 @@ export const suppliersFirebaseService = {
 
   async create(supplier) {
     const code = String(supplier.code || `SUP-${Date.now().toString().slice(-4)}`);
-    const docRef = doc(db, COLLECTION_NAME, code);
+    const docRef = getUserDocRef(db, COLLECTION_NAME, code);
     const payload = {
       ...supplier,
       code,
@@ -226,7 +232,7 @@ export const suppliersFirebaseService = {
   },
 
   async update(code, updates) {
-    const docRef = doc(db, COLLECTION_NAME, String(code));
+    const docRef = getUserDocRef(db, COLLECTION_NAME, String(code));
     const merged = { ...updates, updatedAt: serverTimestamp() };
     try {
       await setDoc(docRef, merged, { merge: true });
@@ -239,7 +245,7 @@ export const suppliersFirebaseService = {
   },
 
   async delete(code) {
-    const docRef = doc(db, COLLECTION_NAME, String(code));
+    const docRef = getUserDocRef(db, COLLECTION_NAME, String(code));
     try {
       await setDoc(docRef, { _deleted: true, updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) {
@@ -251,8 +257,21 @@ export const suppliersFirebaseService = {
   },
 
   async seedIfEmpty() {
-    // Handled seamlessly by loadMasterCatalog
     return true;
+  },
+
+  // Search national catalog (not pre-loaded, just for reference/search)
+  async searchNationalCatalog(query = "") {
+    const q = query.toLowerCase().trim();
+    if (!q || q.length < 2) return [];
+    const master = await loadMasterCatalog();
+    return master
+      .filter(
+        (s) =>
+          (s.name && s.name.toLowerCase().includes(q)) ||
+          (s.city && s.city.toLowerCase().includes(q))
+      )
+      .slice(0, 10);
   },
 };
 
