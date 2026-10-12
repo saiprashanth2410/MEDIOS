@@ -152,6 +152,11 @@ service cloud.firestore {
       allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
         request.resource.data.uid == resource.data.uid;
       allow delete: if false;
+
+      // Allow tenant owner full access to their private scoped subcollections (medicines, suppliers, sales, etc.)
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /medicines/{medicineId} {

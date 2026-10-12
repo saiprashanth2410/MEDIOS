@@ -61,3 +61,4 @@ export function handleSecurityAndCors(req, res) {
   });
   return false;
 }
+

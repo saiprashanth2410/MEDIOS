@@ -49,6 +49,7 @@ import { deductCartFromInventory } from "../utils/inventoryDeduction";
 import { checkDrugInteractions } from "../utils/drugInteractionChecker";
 import { getScopedKey } from "../utils/userScope";
 import { playScannerBeep } from "../utils/audioBeep";
+import { whatsappCloudService } from "../services/whatsappCloudService";
 import PrescriptionScanner from "../components/prescriptions/PrescriptionScanner";
 
 const DRAFT_KEY = "meditrack_pos_active_draft";
@@ -423,6 +424,7 @@ export default function Billing() {
   const [refillFilter, setRefillFilter] = useState("all");
   const [selectedPreviewReminder, setSelectedPreviewReminder] = useState(null);
   const [previewLang, setPreviewLang] = useState("combined");
+  const [batchDispatching, setBatchDispatching] = useState(false);
 
   // UPI QR Code State (visible by default when UPI / QR payment is selected)
   const [showUpiQr, setShowUpiQr] = useState(true);
@@ -1247,6 +1249,69 @@ export default function Billing() {
       return true;
     });
   }, [refillReminders, refillFilter]);
+
+  /* Automated Batch Dispatch for all Due Reminders via WhatsApp Cloud Gateway */
+  const handleBatchCloudDispatch = async () => {
+    setBatchDispatching(true);
+    try {
+      const res = await patientsFirebaseService.batchDispatchDueReminders();
+      if (res.dispatchedCount > 0) {
+        toast.success(
+          `🤖 WhatsApp Cloud Bot dispatched reminders to ${res.dispatchedCount} patient(s)!`,
+          { icon: "📲", duration: 5000 }
+        );
+        playScannerBeep("cash");
+        const fresh = await patientsFirebaseService.getRefillReminders();
+        setRefillReminders(fresh);
+      } else {
+        toast.info("No due reminders pending dispatch today!");
+      }
+    } catch {
+      toast.error("Failed to run automated WhatsApp Cloud dispatch");
+    } finally {
+      setBatchDispatching(false);
+    }
+  };
+
+  /* Single-click Cloud Bot Refill Dispatch */
+  const handleDirectCloudRefill = async (reminder, lang = "combined") => {
+    try {
+      toast.loading("Sending via WhatsApp Cloud Bot...", { id: "cloud-wa" });
+      await patientsFirebaseService.dispatchCloudWhatsAppRefill(reminder, lang);
+      setRefillReminders((prev) =>
+        prev.map((r) =>
+          r.id === reminder.id ? { ...r, status: "sent", sentAt: new Date().toISOString() } : r
+        )
+      );
+      toast.success(`Automated WhatsApp sent to ${reminder.patientName}!`, { id: "cloud-wa", icon: "🤖" });
+      playScannerBeep("success");
+    } catch {
+      toast.error("Failed to dispatch WhatsApp message", { id: "cloud-wa" });
+    }
+  };
+
+  /* Send Digital Invoice via WhatsApp Cloud Bot */
+  const handleSendWhatsAppInvoice = async () => {
+    if (!completedSale || !completedSale.customer?.phone) {
+      toast.error("Patient phone number not available for WhatsApp bill");
+      return;
+    }
+    try {
+      toast.loading("Sending digital bill via WhatsApp Cloud...", { id: "wa-bill" });
+      await whatsappCloudService.sendInvoice({
+        recipientPhone: completedSale.customer.phone,
+        patientName: completedSale.customer.name,
+        invoiceNumber: completedSale.invoiceNumber,
+        grandTotal: completedSale.totals?.grandTotal,
+        pharmacyName: completedSale.pharmacyName,
+        pharmacyBranch: completedSale.pharmacyBranch,
+      });
+      toast.success(`WhatsApp Invoice sent to ${completedSale.customer.name}!`, { id: "wa-bill", icon: "🧾" });
+      playScannerBeep("cash");
+    } catch {
+      toast.error("Failed to send WhatsApp invoice", { id: "wa-bill" });
+    }
+  };
 
   /* Print thermal / A4 receipt */
   const handlePrintReceipt = () => {
@@ -2230,8 +2295,24 @@ export default function Billing() {
                   </p>
                 </div>
 
-                {/* Filter Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Automated WhatsApp Cloud Bot Batch Dispatch */}
+                  <button
+                    onClick={handleBatchCloudDispatch}
+                    disabled={batchDispatching || dueSoonCount === 0}
+                    className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                    title="Automatically dispatches WhatsApp alerts to all patients whose medications run out in 24 hours"
+                  >
+                    <Zap size={14} className={batchDispatching ? "animate-spin" : ""} />
+                    <span>
+                      {batchDispatching
+                        ? "Bot Dispatching..."
+                        : `🤖 Auto-Dispatch WhatsApp (${dueSoonCount})`}
+                    </span>
+                  </button>
+
+                  {/* Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                   <button
                     onClick={() => setRefillFilter("all")}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
@@ -2287,6 +2368,7 @@ export default function Billing() {
                   </button>
                 </div>
               </div>
+            </div>
 
               {/* Table */}
               {filteredRefills.length === 0 ? (
@@ -2416,16 +2498,26 @@ export default function Billing() {
 
                             {/* Actions */}
                             <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {/* Send WhatsApp Click */}
-                                <button
-                                  onClick={() => handleSendWhatsAppRefill(rem, "combined")}
-                                  title="Send WhatsApp Alert (Tamil & English)"
-                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-xs cursor-pointer"
-                                >
-                                  <MessageCircle size={12} />
-                                  <span>WhatsApp</span>
-                                </button>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {/* Automated Cloud Bot Send (Zero Redirect) */}
+                                  <button
+                                    onClick={() => handleDirectCloudRefill(rem, "combined")}
+                                    title="Automated Meta Cloud API Send (Zero Redirect)"
+                                    className="h-7 px-2 rounded-lg bg-teal-50 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-700 hover:bg-teal-100 text-teal-700 dark:text-teal-300 font-bold text-[10px] flex items-center gap-1 transition shadow-2xs cursor-pointer"
+                                  >
+                                    <Zap size={11} className="text-teal-600 dark:text-teal-400" />
+                                    <span>Bot Send</span>
+                                  </button>
+
+                                  {/* Send WhatsApp Click */}
+                                  <button
+                                    onClick={() => handleSendWhatsAppRefill(rem, "combined")}
+                                    title="Send WhatsApp Alert (Tamil & English)"
+                                    className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-xs cursor-pointer"
+                                  >
+                                    <MessageCircle size={12} />
+                                    <span>WhatsApp</span>
+                                  </button>
 
                                 {/* Preview & Choose Language */}
                                 <button
@@ -2999,17 +3091,26 @@ export default function Billing() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 mt-6 pt-3 border-t border-slate-100">
+              <div className="flex flex-wrap gap-2.5 mt-6 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={handleSendWhatsAppInvoice}
+                  disabled={!completedSale.customer?.phone}
+                  className="flex-1 min-w-[170px] h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                  title="Directly send digital tax invoice to patient's WhatsApp"
+                >
+                  <MessageCircle size={15} />
+                  <span>Send WhatsApp Bill</span>
+                </button>
                 <button
                   onClick={handlePrintReceipt}
-                  className="flex-1 h-10 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="flex-1 min-w-[170px] h-10 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
                 >
                   <Printer size={16} />
                   <span>Print Tax Invoice (A4 / Thermal)</span>
                 </button>
                 <button
                   onClick={() => setCompletedSale(null)}
-                  className="px-4 h-10 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs"
+                  className="px-4 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs"
                 >
                   Close
                 </button>

@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { getScopedKey, getUserCollectionRef, getUserDocRef } from "../utils/userScope";
+import { whatsappCloudService } from "./whatsappCloudService";
 
 const COLLECTION_NAME = "patients";
 const REFILL_COLLECTION = "refill_reminders";
@@ -414,6 +415,58 @@ export const patientsFirebaseService = {
     } catch (_) {}
 
     return { ok: true };
+  },
+
+  /**
+   * Dispatches automated cloud WhatsApp notification directly via Meta Cloud Gateway.
+   */
+  async dispatchCloudWhatsAppRefill(reminder, lang = "combined") {
+    if (!reminder) return { ok: false };
+    const msg =
+      lang === "tamil"
+        ? reminder.messages?.tamil
+        : lang === "english"
+        ? reminder.messages?.english
+        : reminder.messages?.combined;
+
+    const res = await whatsappCloudService.sendRefillReminder({
+      recipientPhone: reminder.patientPhone,
+      patientName: reminder.patientName,
+      medicineName: reminder.medicineName,
+      customMessage: msg,
+      pharmacyName: reminder.pharmacyName || "MediTrack Pharmacy",
+      pharmacyBranch: reminder.branch || "Main Branch",
+    });
+
+    await this.markRefillSent(reminder.id);
+    return { ok: true, result: res };
+  },
+
+  /**
+   * Automates morning batch dispatch of all reminders due in <= 24 hours.
+   */
+  async batchDispatchDueReminders() {
+    const list = await this.getRefillReminders();
+    const dueList = list.filter(
+      (r) => r.status === "pending" && (r.isDue || r.daysRemaining <= 1)
+    );
+
+    if (dueList.length === 0) {
+      return { ok: true, dispatchedCount: 0, message: "No pending reminders due today" };
+    }
+
+    const cloudRes = await whatsappCloudService.batchDispatchDueReminders(dueList);
+
+    // Mark all as sent in Firestore & local cache
+    for (const item of dueList) {
+      await this.markRefillSent(item.id);
+    }
+
+    return {
+      ok: true,
+      dispatchedCount: dueList.length,
+      cloudResponse: cloudRes,
+    };
   },
 };
 

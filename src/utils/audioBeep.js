@@ -65,3 +65,4 @@ export function playScannerBeep(type = "success") {
 }
 
 export default playScannerBeep;
+
