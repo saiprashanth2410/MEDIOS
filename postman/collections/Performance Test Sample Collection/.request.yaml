@@ -1,0 +1,7 @@
+$kind: http-request
+name: ""
+url: https://meditrack-three-delta.vercel.app/settings?category=shortcuts
+method: GET
+queryParams:
+  category: shortcuts
+order: 1000
