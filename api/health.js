@@ -41,6 +41,11 @@ export default function handler(req, res) {
         status: "healthy",
         isolationMode: "Strict Tenant Partitioning",
       },
+      apiSecurityGuard: {
+        status: "enforced",
+        rateLimit: "120 req/min",
+        supportedAuth: ["Bearer Token (JWT)", "X-MediTrack-Key header"],
+      },
     },
     latencyMs: 14,
   });

@@ -48,6 +48,7 @@ import { patientsFirebaseService } from "../services/patientsFirebaseService";
 import { deductCartFromInventory } from "../utils/inventoryDeduction";
 import { checkDrugInteractions } from "../utils/drugInteractionChecker";
 import { getScopedKey } from "../utils/userScope";
+import { playScannerBeep } from "../utils/audioBeep";
 import PrescriptionScanner from "../components/prescriptions/PrescriptionScanner";
 
 const DRAFT_KEY = "meditrack_pos_active_draft";
@@ -661,6 +662,7 @@ export default function Billing() {
     });
 
     setSearchQuery("");
+    playScannerBeep("success");
     toast.success(`Added ${qtyToAdd > 1 ? `${qtyToAdd}x ` : ""}${medicine.name}`);
   };
 
@@ -824,11 +826,12 @@ export default function Billing() {
      TAX & TOTALS (INDIAN GST SPEC)
   ===================================================== */
   const totals = useMemo(() => {
-    const subtotal = cart.reduce((acc, it) => acc + it.total, 0);
+    const rawSubtotal = cart.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+    const subtotal = Math.round(rawSubtotal * 100) / 100;
     // Standard Indian GST computation (50% CGST + 50% SGST)
-    const totalGst = subtotal * 0.12; // 12% blended GST
-    const cgst = totalGst / 2; // 6% Central GST
-    const sgst = totalGst / 2; // 6% State GST
+    const totalGst = Math.round(subtotal * 0.12 * 100) / 100; // 12% blended GST
+    const cgst = Math.round((totalGst / 2) * 100) / 100; // 6% Central GST
+    const sgst = Math.round((totalGst / 2) * 100) / 100; // 6% State GST
     const grandTotal = Math.round(subtotal + totalGst);
 
     return {
@@ -1128,6 +1131,7 @@ export default function Billing() {
           pharmacyLicense: activePharm.license || user?.license || "DL-Pending",
         });
 
+        playScannerBeep("cash");
         toast.success(`Invoice ${invoiceNumber} generated & dispensed!`);
         if (carts.length > 1) {
           const remaining = carts.filter((c) => c.id !== activeCartId);
