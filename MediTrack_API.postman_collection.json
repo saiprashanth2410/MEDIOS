@@ -1,0 +1,197 @@
+{
+  "info": {
+    "_postman_id": "7a3e8b41-9921-4f1a-b605-meditrack2026",
+    "name": "MediTrack Pharmacy & Healthcare API",
+    "description": "Production-grade REST API collection for MediTrack Core Services, including Health Telemetry, Clinical Drug-Drug Interaction (DDI) Evaluation, Schedule H Regulatory Compliance, and GSTIN Invoice Auditing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://meditrackos.vercel.app",
+      "type": "string",
+      "description": "Production base URL or local development server (e.g. http://localhost:5173)"
+    }
+  ],
+  "item": [
+    {
+      "name": "System & Telemetry",
+      "item": [
+        {
+          "name": "1. Gateway Health & Microservices Telemetry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Inspects real-time serverless API runtime, active engine version, latency telemetry, and microservices status."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clinical Safety & DDI Engine",
+      "item": [
+        {
+          "name": "2. Evaluate Drug Interactions - Critical Hazard (Nitrate + PDE5)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicines\": [\n    {\n      \"name\": \"Sorbitrate 10mg\",\n      \"generic\": \"Isosorbide Dinitrate\"\n    },\n    {\n      \"name\": \"Manforce 50mg\",\n      \"generic\": \"Sildenafil Citrate\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clinical/interactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clinical", "interactions"]
+            },
+            "description": "Evaluates synergistic vasodilation contraindication between Nitrates and PDE-5 inhibitors. Returns CRITICAL safety risk tier with bilingual Tamil and English clinical alerts."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Evaluate Drug Interactions - High Bleed Risk (Warfarin + Fluconazole)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicines\": [\n    {\n      \"name\": \"Warfarin 5mg\",\n      \"generic\": \"Warfarin Sodium\"\n    },\n    {\n      \"name\": \"Flucos 150mg\",\n      \"generic\": \"Fluconazole\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clinical/interactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clinical", "interactions"]
+            },
+            "description": "Evaluates CYP2C9 inhibition hazard causing massive INR spikes and internal hemorrhage."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Evaluate Drug Interactions - Safe Regimen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicines\": [\n    {\n      \"name\": \"Paracetamol 650mg\",\n      \"generic\": \"Acetaminophen\"\n    },\n    {\n      \"name\": \"Cetirizine 10mg\",\n      \"generic\": \"Cetirizine HCl\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clinical/interactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clinical", "interactions"]
+            },
+            "description": "Evaluates a clinically compatible pair without adverse interaction (Returns LOW risk tier)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Regulatory & Legal Compliance",
+      "item": [
+        {
+          "name": "5. Schedule H / H1 Prescription Audit Compliance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorRegistrationNumber\": \"TN-MCI-58492\",\n  \"doctorName\": \"Dr. S. K. Narayanan MD\",\n  \"patientPhone\": \"9876543210\",\n  \"patientName\": \"Karthik Raman\",\n  \"invoiceNumber\": \"INV-2026-0089\",\n  \"hasScheduleH\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clinical/compliance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clinical", "compliance"]
+            },
+            "description": "Validates dispensing legality under the Drugs and Cosmetics Act (1940), generating a verifiable audit token and checking doctor council registration."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Billing & Financial Auditing",
+      "item": [
+        {
+          "name": "6. Tax Invoice & GSTIN Cryptographic Audit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceNumber\": \"INV-TN-2026-0120\",\n  \"gstin\": \"33AAAAA0000A1Z5\",\n  \"subtotal\": 1000,\n  \"grandTotal\": 1120,\n  \"pharmacyName\": \"MediTrack Pharmacy\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/billing/audit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "billing", "audit"]
+            },
+            "description": "Verifies 15-digit Indian GSTIN format, audits 12% blended GST calculation, and issues a tamper-proof digital signature token for invoice verification."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
