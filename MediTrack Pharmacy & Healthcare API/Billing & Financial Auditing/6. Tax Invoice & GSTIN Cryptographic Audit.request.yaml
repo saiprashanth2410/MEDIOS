@@ -1,0 +1,17 @@
+$kind: http-request
+description: Verifies 15-digit Indian GSTIN format, audits 12% blended GST calculation, and issues a tamper-proof digital signature token for invoice verification.
+url: "{{baseUrl}}/api/billing/audit"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "invoiceNumber": "INV-TN-2026-0120",
+      "gstin": "33AAAAA0000A1Z5",
+      "subtotal": 1000,
+      "grandTotal": 1120,
+      "pharmacyName": "MediTrack Pharmacy"
+    }
+order: 1000

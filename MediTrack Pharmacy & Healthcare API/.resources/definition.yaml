@@ -1,0 +1,4 @@
+$kind: collection
+description: Production-grade REST API collection for MediTrack Core Services, including Health Telemetry, Clinical Drug-Drug Interaction (DDI) Evaluation, Schedule H Regulatory Compliance, and GSTIN Invoice Auditing.
+variables:
+  baseUrl: https://meditrackos.vercel.app

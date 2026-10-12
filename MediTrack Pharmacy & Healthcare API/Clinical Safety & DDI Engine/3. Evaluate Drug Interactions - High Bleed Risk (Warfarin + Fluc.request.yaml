@@ -1,0 +1,23 @@
+$kind: http-request
+name: 3. Evaluate Drug Interactions - High Bleed Risk (Warfarin + Fluconazole)
+description: Evaluates CYP2C9 inhibition hazard causing massive INR spikes and internal hemorrhage.
+url: "{{baseUrl}}/api/clinical/interactions"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "medicines": [
+        {
+          "name": "Warfarin 5mg",
+          "generic": "Warfarin Sodium"
+        },
+        {
+          "name": "Flucos 150mg",
+          "generic": "Fluconazole"
+        }
+      ]
+    }
+order: 2000

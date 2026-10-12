@@ -1,0 +1,22 @@
+$kind: http-request
+description: Evaluates a clinically compatible pair without adverse interaction (Returns LOW risk tier).
+url: "{{baseUrl}}/api/clinical/interactions"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "medicines": [
+        {
+          "name": "Paracetamol 650mg",
+          "generic": "Acetaminophen"
+        },
+        {
+          "name": "Cetirizine 10mg",
+          "generic": "Cetirizine HCl"
+        }
+      ]
+    }
+order: 3000

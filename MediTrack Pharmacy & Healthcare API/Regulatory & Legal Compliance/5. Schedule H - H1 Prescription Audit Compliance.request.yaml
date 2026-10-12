@@ -1,0 +1,19 @@
+$kind: http-request
+name: 5. Schedule H / H1 Prescription Audit Compliance
+description: Validates dispensing legality under the Drugs and Cosmetics Act (1940), generating a verifiable audit token and checking doctor council registration.
+url: "{{baseUrl}}/api/clinical/compliance"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "doctorRegistrationNumber": "TN-MCI-58492",
+      "doctorName": "Dr. S. K. Narayanan MD",
+      "patientPhone": "9876543210",
+      "patientName": "Karthik Raman",
+      "invoiceNumber": "INV-2026-0089",
+      "hasScheduleH": true
+    }
+order: 1000

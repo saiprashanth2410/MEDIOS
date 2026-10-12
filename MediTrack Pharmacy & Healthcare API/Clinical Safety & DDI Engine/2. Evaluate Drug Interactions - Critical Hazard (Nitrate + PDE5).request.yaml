@@ -1,0 +1,22 @@
+$kind: http-request
+description: Evaluates synergistic vasodilation contraindication between Nitrates and PDE-5 inhibitors. Returns CRITICAL safety risk tier with bilingual Tamil and English clinical alerts.
+url: "{{baseUrl}}/api/clinical/interactions"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "medicines": [
+        {
+          "name": "Sorbitrate 10mg",
+          "generic": "Isosorbide Dinitrate"
+        },
+        {
+          "name": "Manforce 50mg",
+          "generic": "Sildenafil Citrate"
+        }
+      ]
+    }
+order: 1000

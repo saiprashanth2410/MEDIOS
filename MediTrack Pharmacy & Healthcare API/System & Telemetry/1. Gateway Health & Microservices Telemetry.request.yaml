@@ -1,0 +1,7 @@
+$kind: http-request
+description: Inspects real-time serverless API runtime, active engine version, latency telemetry, and microservices status.
+url: "{{baseUrl}}/api/health"
+method: GET
+headers:
+  Accept: application/json
+order: 1000
