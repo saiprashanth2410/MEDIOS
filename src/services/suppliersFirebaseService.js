@@ -204,10 +204,10 @@ export const suppliersFirebaseService = {
       const total = all.length;
       const active = all.filter((s) => s.status === "active").length;
       const pending = all.filter((s) => s.status === "pending").length;
-      const totalProducts = 93910;
+      const totalProducts = all.reduce((sum, s) => sum + (Number(s.productsCount) || 0), 0);
       return { total, active, pending, totalProducts };
     } catch {
-      return { total: 8218, active: 8218, pending: 0, totalProducts: 93910 };
+      return { total: 0, active: 0, pending: 0, totalProducts: 0 };
     }
   },
 
@@ -219,6 +219,7 @@ export const suppliersFirebaseService = {
       code,
       status: supplier.status || "active",
       productsCount: Number(supplier.productsCount || 0),
+      medicineIds: Array.isArray(supplier.medicineIds) ? supplier.medicineIds : [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -254,6 +255,127 @@ export const suppliersFirebaseService = {
     deletedCodes.add(code);
     firestoreOverrides.delete(code);
     return { ok: true, code };
+  },
+
+  // Automatically register or increment supplier when a medicine is added
+  async syncWithMedicineAdded(medicine) {
+    if (!medicine) return null;
+    const rawName = String(
+      medicine.manufacturer ||
+      medicine.supplierName ||
+      medicine.supplier ||
+      ""
+    ).trim();
+
+    if (!rawName || rawName === "In-House" || rawName.toLowerCase() === "standard pharma") {
+      return null;
+    }
+
+    await getAllSuppliers();
+
+    // Check if supplier already exists (case-insensitive name check)
+    const existing = Array.from(firestoreOverrides.values()).find(
+      (s) =>
+        !deletedCodes.has(s.code) &&
+        s.name &&
+        s.name.toLowerCase().trim() === rawName.toLowerCase()
+    );
+
+    const medId = String(medicine.id || medicine.name || Date.now());
+
+    if (existing) {
+      const currentMedIds = Array.isArray(existing.medicineIds) ? existing.medicineIds : [];
+      if (!currentMedIds.includes(medId)) {
+        const nextIds = [...currentMedIds, medId];
+        const nextProductsCount = (Number(existing.productsCount) || 0) + 1;
+        await this.update(existing.code, {
+          productsCount: nextProductsCount,
+          medicineIds: nextIds,
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("meditrack_suppliers_updated"));
+        }
+      }
+      return existing;
+    }
+
+    // Try finding template details from standard pharma catalog
+    const template = DEFAULT_TOP_SUPPLIERS.find(
+      (t) =>
+        t.name.toLowerCase().includes(rawName.toLowerCase()) ||
+        rawName.toLowerCase().includes(t.name.toLowerCase())
+    );
+
+    const cleanSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const code = template?.code || `SUP-${Date.now().toString().slice(-4)}`;
+
+    const newSupplier = {
+      code,
+      name: rawName,
+      contactPerson: template?.contactPerson || `${rawName} Distribution Rep`,
+      email: template?.email || `orders@${cleanSlug || "pharma"}.com`,
+      phone: template?.phone || "+91 22 2482 6000",
+      city: template?.city || "Mumbai",
+      state: template?.state || "Maharashtra",
+      rating: template?.rating || 4.8,
+      status: "active",
+      deliveryTime: template?.deliveryTime || "24-48 hrs",
+      productsCount: 1,
+      totalOrders: 1,
+      medicineIds: [medId],
+      category: template?.category || "Pharmaceutical",
+      autoCreated: true,
+    };
+
+    const created = await this.create(newSupplier);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("meditrack_suppliers_updated"));
+    }
+    return created;
+  },
+
+  // Automatically delete supplier if no remaining medicines are associated with them
+  async syncWithMedicineDeleted(deletedMedicine, remainingMedicines = []) {
+    if (!deletedMedicine) return;
+    const rawName = String(
+      deletedMedicine.manufacturer ||
+      deletedMedicine.supplierName ||
+      deletedMedicine.supplier ||
+      ""
+    ).trim();
+    if (!rawName) return;
+
+    await getAllSuppliers();
+
+    const existing = Array.from(firestoreOverrides.values()).find(
+      (s) =>
+        !deletedCodes.has(s.code) &&
+        s.name &&
+        s.name.toLowerCase().trim() === rawName.toLowerCase()
+    );
+
+    if (!existing) return;
+
+    // Check if ANY remaining medicine in inventory still has this supplier
+    const stillHasMedicines = (remainingMedicines || []).some((m) => {
+      const medSupplier = String(
+        m.manufacturer ||
+        m.supplierName ||
+        m.supplier ||
+        ""
+      ).trim();
+      return medSupplier && medSupplier.toLowerCase() === rawName.toLowerCase();
+    });
+
+    if (!stillHasMedicines) {
+      // No other medicines from this supplier -> Delete supplier automatically
+      await this.delete(existing.code);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("meditrack_suppliers_updated"));
+      }
+    }
+    // Per user instruction: "products la -1 mattum theva illa"
+    // If other medicines still remain, we do NOT decrement productsCount. The supplier remains intact.
   },
 
   async seedIfEmpty() {

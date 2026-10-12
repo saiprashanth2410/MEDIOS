@@ -1,6 +1,7 @@
 import defaultMedicines from "../data/catalogMedicines.json";
 import { medicinesAPI } from "../services/api";
 import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
+import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
 import { getScopedKey } from "./userScope";
 
 const STORAGE_CUSTOM_MEDICINES = "meditrack_custom_medicines";
@@ -237,6 +238,11 @@ export async function applyImportBatch(itemsToApply) {
       } catch (err) {
         console.warn("[medicineImportService] Backend create fallback:", err.message);
       }
+
+      // Auto-sync supplier
+      try {
+        suppliersFirebaseService.syncWithMedicineAdded(newMed).catch(() => {});
+      } catch (_) {}
 
       added.push(newMed);
     }

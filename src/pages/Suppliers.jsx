@@ -19,6 +19,7 @@ import SupplierDetailModal from "../components/suppliers/SupplierDetailModal";
 import Navbar from "../components/dashboard/Navbar";
 import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
 import { suppliersAPI } from "../services/api";
+import { getScopedKey } from "../utils/userScope";
 
 const PAGE_SIZE = 50;
 
@@ -78,6 +79,26 @@ export default function Suppliers() {
           });
         }
 
+        // If empty on initial load, auto-check if existing medicines have suppliers to register
+        if (!append && (!data.suppliers || data.suppliers.length === 0)) {
+          try {
+            const customKey = getScopedKey("meditrack_custom_medicines");
+            const savedCustom = JSON.parse(localStorage.getItem(customKey) || "[]");
+            if (savedCustom.length > 0) {
+              for (const med of savedCustom) {
+                await suppliersFirebaseService.syncWithMedicineAdded(med);
+              }
+              data = await suppliersFirebaseService.list({
+                page: pageNum,
+                limit: PAGE_SIZE,
+                search: searchQuery,
+                status: statusFilter,
+              });
+              fetchStats();
+            }
+          } catch (_) {}
+        }
+
         if (append) {
           setSuppliers((prev) => [...prev, ...(data.suppliers || [])]);
         } else {
@@ -95,12 +116,22 @@ export default function Suppliers() {
         setLoadingMore(false);
       }
     },
-    [searchQuery, statusFilter]
+    [searchQuery, statusFilter, fetchStats]
   );
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // Live real-time sync when medicines are added or deleted anywhere in the app
+  useEffect(() => {
+    const handleLiveSync = () => {
+      fetchSuppliers(1, false);
+      fetchStats();
+    };
+    window.addEventListener("meditrack_suppliers_updated", handleLiveSync);
+    return () => window.removeEventListener("meditrack_suppliers_updated", handleLiveSync);
+  }, [fetchSuppliers, fetchStats]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -194,7 +225,9 @@ export default function Suppliers() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Suppliers</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {stats.total.toLocaleString()} suppliers from CDCI master
+              {stats.total > 0
+                ? `${stats.total.toLocaleString()} registered pharmacy ${stats.total === 1 ? "supplier" : "suppliers"}`
+                : "Manage verified drug manufacturers & distributors"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -319,11 +352,17 @@ export default function Suppliers() {
               <div className="col-span-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-2xs">
                 <Factory size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                  No suppliers found
+                  No suppliers registered yet
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Try a different search or filter
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-md mx-auto">
+                  Adding medicines with manufacturer details automatically registers suppliers here. You can also add a supplier manually.
                 </p>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center gap-2 bg-[#0284c7] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0369a1] transition shadow-xs"
+                >
+                  <Plus size={14} /> Add Supplier
+                </button>
               </div>
             ) : (
               <>

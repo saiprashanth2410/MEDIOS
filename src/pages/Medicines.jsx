@@ -28,6 +28,7 @@ import { inventoryFirebaseService } from "../services/inventoryFirebaseService";
 import { recycleBinService } from "../services/recycleBinService";
 import { getScopedKey } from "../utils/userScope";
 import { addExpiryItem } from "../utils/expiryStore";
+import { suppliersFirebaseService } from "../services/suppliersFirebaseService";
 
 /* =====================================================
    CONSTANTS
@@ -111,6 +112,15 @@ export default function Medicines() {
       setFilterType("all");
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    // Sync existing medicines to Suppliers directory on mount
+    if (medicines && medicines.length > 0) {
+      medicines.forEach((med) => {
+        suppliersFirebaseService.syncWithMedicineAdded(med).catch(() => {});
+      });
+    }
+  }, []);
 
   const handleFilterCardClick = (type) => {
     if (filterType === type) {
@@ -318,6 +328,12 @@ export default function Medicines() {
       console.warn("Firestore delete warning:", fbErr.message);
     }
 
+    // Auto-sync with Suppliers Directory (Delete supplier if no other medicine from them exists)
+    if (targetMed) {
+      const remaining = medicines.filter((m) => m.id !== medId);
+      suppliersFirebaseService.syncWithMedicineDeleted(targetMed, remaining).catch(console.debug);
+    }
+
     try {
       await medicinesAPI.delete(medId);
       toast.success(`${medName} moved to Recycle Bin (Recoverable in Expiry page)`, { icon: "🗑️" });
@@ -404,6 +420,13 @@ export default function Medicines() {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("meditrack_medicines_updated"));
       window.dispatchEvent(new Event("meditrack_stock_updated"));
+    }
+
+    // Auto-sync with Suppliers Directory
+    try {
+      await suppliersFirebaseService.syncWithMedicineAdded(tempItem);
+    } catch (suppErr) {
+      console.debug("Supplier auto-sync note:", suppErr);
     }
 
     // Persist to Firestore & backend database
