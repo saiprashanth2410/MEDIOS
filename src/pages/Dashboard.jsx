@@ -27,6 +27,7 @@ import {
   ShoppingCart,
   Info,
   Receipt,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import BarcodeScanner from "../components/scanner/BarcodeScanner";
@@ -564,10 +565,15 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <button className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white py-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm">
-                Renew License
-                <ChevronRight size={14} />
-              </button>
+              <a
+                href="https://www.tamilnadumedicalcouncil.org/u/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white py-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm cursor-pointer"
+              >
+                <span>Renew License</span>
+                <ExternalLink size={14} />
+              </a>
             </div>
 
             {/* SYSTEM STATUS */}
