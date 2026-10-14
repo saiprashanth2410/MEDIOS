@@ -167,7 +167,6 @@ export default function Billing() {
 
   // Inventory state initialized with custom medicines; synced live from Firestore
   const [catalog, setCatalog] = useState(getInitialBillingCatalog);
-  const [catalogLoading, setCatalogLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
@@ -480,15 +479,13 @@ export default function Billing() {
     setCatalog(getInitialBillingCatalog());
 
     // 2. Real-time Firestore sync
-    const unsub = inventoryFirebaseService.subscribeToMedicines((fbMeds) => {
-      setCatalogLoading(false); // ✅ first Firestore response received
-      if (Array.isArray(fbMeds)) {
-        if (fbMeds.length === 0) {
-          setCatalog([]);
-        } else {
-          setCatalog((prev) => {
+    const unsub = inventoryFirebaseService.subscribeToMedicines(
+      (fbMeds) => {
+        if (Array.isArray(fbMeds)) {
+          setCatalog(() => {
+            const local = getInitialBillingCatalog();
             const map = new Map();
-            prev.forEach((p) => map.set(String(p.id), p));
+            local.forEach((p) => map.set(String(p.id), p));
             fbMeds.forEach((m) => {
               const existing = map.get(String(m.id));
               if (existing) {
@@ -500,8 +497,11 @@ export default function Billing() {
             return Array.from(map.values());
           });
         }
+      },
+      (err) => {
+        console.warn("[Billing] Realtime inventory notice:", err);
       }
-    });
+    );
 
     const handleStockUpdate = () => {
       setCatalog(getInitialBillingCatalog());
@@ -1506,12 +1506,7 @@ export default function Billing() {
                 {/* Dropdown Results */}
                 {searchQuery.trim().length > 0 && (
                   <div className="absolute left-4 right-4 top-[84px] z-30 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 max-h-[340px] overflow-y-auto">
-                    {catalogLoading ? (
-                      <div className="p-5 flex flex-col items-center gap-3">
-                        <div className="w-6 h-6 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Loading your medicines catalog…</p>
-                      </div>
-                    ) : searchResults.length > 0 ? (
+                    {searchResults.length > 0 ? (
                       searchResults.map((med, idx) => {
                         const isSelected = idx === selectedSearchIdx;
                         return (
@@ -1567,13 +1562,23 @@ export default function Billing() {
                         );
                       })
                     ) : (
-                      <div className="p-4 text-center">
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          No medicines found matching "{searchQuery}"
+                      <div className="p-6 text-center flex flex-col items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400 flex items-center justify-center mb-2">
+                          <AlertTriangle size={20} />
+                        </div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                          Medicine not in inventory
                         </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Try searching by common brand name (e.g. Dolo 650, Calpol, Pan 40) or chemical composition (e.g. Paracetamol).
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+                          "{searchQuery}" was not found in your current pharmacy inventory.
                         </p>
+                        <a
+                          href="/medicines"
+                          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200 dark:border-teal-800 transition cursor-pointer"
+                        >
+                          <Plus size={13} />
+                          <span>Add to Inventory</span>
+                        </a>
                       </div>
                     )}
                   </div>
