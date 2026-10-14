@@ -598,22 +598,52 @@ export default function Billing() {
   const searchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return [];
-    return catalog
-      .filter((m) => {
-        const name = String(m.name || "").toLowerCase();
-        const brand = String(m.brandName || "").toLowerCase();
-        const gen = String(m.generic || "").toLowerCase();
-        const full = String(m.fullName || "").toLowerCase();
-        const batch = String(m.batch || "").toLowerCase();
-        return (
-          name.includes(q) ||
-          brand.includes(q) ||
-          gen.includes(q) ||
-          full.includes(q) ||
-          batch.includes(q)
-        );
-      })
-      .slice(0, 12);
+
+    const getWords = (str) =>
+      String(str || "")
+        .toLowerCase()
+        .split(/[^a-z0-9]+/i)
+        .filter(Boolean);
+
+    const scored = [];
+
+    for (const m of catalog) {
+      const name = String(m.name || "").toLowerCase();
+      const brand = String(m.brandName || "").toLowerCase();
+      const gen = String(m.generic || "").toLowerCase();
+      const batch = String(m.batch || "").toLowerCase();
+
+      const nameWords = getWords(m.name);
+      const brandWords = getWords(m.brandName);
+      const genWords = getWords(m.generic);
+
+      let score = 0;
+
+      if (name.startsWith(q)) {
+        score = 100;
+      } else if (brand.startsWith(q)) {
+        score = 90;
+      } else if (nameWords.some((w) => w.startsWith(q))) {
+        score = 80;
+      } else if (brandWords.some((w) => w.startsWith(q))) {
+        score = 70;
+      } else if (genWords.some((w) => w.startsWith(q))) {
+        score = 60;
+      } else if (batch.startsWith(q)) {
+        score = 50;
+      } else if (q.length >= 3 && (name.includes(q) || brand.includes(q))) {
+        score = 40;
+      } else if (q.length >= 3 && gen.includes(q)) {
+        score = 30;
+      }
+
+      if (score > 0) {
+        scored.push({ med: m, score });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 12).map((item) => item.med);
   }, [catalog, searchQuery]);
 
   /* Add to Cart */

@@ -545,6 +545,12 @@ export default function Medicines() {
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
+    const getWords = (str) =>
+      String(str || "")
+        .toLowerCase()
+        .split(/[^a-z0-9]+/i)
+        .filter(Boolean);
+
     return medicines.filter((m) => {
       const name = String(m.name || "").toLowerCase();
       const fullName = String(m.fullName || "").toLowerCase();
@@ -552,13 +558,23 @@ export default function Medicines() {
       const manufacturer = String(m.manufacturer || "").toLowerCase();
       const batch = String(m.batch || "").toLowerCase();
 
-      const matchesSearch =
-        !q ||
-        name.includes(q) ||
-        fullName.includes(q) ||
-        generic.includes(q) ||
-        manufacturer.includes(q) ||
-        batch.includes(q);
+      let matchesSearch = !q;
+      if (q) {
+        if (q.length <= 2) {
+          matchesSearch =
+            name.startsWith(q) ||
+            getWords(name).some((w) => w.startsWith(q)) ||
+            getWords(generic).some((w) => w.startsWith(q)) ||
+            batch.startsWith(q);
+        } else {
+          matchesSearch =
+            name.includes(q) ||
+            fullName.includes(q) ||
+            generic.includes(q) ||
+            manufacturer.includes(q) ||
+            batch.includes(q);
+        }
+      }
 
       const matchesCategory =
         activeCategory === "All" || m.category === activeCategory;
