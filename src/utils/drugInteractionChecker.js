@@ -179,9 +179,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Synergistic cGMP accumulation causing profound systemic vasodilation",
           clinicalAction: "Absolute Contraindication. Do NOT dispense concurrently.",
-          title: "Fatal Hypotension Risk (ஆபத்தான குறைந்த ரத்த அழுத்தம்)",
+          title: "Fatal Hypotension Risk",
           messageEn: `Combining Nitrates (${rNitratePde5.first.name}) and PDE-5 Inhibitors (${rNitratePde5.second.name}) causes a catastrophic drop in blood pressure and circulatory collapse. Contraindicated.`,
-          messageTa: `நைட்ரேட் மற்றும் சில்டெனாபில்/தடலாபில் மாத்திரைகளை ஒன்றாக உட்கொள்வது உயிருக்கே ஆபத்தான தீவிர ரத்த அழுத்த வீழ்ச்சியை (Sudden Collapse) உண்டாக்கும். கொடுக்கக்கூடாது!`,
         });
       }
 
@@ -195,9 +194,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "CYP2C9 enzyme inhibition causes 300-500% spike in anticoagulant levels",
           clinicalAction: "Monitor INR closely or consider alternative antifungal.",
-          title: "Severe Hemorrhage / Bleeding Danger (தீவிர உட்புற ரத்தப்போக்கு அபாயம்)",
+          title: "Severe Hemorrhage / Bleeding Danger",
           messageEn: `Azole Antifungals (${rThinnerAzole.second.name}) strongly inhibit the metabolism of Blood Thinners (${rThinnerAzole.first.name}), causing dangerously elevated INR and fatal hemorrhage.`,
-          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மருந்துகளுடன் பூஞ்சை மாத்திரைகள் (Fluconazole) சேரும்போது ரத்தம் உறையாமல் தீவிர ரத்தப்போக்கு ஏற்படும் அபாயம் உள்ளது.`,
         });
       }
 
@@ -213,9 +211,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Inhibition of renal OAT3 transporters reduces Methotrexate clearance",
           clinicalAction: "Avoid NSAIDs/PPIs during high-dose MTX; use Paracetamol with doctor review.",
-          title: "Fatal Bone Marrow Suppression (எலும்பு மச்சை செயலிழப்பு அபாயம்)",
+          title: "Fatal Bone Marrow Suppression",
           messageEn: `Combining Methotrexate with ${culprit} decreases renal clearance of MTX, leading to toxic accumulation, severe pancytopenia, and acute kidney failure.`,
-          messageTa: `மெத்தோட்ரெக்ஸேட் மருந்துடன் வலி நிவாரணிகள் அல்லது அமிலத்தன்மை மாத்திரைகள் எடுப்பது விஷத்தன்மையை உண்டாக்கி ரத்த அணுக்களை மிகக் கடுமையாக குறைக்கும்.`,
         });
       }
 
@@ -229,9 +226,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "P-glycoprotein efflux inhibition and additive negative dromotropy",
           clinicalAction: "Reduce Digoxin dose by 50% and monitor ECG/serum levels.",
-          title: "Fatal Digoxin Cardiotoxicity & Heart Block (இதயத் துடிப்பு முடக்கம்)",
+          title: "Fatal Digoxin Cardiotoxicity & Heart Block",
           messageEn: `Combining Digoxin (${rDigoxinCcb.first.name}) with ${rDigoxinCcb.second.name} doubles serum digoxin levels and causes life-threatening bradycardia, AV block, and fatal arrhythmias.`,
-          messageTa: `டைகாக்சின் மாத்திரையுடன் அமிலோடரோன்/வெராபமில் சேர்ந்தால் மருந்து நச்சாகி இதயத் துடிப்பு முடங்கி உயிருக்கே ஆபத்தாகலாம்.`,
         });
       }
 
@@ -246,9 +242,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Additive hyper-serotonergic stimulation at 5-HT1A and 5-HT2A receptors",
           clinicalAction: "Do NOT dispense together. Severe risk of malignant hyperthermia.",
-          title: "Life-Threatening Serotonin Syndrome (செரோடோனின் விஷ பாதிப்பு)",
+          title: "Life-Threatening Serotonin Syndrome",
           messageEn: `Combining SSRI Antidepressants with Tramadol or Linezolid can trigger Serotonin Syndrome — marked by hyperthermia, muscle rigidity, seizures, and autonomic collapse.`,
-          messageTa: `மன அழுத்த மாத்திரைகளுடன் ட்ரமடால்/லைனெஸோலிட் மருந்துகளை ஒன்றாக கொடுப்பது கடுமையான உடல் நடுக்கம், அதீத காய்ச்சல் மற்றும் வலிப்பு உண்டாக்கும் (Serotonin Syndrome).`,
         });
       }
 
@@ -262,9 +257,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Xanthine oxidase inhibition blocks Azathioprine catabolism",
           clinicalAction: "Reduce Azathioprine dose to 25% or avoid combination entirely.",
-          title: "Severe Bone Marrow Aplasia & Leukopenia (கடுமையான ரத்த சோகை & வெள்ளை அணு இழப்பு)",
+          title: "Severe Bone Marrow Aplasia & Leukopenia",
           messageEn: `Allopurinol (${rAlloAza.first.name}) inhibits the breakdown of Azathioprine (${rAlloAza.second.name}), causing lethal bone marrow suppression and opportunistic infections.`,
-          messageTa: `அலோபூரினால் மற்றும் அஸாதயோப்ரின் மாத்திரைகளை ஒன்றாக உட்கொண்டால் எலும்பு மச்சை பாதிக்கப்பட்டு ரத்த வெள்ளை அணுக்கள் முற்றிலும் அழிந்துவிடும்.`,
         });
       }
 
@@ -278,9 +272,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Dual depression of SA and AV node conduction and cardiac inotropy",
           clinicalAction: "Contraindicated. Severe bradycardia and cardiogenic shock risk.",
-          title: "Complete Heart Block & Cardiac Arrest (தீவிர இதய செயலிழப்பு எச்சரிக்கை)",
+          title: "Complete Heart Block & Cardiac Arrest",
           messageEn: `Concurrent use of Beta Blockers (${rBetaCcb.first.name}) and Non-Dihydropyridine CCBs (${rBetaCcb.second.name}) causes profound bradycardia, AV nodal arrest, and acute heart failure.`,
-          messageTa: `பீட்டா பிளாக்கர் மற்றும் வெராபமில்/டில்டியாசம் மருந்துகள் ஒன்றாக உட்கொண்டால் இதயத்துடிப்பு மிகவும் குறைந்து இதயம் நின்றுபோகும் அபாயம் உள்ளது.`,
         });
       }
 
@@ -294,9 +287,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Synergistic GABA-A and mu-opioid respiratory central depression",
           clinicalAction: "FDA Black Box Warning. Limit dosage and monitor breathing.",
-          title: "Fatal Respiratory Arrest & Coma (சுவாச முடக்கம் & கோமா அபாயம்)",
+          title: "Fatal Respiratory Arrest & Coma",
           messageEn: `Combining Opioid analgesics (${rOpioidBenzo.first.name}) with Benzodiazepine sedatives (${rOpioidBenzo.second.name}) results in profound sedation, respiratory depression, coma, and death.`,
-          messageTa: `வலி நிவாரணி ஓபியாய்டு மற்றும் தூக்க மாத்திரைகளை ஒன்றாக உட்கொள்வது மூச்சுத்திணறல், கோமா மற்றும் மரணத்தை விளைவிக்கலாம் (FDA Black Box Warning).`,
         });
       }
 
@@ -310,9 +302,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Antiplatelet action combined with gastric mucosal erosion and COX inhibition",
           clinicalAction: "Use Paracetamol for analgesia or co-prescribe gastroprotection (PPI).",
-          title: "Severe GI Bleeding Risk (தீவிர இரைப்பை ரத்தப்போக்கு அபாயம்)",
+          title: "Severe GI Bleeding Risk",
           messageEn: `Combining Blood Thinners (${rThinnerNsaid.first.name}) with NSAID painkillers (${rThinnerNsaid.second.name}) increases gastrointestinal hemorrhage risk by up to 500%.`,
-          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மாத்திரையுடன் வலி நிவாரணி (NSAID) கொடுப்பது குடல் அல்சர் மற்றும் உட்புற ரத்தப்போக்கு அபாயத்தை பலமடங்கு அதிகரிக்கும்.`,
         });
       }
 
@@ -326,9 +317,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Competitive CYP2C19 inhibition prevents activation of clopidogrel prodrug",
           clinicalAction: "Switch Omeprazole to Pantoprazole or Rabeprazole for safer cardiac protection.",
-          title: "Cardiac Stent Thrombosis / Stroke Risk (மாரடைப்பு & பக்கவாதம் தடுப்பு தோல்வி)",
+          title: "Cardiac Stent Thrombosis / Stroke Risk",
           messageEn: `Omeprazole/Esomeprazole (${rClopidogrelOmez.second.name}) blocks the bioactivation of Clopidogrel (${rClopidogrelOmez.first.name}), nullifying antiplatelet protection. Switch to Pantoprazole.`,
-          messageTa: `ஒமிப்ரசோல் மாத்திரை குளோபிடோகிரல் மருந்தின் வீரியத்தை தடுத்து பக்கவாதம் மற்றும் மாரடைப்பு அபாயத்தை அதிகரிக்கும். பண்டோப்ரசோல் பரிந்துரைக்கவும்.`,
         });
       }
 
@@ -342,9 +332,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Synergistic extracellular matrix degradation in load-bearing connective tissue",
           clinicalAction: "Avoid concurrent use, particularly in elderly or athletes. Watch for heel pain.",
-          title: "Achilles Tendon Rupture Danger (தசைநார் கிழிதல் & தசை வாதம் அபாயம்)",
+          title: "Achilles Tendon Rupture Danger",
           messageEn: `Co-administration of Fluoroquinolones (${rQuinoloneSteroid.first.name}) and Corticosteroids (${rQuinoloneSteroid.second.name}) exponentially increases the risk of severe tendinitis and Achilles tendon rupture.`,
-          messageTa: `சிப்ரோஃப்ளோக்சசின் போன்ற ஆன்டிபயாடிக்குகளுடன் ஸ்டீராய்டு மாத்திரைகள் சேரும்போது கணுக்கால் தசைநார் கிழிந்து (Tendon Rupture) நிரந்தர ஊனம் ஏற்படலாம்.`,
         });
       }
 
@@ -358,9 +347,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "CYP3A4 inhibition elevates statin AUC up to 10-fold",
           clinicalAction: "Temporarily withhold Statin during macrolide therapy or use Azithromycin.",
-          title: "Severe Rhabdomyolysis & Muscle Breakdown (தசை சிதைவு & சிறுநீரக பாதிப்பு)",
+          title: "Severe Rhabdomyolysis & Muscle Breakdown",
           messageEn: `Macrolide antibiotics (${rStatinMacro.second.name}) block the clearance of Statins (${rStatinMacro.first.name}), precipitating acute rhabdomyolysis, severe myopathy, and kidney failure.`,
-          messageTa: `கொலஸ்ட்ரால் மாத்திரையுடன் கிளாரித்ரோமைசின் சேர்த்தால் தசை சிதைவு மற்றும் சிறுநீரக செயலிழப்பு (Rhabdomyolysis) ஏற்படும் அபாயம் உள்ளது.`,
         });
       }
 
@@ -374,9 +362,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "OATP1B1 inhibition and glucuronidation pathway competition",
           clinicalAction: "Avoid Gemfibrozil with Statins; if triglyceride lowering needed, use Fenofibrate cautiously.",
-          title: "Myopathy & Acute Renal Failure (தீவிர தசை வலி மற்றும் சிறுநீரக பாதிப்பு)",
+          title: "Myopathy & Acute Renal Failure",
           messageEn: `Combining Statins (${rStatinFibrate.first.name}) with Gemfibrozil/Fibrates (${rStatinFibrate.second.name}) markedly increases statin exposure and acute kidney failure.`,
-          messageTa: `கொலஸ்ட்ரால் மற்றும் ட்ரைகிளிசரைடு மாத்திரைகளை ஒன்றாக கொடுக்கும்போது தசை சிதைந்து சிறுநீரகம் செயலிழக்கும் அபாயம் உள்ளது.`,
         });
       }
 
@@ -390,9 +377,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Additively blunts renal aldosterone-mediated potassium excretion",
           clinicalAction: "Check serum potassium and creatinine within 1 week of initiation.",
-          title: "Dangerous Hyperkalemia Risk (உயர்ந்த பொட்டாசியம் & இதய துடிப்பு மாற்றம்)",
+          title: "Dangerous Hyperkalemia Risk",
           messageEn: `Combining Telmisartan/ACE-inhibitor (${rAceKSpared.first.name}) with Spironolactone (${rAceKSpared.second.name}) causes dangerous potassium retention and fatal cardiac arrhythmia.`,
-          messageTa: `டெல்மிசார்டன் மற்றும் ஸ்பைரோனோலாக்டோன் ஒன்றாக எடுக்கும்போது ரத்தத்தில் பொட்டாசியம் அளவு அளவுக்கு அதிகமாக உயர்ந்து இதய துடிப்பில் மாறுபாடு ஏற்படலாம்.`,
         });
       }
 
@@ -408,9 +394,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Decreased proximal tubule sodium excretion causes secondary lithium retention",
           clinicalAction: "Reduce Lithium dose and monitor serum lithium levels frequently.",
-          title: "Severe Lithium Neurotoxicity (லித்தியம் விஷத்தன்மை & நடுக்கம்)",
+          title: "Severe Lithium Neurotoxicity",
           messageEn: `Concomitant use of Lithium with ${culprit} impairs renal lithium clearance, causing lithium toxicity marked by coarse tremors, ataxia, and confusion.`,
-          messageTa: `லித்தியம் மாத்திரையுடன் வலி நிவாரணி அல்லது ரத்த அழுத்த மாத்திரை சேரும்போது மூளை மற்றும் சிறுநீரகத்தில் லித்தியம் நச்சுத்தன்மை கூடும்.`,
         });
       }
 
@@ -424,9 +409,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "CYP2C9 enzyme inhibition slows oral hypoglycemic clearance",
           clinicalAction: "Monitor blood glucose closely; temporarily decrease sulfonylurea dose.",
-          title: "Severe Hypoglycemia & Loss of Consciousness (தீவிர குறைந்த சர்க்கரை அபாயம்)",
+          title: "Severe Hypoglycemia & Loss of Consciousness",
           messageEn: `Fluconazole (${rSulfonylAzole.second.name}) inhibits the metabolism of Glimepiride/Gliclazide (${rSulfonylAzole.first.name}), causing severe, refractory hypoglycemia and fainting.`,
-          messageTa: `சர்க்கரை மாத்திரையுடன் பூஞ்சை மருந்து (Fluconazole) சேரும்போது சர்க்கரை அளவு ஆபத்தான அளவுக்கு குறைந்து மயக்கம் ஏற்படும் (Severe Hypoglycemia).`,
         });
       }
 
@@ -440,9 +424,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Hepatic CYP3A4 upregulation accelerates steroid hormone catabolism",
           clinicalAction: "Advise non-hormonal / barrier contraception during therapy and 28 days post.",
-          title: "Contraceptive Failure & Unintended Pregnancy (கருத்தடை தோல்வி எச்சரிக்கை)",
+          title: "Contraceptive Failure & Unintended Pregnancy",
           messageEn: `Enzyme Inducers (${rOcpInducer.second.name}) dramatically reduce circulating levels of Oral Contraceptives (${rOcpInducer.first.name}), causing contraceptive failure.`,
-          messageTa: `வலிப்பு/டிபி மாத்திரைகள் கருத்தடை மாத்திரைகளின் வீரியத்தை முற்றிலும் குறைத்து தேவையற்ற கர்ப்பத்தை உண்டாக்கும் அபாயம் உள்ளது.`,
         });
       }
 
@@ -458,9 +441,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "CYP1A2 inhibition reduces theophylline clearance by up to 50%",
           clinicalAction: "Monitor serum theophylline; reduce dose by 30-50% to prevent seizures.",
-          title: "Theophylline Toxicity & Tachyarrhythmias (சுவாச மருந்து நச்சுத்தன்மை)",
+          title: "Theophylline Toxicity & Tachyarrhythmias",
           messageEn: `Combining Deriphyllin/Theophylline with ${culprit} induces theophylline toxicity with severe nausea, ventricular tachycardia, and seizures.`,
-          messageTa: `ஆஸ்துமா மருந்து (டெரிபிலின்) மற்றும் ஆன்டிபயாடிக் ஒன்றாக எடுக்கும்போது நெஞ்சு படபடப்பு, வாந்தி மற்றும் வலிப்பு ஏற்படலாம்.`,
         });
       }
 
@@ -474,9 +456,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Additive central histamine H1 and GABAergic neuronal inhibition",
           clinicalAction: "Warn patient against driving and operating heavy machinery.",
-          title: "Extreme Sedation & Motor Impairment (அதி தீவிர தூக்கம் & மயக்கம்)",
+          title: "Extreme Sedation & Motor Impairment",
           messageEn: `Combining Sedatives (${rBenzoAntihist.first.name}) with Sedating Antihistamines/Cough Syrups (${rBenzoAntihist.second.name}) severely impairs central alertness and respiration.`,
-          messageTa: `தூக்க மாத்திரையுடன் சளி/அலர்ஜி மாத்திரையை ஒன்றாக சாப்பிட்டால் அதீத மயக்கம், தூக்கம் மற்றும் கவனம் இழப்பு ஏற்படும். வாகனம் ஓட்டக்கூடாது.`,
         });
       }
 
@@ -491,9 +472,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Glutathione depletion via excessive toxic NAPQI metabolite accumulation",
           clinicalAction: "Instruct patient to take ONLY one paracetamol-containing medicine.",
-          title: "Duplicate Paracetamol / Hepatotoxicity Risk (கல்லீரல் பாதிப்பு & ஓவர்டோஸ் அபாயம்)",
+          title: "Duplicate Paracetamol / Hepatotoxicity Risk",
           messageEn: `Both "${itemA.name}" and "${itemB.name}" contain Paracetamol. Concurrent use risks exceeding the 4000mg/day safe threshold, causing irreversible acute liver necrosis.`,
-          messageTa: `இரண்டு மருந்துகளிலுமே பாராசிட்டமால் உள்ளது. இரண்டையும் ஒன்றாக சாப்பிட்டால் பாராசிட்டமால் அளவு மிதமிஞ்சி கல்லீரலுக்கு தீவிர பாதிப்பு ஏற்படும்! ஒன்றை மட்டும் சாப்பிடவும்.`,
         });
       }
 
@@ -508,9 +488,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Dual COX-1 and COX-2 blockade without synergistic analgesic benefit",
           clinicalAction: "Prescribe only one NSAID class analgesic to protect stomach and kidneys.",
-          title: "Duplicate NSAID Painkillers (இரட்டை வலி நிவாரணி எச்சரிக்கை)",
+          title: "Duplicate NSAID Painkillers",
           messageEn: `Both "${itemA.name}" and "${itemB.name}" are NSAID painkillers. Concurrent use exponentially increases gastric ulcer risk and renal strain without improving pain relief.`,
-          messageTa: `இரண்டுமே வலி நிவாரணிகள் (NSAIDs). இரண்டையும் ஒன்றாக கொடுப்பதால் இரைப்பை அல்சர் மற்றும் சிறுநீரக பாதிப்பு கூடும். ஒன்றை மட்டும் தேர்வு செய்யவும்.`,
         });
       }
 
@@ -525,9 +504,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Redundant proton pump H+/K+-ATPase enzyme inhibition",
           clinicalAction: "Choose one single acid reducer to avoid hypochlorhydria.",
-          title: "Duplicate Acid Suppressant (இரட்டை அல்சர் மாத்திரை)",
+          title: "Duplicate Acid Suppressant",
           messageEn: `Both "${itemA.name}" and "${itemB.name}" are Proton Pump Inhibitors (PPIs). Only one acid blocker is clinically necessary.`,
-          messageTa: `இரண்டுமே அல்சர்/அமிலத்தன்மை குறைக்கும் மருந்துகள் (PPIs). இரண்டு தேவையில்லை, ஒன்று மட்டுமே போதுமானது.`,
         });
       }
 
@@ -541,9 +519,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Polyvalent cation chelation forms insoluble, unabsorbable complexes",
           clinicalAction: "Administer Fluoroquinolone at least 2 hours before or 4 hours after antacids.",
-          title: "Antibiotic Absorption Failure (ஆன்டிபயாடிக் வேலை செய்யாது - Chelation)",
+          title: "Antibiotic Absorption Failure",
           messageEn: `Antacids/Calcium (${rQuinoloneAntacid.second.name}) bind with Fluoroquinolones (${rQuinoloneAntacid.first.name}), reducing antibiotic absorption by up to 90%. Separate doses by 2 hours.`,
-          messageTa: `ஜெலுசில்/ஆன்டாசிட் மற்றும் சிப்ரோஃப்ளோக்சசின் போன்றவற்றை ஒன்றாக உட்கொண்டால், ஆன்டிபயாடிக் மருந்து உடலில் உறிஞ்சப்படாமல் வீணாகிவிடும். 2 மணி நேர இடைவெளி தேவை.`,
         });
       }
 
@@ -559,9 +536,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Adsorption and insoluble chelate formation in the proximal small bowel",
           clinicalAction: "Separate doses by at least 4 hours. Take Levothyroxine on an empty stomach.",
-          title: "Thyroid Hormone Malabsorption (தைராய்டு மாத்திரை உறிஞ்சுதல் தோல்வி)",
+          title: "Thyroid Hormone Malabsorption",
           messageEn: `Calcium, Iron, or Antacids (${binder}) bind to Levothyroxine, blocking absorption and leading to unmanaged hypothyroidism. Space doses by at least 4 hours.`,
-          messageTa: `தைராய்டு மாத்திரையுடன் கால்சியம் அல்லது இரும்புச்சத்து மாத்திரைகளை ஒன்றாக உட்கொண்டால் தைராய்டு மருந்து வேலை செய்யாது. குறைந்தபட்சம் 4 மணி நேர இடைவெளி தேவை.`,
         });
       }
 
@@ -575,9 +551,8 @@ export function checkDrugInteractions(cartItems = []) {
           drugB: itemB.name,
           mechanism: "Divalent cation competition and neutralization of gastric acidic pH",
           clinicalAction: "Take Iron on an empty stomach or with Vitamin C; space antacids by 2 hours.",
-          title: "Reduced Iron Absorption (இரும்புச்சத்து உறிஞ்சுதல் குறைவு)",
+          title: "Reduced Iron Absorption",
           messageEn: `Antacids and Calcium supplements (${rIronAntacid.second.name}) reduce the dissolution and absorption of Iron (${rIronAntacid.first.name}). Separate by 2-3 hours.`,
-          messageTa: `ஜெலுசில் அல்லது கால்சியம் மாத்திரைகளுடன் அயர்ன் டானிக்/மாத்திரை சாப்பிட்டால் இரும்புச்சத்து உடலில் தங்காது. 2 மணி நேர இடைவெளி தேவை.`,
         });
       }
     }

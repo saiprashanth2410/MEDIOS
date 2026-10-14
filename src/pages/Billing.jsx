@@ -423,7 +423,6 @@ export default function Billing() {
   const [refillReminders, setRefillReminders] = useState([]);
   const [refillFilter, setRefillFilter] = useState("all");
   const [selectedPreviewReminder, setSelectedPreviewReminder] = useState(null);
-  const [previewLang, setPreviewLang] = useState("combined");
   const [batchDispatching, setBatchDispatching] = useState(false);
 
   // UPI QR Code State (visible by default when UPI / QR payment is selected)
@@ -1107,7 +1106,7 @@ export default function Billing() {
             console.debug("Patient record error:", pErr);
           }
 
-          // 3. Automatically schedule 1-day-before Refill Reminders (Tamil & English)
+          // 3. Automatically schedule 1-day-before Refill Reminders
           try {
             await patientsFirebaseService.recordRefillReminders({
               patientName: patientName.trim() || "Customer",
@@ -1167,17 +1166,12 @@ export default function Billing() {
   };
 
   /* Refill Reminders Handlers */
-  const handleSendWhatsAppRefill = async (reminder, lang = previewLang) => {
+  const handleSendWhatsAppRefill = async (reminder) => {
     try {
-      const msg =
-        lang === "tamil"
-          ? reminder.messages?.tamil
-          : lang === "english"
-          ? reminder.messages?.english
-          : reminder.messages?.combined;
+      const msg = reminder.messages?.english || reminder.messages?.combined || "";
       const waLink = patientsFirebaseService.getWhatsAppRefillLink(
         reminder.patientPhone,
-        msg || reminder.messages?.combined
+        msg
       );
       window.open(waLink, "_blank");
       await patientsFirebaseService.markRefillSent(reminder.id);
@@ -1193,14 +1187,9 @@ export default function Billing() {
     }
   };
 
-  const handleCopyRefillSMS = (reminder, lang = previewLang) => {
+  const handleCopyRefillSMS = (reminder) => {
     try {
-      const msg =
-        lang === "tamil"
-          ? reminder.messages?.tamil
-          : lang === "english"
-          ? reminder.messages?.english
-          : reminder.messages?.combined;
+      const msg = reminder.messages?.english || reminder.messages?.combined || "";
       navigator.clipboard.writeText(msg);
       toast.success("Refill reminder message copied to clipboard!");
     } catch {
@@ -1436,7 +1425,7 @@ export default function Billing() {
                 }`}
               >
                 <MessageSquare size={14} />
-                <span>Smart Refills (தமிழ் & EN)</span>
+                <span>Smart Refills (Automated)</span>
                 {dueSoonCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white">
                     {dueSoonCount} due
@@ -1627,7 +1616,6 @@ export default function Billing() {
                               </span>
                             </div>
                             <p className="mt-1 font-medium leading-relaxed">{alert.messageEn}</p>
-                            <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed font-sans">{alert.messageTa}</p>
                             {alert.clinicalAction && (
                               <p className="mt-1.5 text-[11px] font-semibold text-rose-800 dark:text-rose-300">
                                 💡 Clinical Action: {alert.clinicalAction}
@@ -2291,7 +2279,7 @@ export default function Billing() {
                     <span>Patient Medication Exhaustion & Refill Registry</span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Send 1-click WhatsApp alerts in தமிழ் & English or copy SMS notifications directly.
+                    Send 1-click WhatsApp alerts or copy SMS notifications directly.
                   </p>
                 </div>
 
@@ -2394,7 +2382,7 @@ export default function Billing() {
                         <th className="py-3 px-4">Purchased On</th>
                         <th className="py-3 px-4">Finishes On</th>
                         <th className="py-3 px-4">Refill Status</th>
-                        <th className="py-3 px-4 text-right">Quick Dispatch (தமிழ் & EN)</th>
+                        <th className="py-3 px-4 text-right">Quick Dispatch</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -2511,18 +2499,18 @@ export default function Billing() {
 
                                   {/* Send WhatsApp Click */}
                                   <button
-                                    onClick={() => handleSendWhatsAppRefill(rem, "combined")}
-                                    title="Send WhatsApp Alert (Tamil & English)"
+                                    onClick={() => handleSendWhatsAppRefill(rem)}
+                                    title="Send WhatsApp Alert"
                                     className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-xs cursor-pointer"
                                   >
                                     <MessageCircle size={12} />
                                     <span>WhatsApp</span>
                                   </button>
 
-                                {/* Preview & Choose Language */}
+                                {/* Preview & Customize Message */}
                                 <button
                                   onClick={() => setSelectedPreviewReminder(rem)}
-                                  title="Preview & Customize Tamil/English Message"
+                                  title="Preview & Customize Message"
                                   className="h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
                                 >
                                   <ExternalLink size={13} />
@@ -2530,7 +2518,7 @@ export default function Billing() {
 
                                 {/* Copy Message */}
                                 <button
-                                  onClick={() => handleCopyRefillSMS(rem, "combined")}
+                                  onClick={() => handleCopyRefillSMS(rem)}
                                   title="Copy SMS Message"
                                   className="h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
                                 >
@@ -2586,7 +2574,7 @@ export default function Billing() {
                   </span>
                 </div>
                 <h2 className="text-xl font-bold tracking-tight">
-                  Daily Cash Drawer Closing & Z-Report (கடை கணக்கு முடிவு)
+                  Daily Cash Drawer Closing & Z-Report
                 </h2>
                 <p className="text-xs text-teal-100/90 mt-1 max-w-xl">
                   Reconcile physical cash drawer with system sales, verify UPI settlements, and generate official audit Z-Reports.
@@ -2690,14 +2678,14 @@ export default function Billing() {
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
                 <Banknote size={18} className="text-teal-600 dark:text-teal-400" />
-                <span>Physical Till Reconciliation (கல்லாப்பண கணக்கீடு)</span>
+                <span>Physical Till Reconciliation</span>
               </h3>
 
               <div className="grid md:grid-cols-3 gap-6 items-center">
                 {/* 1. Opening Cash Float */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block">
-                    Opening Cash Float (சில்லறை இருப்பு)
+                    Opening Cash Float
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
@@ -2719,7 +2707,7 @@ export default function Billing() {
                 {/* 2. Physical Cash Counted */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block">
-                    Physical Cash Counted in Drawer (எண்ணிய பணம்)
+                    Physical Cash Counted in Drawer
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
@@ -2871,7 +2859,7 @@ export default function Billing() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Refill Reminder Dispatch (நினைவூட்டல் செய்தி)
+                    Refill Reminder Dispatch
                   </h3>
                   <p className="text-[11px] text-slate-500">
                     Patient: {selectedPreviewReminder.patientName} ({selectedPreviewReminder.patientPhone})
@@ -2879,48 +2867,10 @@ export default function Billing() {
                 </div>
               </div>
 
-              {/* Language Selection Tabs */}
-              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-4 text-xs font-semibold">
-                <button
-                  onClick={() => setPreviewLang("combined")}
-                  className={`py-1.5 rounded-lg transition ${
-                    previewLang === "combined"
-                      ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                  }`}
-                >
-                  English + தமிழ்
-                </button>
-                <button
-                  onClick={() => setPreviewLang("tamil")}
-                  className={`py-1.5 rounded-lg transition ${
-                    previewLang === "tamil"
-                      ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                  }`}
-                >
-                  தமிழ் மட்டும்
-                </button>
-                <button
-                  onClick={() => setPreviewLang("english")}
-                  className={`py-1.5 rounded-lg transition ${
-                    previewLang === "english"
-                      ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                  }`}
-                >
-                  English Only
-                </button>
-              </div>
-
               {/* Simulated WhatsApp Chat Bubble */}
               <div className="bg-[#efeae2] dark:bg-slate-950/80 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mb-4 font-sans">
                 <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg rounded-tl-none p-3 shadow-xs text-xs whitespace-pre-wrap leading-relaxed max-h-[220px] overflow-y-auto font-sans">
-                  {previewLang === "tamil"
-                    ? selectedPreviewReminder.messages?.tamil
-                    : previewLang === "english"
-                    ? selectedPreviewReminder.messages?.english
-                    : selectedPreviewReminder.messages?.combined}
+                  {selectedPreviewReminder.messages?.english || selectedPreviewReminder.messages?.combined}
                 </div>
                 <div className="flex justify-between items-center text-[10px] text-slate-500 mt-1 px-1">
                   <span>Target: +91 {selectedPreviewReminder.patientPhone}</span>
@@ -2932,7 +2882,7 @@ export default function Billing() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => {
-                    handleSendWhatsAppRefill(selectedPreviewReminder, previewLang);
+                    handleSendWhatsAppRefill(selectedPreviewReminder);
                     setSelectedPreviewReminder(null);
                   }}
                   className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
@@ -2943,7 +2893,7 @@ export default function Billing() {
 
                 <button
                   onClick={() => {
-                    handleCopyRefillSMS(selectedPreviewReminder, previewLang);
+                    handleCopyRefillSMS(selectedPreviewReminder);
                   }}
                   className="px-4 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >

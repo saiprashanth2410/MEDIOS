@@ -89,14 +89,14 @@ export default async function handler(req, res) {
   const messageId = `wamid.HBgM${Date.now()}${Math.random().toString(36).substring(2, 7)}`;
 
   // Construct Template Body
-  let templateName = "meditrack_refill_alert_bilingual";
+  let templateName = "meditrack_refill_alert";
   let messageContent = customMessage || "";
 
   if (type === "INVOICE") {
     templateName = "meditrack_digital_tax_invoice";
     messageContent = messageContent || `🧾 *${pharmacyName}* - Digital Tax Invoice\n\nDear ${patientName},\nYour invoice *${invoiceNumber || "INV-LATEST"}* for ₹${Number(grandTotal || 0).toFixed(2)} has been generated.\n\nThank you for choosing ${pharmacyName}! Wishing you speedy recovery.`;
   } else {
-    messageContent = messageContent || `💊 *${pharmacyName} - மருந்து தீரும் எச்சரிக்கை / Refill Alert*\n\nவணக்கம் ${patientName},\nஉங்கள் மருந்து (*${medicineName}*) இன்னும் 24 மணி நேரத்தில் முடிவடைகிறது.\nதொடர்ந்து எடுத்துக்கொள்ள உடனே வாங்கிச் செல்லவும்.\n\nYour medicine runs out tomorrow. Kindly visit for a refill.\n\n📍 ${pharmacyBranch}`;
+    messageContent = messageContent || `💊 *${pharmacyName} - Refill Alert*\n\nDear ${patientName},\nYour medication (*${medicineName}*) will run out in 24 hours.\nKindly visit our pharmacy for a timely refill to maintain your treatment continuity.\n\n📍 ${pharmacyBranch}`;
   }
 
   return res.status(200).json({
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
     status: "DELIVERED",
     channel: "WhatsApp Business Direct",
     gatewayDetails: {
-      provider: "Meta WhatsApp Cloud API (Bilingual Automation Engine)",
+      provider: "Meta WhatsApp Cloud API (Automated Refill Engine)",
       latencyMs: 38,
       readReceiptEnabled: true,
       hsmTemplateApproved: true,

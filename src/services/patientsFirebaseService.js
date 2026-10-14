@@ -290,7 +290,7 @@ export const patientsFirebaseService = {
   },
 
   /**
-   * Generates bilingual refill reminder texts in both English and Tamil.
+   * Generates refill reminder texts in English.
    */
   generateBilingualRefillMessage({
     patientName,
@@ -300,16 +300,11 @@ export const patientsFirebaseService = {
     pharmacyName,
     branch,
   }) {
-    const english = `Dear ${patientName}, this is a gentle reminder from ${pharmacyName}. Your medicine ${medicineName} (${quantity} units) will be completed tomorrow (${refillDueDateStr}). To ensure your healthcare course continues without interruption, please visit us to collect your refill. Thank you!`;
-
-    const tamil = `அன்புள்ள ${patientName}, ${pharmacyName}-ன் நினைவூட்டல் செய்தி. நீங்கள் வாங்கிய ${medicineName} மருந்து (${quantity} மாத்திரைகள்) நாளை (${refillDueDateStr}) முடிவடைகிறது. உங்கள் சிகிச்சையில் இடைவெளி ஏற்படாமல் இருக்க இன்றே எங்கள் மருந்தகத்தை அணுகி மருந்தை பெற்றுக்கொள்ளவும். நன்றி!`;
-
-    const combined = `${english}\n\n━━━━━━━━━━━━━━━━━━━━\n${tamil}\n\n📍 ${pharmacyName} · ${branch}`;
+    const english = `Dear ${patientName}, this is a gentle reminder from ${pharmacyName}. Your medicine ${medicineName} (${quantity} units) will be completed tomorrow (${refillDueDateStr}). To ensure your healthcare course continues without interruption, please visit us to collect your refill. Thank you!\n\n📍 ${pharmacyName} · ${branch}`;
 
     return {
       english,
-      tamil,
-      combined,
+      combined: english,
     };
   },
 
@@ -420,14 +415,10 @@ export const patientsFirebaseService = {
   /**
    * Dispatches automated cloud WhatsApp notification directly via Meta Cloud Gateway.
    */
-  async dispatchCloudWhatsAppRefill(reminder, lang = "combined") {
+  async dispatchCloudWhatsAppRefill(reminder, lang = "english") {
     if (!reminder) return { ok: false };
     const msg =
-      lang === "tamil"
-        ? reminder.messages?.tamil
-        : lang === "english"
-        ? reminder.messages?.english
-        : reminder.messages?.combined;
+      reminder.messages?.english || reminder.messages?.combined || "";
 
     const res = await whatsappCloudService.sendRefillReminder({
       recipientPhone: reminder.patientPhone,

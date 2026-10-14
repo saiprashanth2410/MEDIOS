@@ -154,9 +154,8 @@ export default function handler(req, res) {
           drugA: itemA.name,
           drugB: itemB.name,
           mechanism: "Synergistic cGMP accumulation causing profound systemic vasodilation",
-          title: "Fatal Hypotension Risk (ஆபத்தான குறைந்த ரத்த அழுத்தம்)",
+          title: "Fatal Hypotension Risk",
           messageEn: `Combining Nitrates (${rNitrate.first.name}) and Sildenafil/Tadalafil (${rNitrate.second.name}) causes a catastrophic drop in blood pressure. Contraindicated.`,
-          messageTa: `நைட்ரேட் மற்றும் சில்டெனாபில் மாத்திரைகளை ஒன்றாக உட்கொள்வது உயிருக்கே ஆபத்தான தீவிர ரத்த அழுத்த வீழ்ச்சியை உண்டாக்கும்.`,
         });
       }
 
@@ -169,9 +168,8 @@ export default function handler(req, res) {
           drugA: itemA.name,
           drugB: itemB.name,
           mechanism: "CYP2C9 enzyme inhibition causes spike in anticoagulant levels",
-          title: "Severe Hemorrhage / Bleeding Danger (தீவிர உட்புற ரத்தப்போக்கு அபாயம்)",
+          title: "Severe Hemorrhage / Bleeding Danger",
           messageEn: `Azoles (${rThinnerAzole.second.name}) inhibit the metabolism of Blood Thinners (${rThinnerAzole.first.name}), causing dangerous bleeding.`,
-          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மருந்துகளுடன் பூஞ்சை மாத்திரைகள் சேரும்போது தீவிர ரத்தப்போக்கு ஏற்படும் அபாயம் உள்ளது.`,
         });
       }
 
@@ -184,9 +182,8 @@ export default function handler(req, res) {
           drugA: itemA.name,
           drugB: itemB.name,
           mechanism: "Inhibition of renal OAT3 transporters reduces Methotrexate clearance",
-          title: "Fatal Bone Marrow Suppression (எலும்பு மச்சை செயலிழப்பு அபாயம்)",
+          title: "Fatal Bone Marrow Suppression",
           messageEn: `Combining Methotrexate with NSAIDs decreases renal clearance of MTX, causing pancytopenia and organ toxicity.`,
-          messageTa: `மெத்தோட்ரெக்ஸேட் மருந்துடன் வலி நிவாரணிகள் எடுப்பது விஷத்தன்மையை உண்டாக்கி ரத்த அணுக்களை மிகக் கடுமையாக குறைக்கும்.`,
         });
       }
 
@@ -199,9 +196,8 @@ export default function handler(req, res) {
           drugA: itemA.name,
           drugB: itemB.name,
           mechanism: "Antiplatelet action combined with gastric mucosal erosion and COX inhibition",
-          title: "Severe GI Bleeding Risk (தீவிர இரைப்பை ரத்தப்போக்கு அபாயம்)",
+          title: "Severe GI Bleeding Risk",
           messageEn: `Combining Blood Thinners with NSAIDs increases gastrointestinal hemorrhage risk.`,
-          messageTa: `ரத்தத்தை நீர்க்க வைக்கும் மாத்திரையுடன் வலி நிவாரணி கொடுப்பது குடல் அல்சர் மற்றும் ரத்தப்போக்கு அபாயத்தை அதிகரிக்கும்.`,
         });
       }
 
@@ -213,9 +209,8 @@ export default function handler(req, res) {
           drugA: itemA.name,
           drugB: itemB.name,
           mechanism: "Glutathione depletion via toxic NAPQI metabolite accumulation",
-          title: "Duplicate Paracetamol / Hepatotoxicity Risk (கல்லீரல் பாதிப்பு & ஓவர்டோஸ்)",
+          title: "Duplicate Paracetamol / Hepatotoxicity Risk",
           messageEn: `Both "${itemA.name}" and "${itemB.name}" contain Paracetamol. Concurrent use risks exceeding the 4000mg/day safe threshold.`,
-          messageTa: `இரண்டு மருந்துகளிலுமே பாராசிட்டமால் உள்ளது. இரண்டையும் ஒன்றாக சாப்பிட்டால் கல்லீரலுக்கு தீவிர பாதிப்பு ஏற்படும்!`,
         });
       }
     }
