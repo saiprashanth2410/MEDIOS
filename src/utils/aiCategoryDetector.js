@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+import { getGeminiApiKey } from "../services/aiService";
 
 const VALID_CATEGORIES = [
   "Antibiotic",
@@ -12,18 +11,18 @@ const VALID_CATEGORIES = [
   "Other",
 ];
 
-let model = null;
-
-if (API_KEY && API_KEY.length > 20) {
-  try {
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    console.log("✅ Gemini AI ready (for Add Medicine only)");
-  } catch (err) {
-    console.error("❌ Gemini init failed:", err.message);
+function getActiveModel() {
+  const key = getGeminiApiKey();
+  if (key && key.trim().length > 10) {
+    try {
+      const genAI = new GoogleGenerativeAI(key.trim());
+      return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    } catch (err) {
+      console.error("❌ Gemini init failed:", err.message);
+      return null;
+    }
   }
-} else {
-  console.warn("⚠️ VITE_GEMINI_API_KEY not set");
+  return null;
 }
 
 /* =====================================================
@@ -32,6 +31,7 @@ if (API_KEY && API_KEY.length > 20) {
 ===================================================== */
 
 export async function detectCategoryWithAI(name, generic = "") {
+  const model = getActiveModel();
   if (!model) {
     console.warn("⚠️ AI not available → Other");
     return "Other";

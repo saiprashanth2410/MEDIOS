@@ -9,12 +9,10 @@ import {
   AlertCircle,
   FileText,
   ScanLine,
-  Key,
 } from "lucide-react";
 import {
   parsePrescriptionImage,
   getGeminiApiKey,
-  setGeminiApiKey,
 } from "../../services/aiService";
 
 export default function PrescriptionScanner({ onResult, onClose }) {
@@ -27,29 +25,16 @@ export default function PrescriptionScanner({ onResult, onClose }) {
   const [attemptInfo, setAttemptInfo] = useState("");
 
   const [hasKey, setHasKey] = useState(() => Boolean(getGeminiApiKey()));
-  const [showKeyInput, setShowKeyInput] = useState(false);
-  const [keyInput, setKeyInput] = useState(() => getGeminiApiKey() || "");
 
-  const handleSaveKey = () => {
-    if (!keyInput.trim()) {
-      setGeminiApiKey("");
-      setHasKey(false);
-      toast.info("Gemini key cleared. Using Built-in Smart OCR.");
-    } else {
-      setGeminiApiKey(keyInput.trim());
-      setHasKey(true);
-      toast.success("Gemini API key saved! Live cloud AI active.");
-    }
-    setShowKeyInput(false);
-  };
-
-  const handleClearKey = () => {
-    setKeyInput("");
-    setGeminiApiKey("");
-    setHasKey(false);
-    setShowKeyInput(false);
-    toast.info("Gemini key cleared. Using Built-in Smart OCR.");
-  };
+  useEffect(() => {
+    const handleKeyChange = () => setHasKey(Boolean(getGeminiApiKey()));
+    window.addEventListener("meditrack_gemini_api_key_updated", handleKeyChange);
+    window.addEventListener("storage", handleKeyChange);
+    return () => {
+      window.removeEventListener("meditrack_gemini_api_key_updated", handleKeyChange);
+      window.removeEventListener("storage", handleKeyChange);
+    };
+  }, []);
 
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -237,7 +222,7 @@ export default function PrescriptionScanner({ onResult, onClose }) {
         {/* =====================================================
             ENGINE MODE STATUS & ZERO-CONFIG INDICATOR
         ====================================================== */}
-        <div className="px-5 py-2 bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+        <div className="px-5 py-2.5 bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
             <span
               className={`w-2 h-2 rounded-full ${
@@ -246,61 +231,11 @@ export default function PrescriptionScanner({ onResult, onClose }) {
             />
             <span className="font-medium">
               {hasKey
-                ? "Live Gemini Vision AI (Active)"
+                ? "Live Gemini Vision AI (Active from Settings)"
                 : "Built-in Smart OCR (No API Key Required)"}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowKeyInput((prev) => !prev)}
-            className="text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-          >
-            <Key size={12} />
-            {hasKey ? "Manage Key" : "Add Gemini Key"}
-          </button>
         </div>
-
-        {/* INLINE API KEY CONFIGURATION DRAWER */}
-        {showKeyInput && (
-          <div className="px-5 py-3 bg-teal-50/50 dark:bg-teal-950/30 border-b border-teal-100 dark:border-teal-900/50 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Google Gemini API Key (Optional)
-              </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                Saved in your browser only
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                placeholder="Paste Gemini API Key (AIzaSy...)"
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
-              />
-              <button
-                type="button"
-                onClick={handleSaveKey}
-                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg transition cursor-pointer"
-              >
-                Save
-              </button>
-              {hasKey && (
-                <button
-                  type="button"
-                  onClick={handleClearKey}
-                  className="px-2 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg transition cursor-pointer"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              Leave empty to use built-in Smart OCR engine. Works completely offline without needing any cloud API key.
-            </p>
-          </div>
-        )}
 
         {/* =====================================================
             TABS

@@ -32,6 +32,7 @@ import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/dashboard/Navbar";
 import QRCodeSVG from "../components/common/QRCodeSVG";
 import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
+import ApiKeySettingsCard from "../components/settings/ApiKeySettingsCard";
 
 /* =====================================================
    CATEGORIES
@@ -60,6 +61,15 @@ const CATEGORIES = [
         desc: "Update name, email, phone",
         type: "link",
         action: "/profile",
+      },
+      {
+        id: "manage-api-keys",
+        icon: Sparkles,
+        label: "AI & API Credentials",
+        desc: "Configure passcode-protected Gemini API key",
+        type: "link",
+        action: "/profile",
+        tab: "api",
       },
     ],
   },
@@ -188,6 +198,14 @@ const CATEGORIES = [
         storageKey: "meditrack-upi-qr-enabled",
       },
     ],
+  },
+  {
+    id: "api",
+    label: "AI & API Keys",
+    icon: Sparkles,
+    header: "Google Gemini AI & API Keys",
+    description: "Manage and secure your centralized Gemini AI key with personal passcode protection",
+    items: [],
   },
 ];
 
@@ -886,6 +904,13 @@ export default function Settings() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* AI & API KEYS PANEL (Only in API category) */}
+                {currentCategory.id === "api" && (
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30">
+                    <ApiKeySettingsCard />
                   </div>
                 )}
 

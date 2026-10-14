@@ -35,6 +35,7 @@ import { profileAPI } from "../services/api";
 import { authService } from "../services/authService";
 import AvatarModal from "../components/profile/AvatarModal";
 import ActiveSessionsCard from "../components/settings/ActiveSessionsCard";
+import ApiKeySettingsCard from "../components/settings/ApiKeySettingsCard";
 
 const FIELD_BASE =
   "w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none transition focus:border-[#0284c7] focus:ring-4 focus:ring-[#0284c7]/10 placeholder:text-slate-400 disabled:bg-slate-50 dark:disabled:bg-slate-800/50 disabled:text-slate-500 dark:text-white disabled:cursor-not-allowed";
@@ -338,6 +339,7 @@ export default function Profile() {
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
     { id: "security", label: "Security", icon: ShieldCheck },
+    { id: "api", label: "AI & API Keys", icon: Key },
     { id: "preferences", label: "Preferences", icon: Settings },
   ];
 
@@ -752,6 +754,13 @@ export default function Profile() {
                 {/* Active Sessions */}
                 <ActiveSessionsCard />
               </>
+            )}
+
+            {/* AI & API KEYS TAB */}
+            {activeTab === "api" && (
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs transition-colors">
+                <ApiKeySettingsCard />
+              </div>
             )}
 
             {/* PREFERENCES TAB */}

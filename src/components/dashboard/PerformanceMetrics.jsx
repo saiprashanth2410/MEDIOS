@@ -7,9 +7,6 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
-  Key,
-  X,
-  ExternalLink,
   RefreshCw,
   CheckCircle2,
 } from "lucide-react";
@@ -23,7 +20,6 @@ import {
 } from "../../utils/calculateMetrics";
 import {
   getGeminiApiKey,
-  setGeminiApiKey,
   generatePharmacyPerformanceInsights,
 } from "../../services/aiService";
 
@@ -92,9 +88,17 @@ const METRIC_CONFIG = [
 ===================================================== */
 
 export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(() => getGeminiApiKey() || "");
   const [hasApiKey, setHasApiKey] = useState(() => Boolean(getGeminiApiKey()));
+
+  useEffect(() => {
+    const handleKeyUpdate = () => setHasApiKey(Boolean(getGeminiApiKey()));
+    window.addEventListener("meditrack_gemini_api_key_updated", handleKeyUpdate);
+    window.addEventListener("storage", handleKeyUpdate);
+    return () => {
+      window.removeEventListener("meditrack_gemini_api_key_updated", handleKeyUpdate);
+      window.removeEventListener("storage", handleKeyUpdate);
+    };
+  }, []);
 
   const [aiAdvice, setAiAdvice] = useState("");
   const [aiModel, setAiModel] = useState("Built-in Analytics Engine");
@@ -173,21 +177,6 @@ export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
     }
   };
 
-  const handleSaveApiKey = () => {
-    const clean = apiKeyInput.trim();
-    if (!clean) {
-      setGeminiApiKey("");
-      setHasApiKey(false);
-      toast.info("Gemini API key cleared. Using Built-in Analytics Engine.");
-    } else {
-      setGeminiApiKey(clean);
-      setHasApiKey(true);
-      toast.success("Google Gemini API key saved! Live cloud AI active.");
-    }
-    setShowKeyModal(false);
-    handleFetchAiInsights();
-  };
-
   /* =====================================================
      RENDER
   ===================================================== */
@@ -215,23 +204,6 @@ export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
           >
             <Sparkles size={13} className={loadingAi ? "animate-spin" : ""} />
             <span>{loadingAi ? "Analyzing..." : "AI Insights"}</span>
-          </button>
-
-          {/* Connect / Configure Gemini Key */}
-          <button
-            onClick={() => {
-              setApiKeyInput(getGeminiApiKey() || "");
-              setShowKeyModal(true);
-            }}
-            className={`h-8 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition cursor-pointer ${
-              hasApiKey
-                ? "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100"
-                : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-100"
-            }`}
-            title="Configure Google Gemini API Key"
-          >
-            <Key size={13} />
-            <span>{hasApiKey ? "Gemini Key" : "Add AI Key"}</span>
           </button>
         </div>
       </div>
@@ -321,82 +293,6 @@ export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
           );
         })}
       </div>
-
-      {/* Gemini API Key Modal */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 relative">
-            <button
-              onClick={() => setShowKeyModal(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Google Gemini AI Settings
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Powers real-time demand forecasting & supply chain optimization
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                Gemini API Key
-              </label>
-              <input
-                type="password"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                placeholder="AIzaSy..."
-                className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500"
-              />
-              <div className="flex justify-between items-center text-[11px] text-slate-500">
-                <span>Free tier from Google AI Studio</span>
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5"
-                >
-                  <span>Get API Key</span>
-                  <ExternalLink size={10} />
-                </a>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveApiKey}
-                className="flex-1 h-10 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition shadow-xs cursor-pointer"
-              >
-                Save & Activate AI
-              </button>
-              {hasApiKey && (
-                <button
-                  onClick={() => {
-                    setApiKeyInput("");
-                    setGeminiApiKey("");
-                    setHasApiKey(false);
-                    setShowKeyModal(false);
-                    toast.info("Gemini key removed. Reverted to built-in analytics.");
-                  }}
-                  className="px-3 h-10 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                >
-                  Clear Key
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
