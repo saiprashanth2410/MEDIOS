@@ -124,9 +124,6 @@ export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
             Performance Metrics
           </h2>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-            AI Supply Chain & POS Telemetry
-          </span>
         </div>
       </div>
 
