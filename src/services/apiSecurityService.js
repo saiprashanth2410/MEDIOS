@@ -1,4 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import api from "./api";
+import { auth, db } from "../config/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const STORAGE_KEY_API = "meditrack_gemini_api_key";
 const STORAGE_KEY_HASH = "meditrack_api_passcode_hash";
@@ -18,7 +21,6 @@ export async function hashPasscode(passcode) {
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   } catch (err) {
     console.error("Crypto hashing error:", err);
-    // Fallback simple hash for older environments if subtle is missing
     let hash = 0;
     const str = `meditrack_fallback_${passcode}`;
     for (let i = 0; i < str.length; i++) {
@@ -42,6 +44,18 @@ export function isApiKeyConfigured() {
   } catch {
     return false;
   }
+}
+
+/**
+ * Returns the currently active Gemini API key from local cache or environment.
+ */
+export function getActiveApiKey() {
+  if (typeof window === "undefined") return "";
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_API);
+    if (stored && stored.trim().length > 10) return stored.trim();
+  } catch {}
+  return import.meta.env?.VITE_GEMINI_API_KEY || "";
 }
 
 /**
@@ -69,7 +83,127 @@ export function getApiKeyLastUpdated() {
 }
 
 /**
- * Verifies if the provided passcode matches the stored security hash.
+ * Synchronizes AI config changes to MongoDB and Cloud Firestore database.
+ */
+export async function syncToDatabase({ apiKey, passcodeHash }) {
+  const payload = {};
+  if (apiKey !== undefined) payload.apiKey = apiKey;
+  if (passcodeHash !== undefined) payload.passcodeHash = passcodeHash;
+  payload.isLocked = Boolean(passcodeHash);
+
+  // 1. Sync to Express / MongoDB backend
+  try {
+    await api.put("/settings/ai-config", payload);
+  } catch (err) {
+    console.debug("MongoDB aiConfig sync fallback:", err?.message);
+  }
+
+  // 2. Sync to Firebase Firestore database
+  try {
+    if (db) {
+      await setDoc(
+        doc(db, "settings", "aiConfig"),
+        {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      if (auth?.currentUser?.uid) {
+        await setDoc(
+          doc(db, "users", auth.currentUser.uid),
+          {
+            aiConfig: {
+              ...payload,
+              updatedAt: serverTimestamp(),
+            },
+          },
+          { merge: true }
+        );
+      }
+    }
+  } catch (err) {
+    console.debug("Firestore aiConfig sync fallback:", err?.message);
+  }
+}
+
+/**
+ * Fetches the latest AI credentials & passcode hash from the database on startup.
+ */
+export async function fetchAiConfigFromDatabase() {
+  let fetchedKey = "";
+  let fetchedHash = "";
+  let fetchedUpdated = null;
+
+  // 1. Try Express / MongoDB backend
+  try {
+    const res = await api.get("/settings/ai-config");
+    if (res?.data) {
+      if (res.data.apiKey) fetchedKey = res.data.apiKey;
+      if (res.data.passcodeHash) fetchedHash = res.data.passcodeHash;
+      if (res.data.updatedAt) fetchedUpdated = res.data.updatedAt;
+    }
+  } catch (err) {
+    console.debug("MongoDB aiConfig fetch notice:", err?.message);
+  }
+
+  // 2. If not found, try Firebase Firestore
+  if (!fetchedKey && db) {
+    try {
+      if (auth?.currentUser?.uid) {
+        const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+        if (userDoc.exists() && userDoc.data()?.aiConfig) {
+          const c = userDoc.data().aiConfig;
+          fetchedKey = c.apiKey || "";
+          fetchedHash = c.passcodeHash || "";
+        }
+      }
+
+      if (!fetchedKey) {
+        const snap = await getDoc(doc(db, "settings", "aiConfig"));
+        if (snap.exists()) {
+          const c = snap.data();
+          fetchedKey = c.apiKey || "";
+          fetchedHash = c.passcodeHash || "";
+        }
+      }
+    } catch (err) {
+      console.debug("Firestore aiConfig fetch notice:", err?.message);
+    }
+  }
+
+  // If DB returned valid config, persist locally
+  if (typeof window !== "undefined") {
+    let changed = false;
+    if (fetchedKey && !localStorage.getItem(STORAGE_KEY_API)) {
+      localStorage.setItem(STORAGE_KEY_API, fetchedKey);
+      changed = true;
+    }
+    if (fetchedHash && !localStorage.getItem(STORAGE_KEY_HASH)) {
+      localStorage.setItem(STORAGE_KEY_HASH, fetchedHash);
+      changed = true;
+    }
+    if (fetchedUpdated && !localStorage.getItem(STORAGE_KEY_UPDATED)) {
+      localStorage.setItem(STORAGE_KEY_UPDATED, fetchedUpdated);
+      changed = true;
+    }
+
+    if (changed) {
+      window.dispatchEvent(new Event("meditrack_gemini_api_key_updated"));
+      window.dispatchEvent(new Event("storage"));
+    }
+  }
+
+  return {
+    apiKey: fetchedKey || getActiveApiKey(),
+    hasPasscode: Boolean(fetchedHash || hasPasscode()),
+    isConfigured: Boolean(fetchedKey || isApiKeyConfigured()),
+  };
+}
+
+/**
+ * Verifies if the entered passcode matches the stored security hash.
  */
 export async function verifyPasscode(passcode) {
   if (typeof window === "undefined") return false;
@@ -85,7 +219,7 @@ export async function verifyPasscode(passcode) {
 }
 
 /**
- * Saves a new or updated API key locked with the user's secret passcode.
+ * Saves a new or updated API key with passcode locking. Syncs to DB.
  */
 export async function saveApiKeyWithPasscode({ apiKey, passcode }) {
   if (!apiKey || apiKey.trim().length < 10) {
@@ -97,14 +231,66 @@ export async function saveApiKeyWithPasscode({ apiKey, passcode }) {
 
   const cleanKey = apiKey.trim();
   const hash = await hashPasscode(passcode);
+  const now = new Date().toISOString();
 
   localStorage.setItem(STORAGE_KEY_API, cleanKey);
   localStorage.setItem(STORAGE_KEY_HASH, hash);
-  localStorage.setItem(STORAGE_KEY_UPDATED, new Date().toISOString());
+  localStorage.setItem(STORAGE_KEY_UPDATED, now);
 
-  // Notify the rest of the application that the AI key is active
   window.dispatchEvent(new Event("meditrack_gemini_api_key_updated"));
   window.dispatchEvent(new Event("storage"));
+
+  // Persist asynchronously to DB
+  syncToDatabase({ apiKey: cleanKey, passcodeHash: hash });
+
+  return true;
+}
+
+/**
+ * Updates the API key directly while retaining the existing passcode protection.
+ */
+export async function updateApiKeyDirect(newApiKey) {
+  if (!newApiKey || newApiKey.trim().length < 10) {
+    throw new Error("Please enter a valid Google Gemini API Key.");
+  }
+
+  const cleanKey = newApiKey.trim();
+  const now = new Date().toISOString();
+
+  localStorage.setItem(STORAGE_KEY_API, cleanKey);
+  localStorage.setItem(STORAGE_KEY_UPDATED, now);
+
+  window.dispatchEvent(new Event("meditrack_gemini_api_key_updated"));
+  window.dispatchEvent(new Event("storage"));
+
+  syncToDatabase({ apiKey: cleanKey });
+
+  return true;
+}
+
+/**
+ * Changes the security passcode after verifying the current passcode.
+ */
+export async function changeSecurityPasscode({ currentPasscode, newPasscode }) {
+  const isValid = await verifyPasscode(currentPasscode);
+  if (!isValid) {
+    throw new Error("Incorrect current passcode. Unable to change passcode.");
+  }
+
+  if (!newPasscode || newPasscode.trim().length < 4) {
+    throw new Error("New passcode must be at least 4 characters long.");
+  }
+
+  const newHash = await hashPasscode(newPasscode);
+  const now = new Date().toISOString();
+
+  localStorage.setItem(STORAGE_KEY_HASH, newHash);
+  localStorage.setItem(STORAGE_KEY_UPDATED, now);
+
+  window.dispatchEvent(new Event("meditrack_gemini_api_key_updated"));
+  window.dispatchEvent(new Event("storage"));
+
+  syncToDatabase({ passcodeHash: newHash });
 
   return true;
 }
@@ -117,16 +303,18 @@ export async function getRawKeyWithPasscode(passcode) {
   if (!isValid) {
     throw new Error("Incorrect passcode. Access denied.");
   }
-  return localStorage.getItem(STORAGE_KEY_API) || "";
+  return localStorage.getItem(STORAGE_KEY_API) || getActiveApiKey();
 }
 
 /**
- * Removes the API key and passcode after verifying the passcode.
+ * Removes the API key and passcode after verifying passcode. Clears from DB.
  */
 export async function removeApiKeyWithPasscode(passcode) {
-  const isValid = await verifyPasscode(passcode);
-  if (!isValid) {
-    throw new Error("Incorrect passcode. Cannot remove API key.");
+  if (hasPasscode()) {
+    const isValid = await verifyPasscode(passcode);
+    if (!isValid) {
+      throw new Error("Incorrect passcode. Cannot remove API key.");
+    }
   }
 
   localStorage.removeItem(STORAGE_KEY_API);
@@ -135,6 +323,8 @@ export async function removeApiKeyWithPasscode(passcode) {
 
   window.dispatchEvent(new Event("meditrack_gemini_api_key_updated"));
   window.dispatchEvent(new Event("storage"));
+
+  syncToDatabase({ apiKey: "", passcodeHash: "" });
 
   return true;
 }
@@ -149,6 +339,8 @@ export function resetAllApiSecurity() {
 
   window.dispatchEvent(new Event("meditrack_gemini_api_key_updated"));
   window.dispatchEvent(new Event("storage"));
+
+  syncToDatabase({ apiKey: "", passcodeHash: "" });
 
   return true;
 }
@@ -170,7 +362,7 @@ export async function testGeminiApiKey(key) {
     if (text.toUpperCase().includes("CONNECTED") || text.length > 0) {
       return {
         success: true,
-        message: "Successfully verified! Gemini 1.5 Flash responded.",
+        message: "Verified! Gemini 1.5 Flash responded successfully.",
       };
     }
     return {
@@ -188,4 +380,3 @@ export async function testGeminiApiKey(key) {
     return { success: false, error: msg };
   }
 }
-

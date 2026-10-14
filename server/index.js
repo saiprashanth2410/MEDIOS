@@ -1566,7 +1566,7 @@ app.get("/api/settings", async (req, res) => {
 
 app.put("/api/settings", async (req, res) => {
   try {
-    const { personal, pharmacy, preferences } = req.body;
+    const { personal, pharmacy, preferences, aiConfig } = req.body;
     let settings = await Setting.findOne({ key: "general_settings" });
     if (!settings) {
       settings = new Setting({ key: "general_settings" });
@@ -1575,6 +1575,7 @@ app.put("/api/settings", async (req, res) => {
     if (personal) settings.personal = { ...settings.personal, ...personal };
     if (pharmacy) settings.pharmacy = { ...settings.pharmacy, ...pharmacy };
     if (preferences) settings.preferences = { ...settings.preferences, ...preferences };
+    if (aiConfig) settings.aiConfig = { ...settings.aiConfig, ...aiConfig, updatedAt: new Date() };
 
     await settings.save();
 
@@ -1596,6 +1597,58 @@ app.put("/api/settings", async (req, res) => {
   }
 });
 
+app.get("/api/settings/ai-config", async (req, res) => {
+  try {
+    let settings = await Setting.findOne({ key: "general_settings" });
+    if (!settings) {
+      settings = await Setting.create({ key: "general_settings" });
+    }
+    const aiConfig = settings.aiConfig || {};
+    res.json({
+      apiKey: aiConfig.apiKey || "",
+      passcodeHash: aiConfig.passcodeHash || "",
+      isLocked: Boolean(aiConfig.passcodeHash),
+      hasPasscode: Boolean(aiConfig.passcodeHash),
+      isConfigured: Boolean(aiConfig.apiKey),
+      updatedAt: aiConfig.updatedAt || null,
+    });
+  } catch (err) {
+    console.error("AI Config fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/settings/ai-config", async (req, res) => {
+  try {
+    const { apiKey, passcodeHash, isLocked } = req.body;
+    let settings = await Setting.findOne({ key: "general_settings" });
+    if (!settings) {
+      settings = new Setting({ key: "general_settings" });
+    }
+
+    if (!settings.aiConfig) settings.aiConfig = {};
+    if (apiKey !== undefined) settings.aiConfig.apiKey = apiKey.trim();
+    if (passcodeHash !== undefined) settings.aiConfig.passcodeHash = passcodeHash;
+    if (isLocked !== undefined) settings.aiConfig.isLocked = isLocked;
+    settings.aiConfig.updatedAt = new Date();
+
+    await settings.save();
+    res.json({
+      ok: true,
+      aiConfig: {
+        apiKey: settings.aiConfig.apiKey,
+        passcodeHash: settings.aiConfig.passcodeHash,
+        hasPasscode: Boolean(settings.aiConfig.passcodeHash),
+        isConfigured: Boolean(settings.aiConfig.apiKey),
+        updatedAt: settings.aiConfig.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error("AI Config update error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/profile", async (req, res) => {
   try {
     let settings = await Setting.findOne({ key: "general_settings" });
@@ -1611,7 +1664,7 @@ app.get("/api/profile", async (req, res) => {
 
 app.put("/api/profile", async (req, res) => {
   try {
-    const { personal, pharmacy, preferences } = req.body;
+    const { personal, pharmacy, preferences, aiConfig } = req.body;
     let settings = await Setting.findOne({ key: "general_settings" });
     if (!settings) {
       settings = new Setting({ key: "general_settings" });
@@ -1620,6 +1673,7 @@ app.put("/api/profile", async (req, res) => {
     if (personal) settings.personal = { ...settings.personal, ...personal };
     if (pharmacy) settings.pharmacy = { ...settings.pharmacy, ...pharmacy };
     if (preferences) settings.preferences = { ...settings.preferences, ...preferences };
+    if (aiConfig) settings.aiConfig = { ...settings.aiConfig, ...aiConfig, updatedAt: new Date() };
 
     await settings.save();
     res.json({ ok: true, profile: settings });

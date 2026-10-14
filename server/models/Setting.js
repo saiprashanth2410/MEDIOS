@@ -33,6 +33,12 @@ const settingSchema = new mongoose.Schema(
       lowStockAlerts: { type: Boolean, default: true },
       theme: { type: String, default: "system" },
     },
+    aiConfig: {
+      apiKey: { type: String, default: "" },
+      passcodeHash: { type: String, default: "" },
+      isLocked: { type: Boolean, default: true },
+      updatedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );
