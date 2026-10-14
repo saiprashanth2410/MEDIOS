@@ -1971,7 +1971,7 @@ export default function Billing() {
                     type="text"
                     value={doctorName}
                     onChange={(e) => setDoctorName(e.target.value)}
-                    placeholder="Dr. Rajesh Kumar / Self"
+                    
                     className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500"
                   />
                 </div>

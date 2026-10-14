@@ -562,7 +562,7 @@ function AddPharmacistModal({ initial, onAdd, onClose, isEdit }) {
                 type="text"
                 value={form.name}
                 onChange={(e) => update("name", e.target.value)}
-                placeholder="Dr. Rajesh Kumar"
+                
                 className={`${FIELD_BASE} pl-9 ${errors.name ? "border-rose-300" : ""}`}
               />
             </div>

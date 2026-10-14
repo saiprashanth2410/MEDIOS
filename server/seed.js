@@ -352,7 +352,6 @@ async function seed() {
           patientPhone: "+91 98765 43210",
           patientEmail: "john.doe@example.com",
           patientAddress: "Anna Nagar, Chennai",
-          doctorName: "Dr. Rajesh Kumar",
           doctorReg: "TN/MCI/2018/4521",
           doctorSpecialization: "General Physician",
           hospital: "Apollo Hospital, Chennai",

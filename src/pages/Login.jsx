@@ -345,7 +345,7 @@ export default function Login() {
                           setName(e.target.value);
                           if (error) setError("");
                         }}
-                        placeholder="Full Name (e.g. Dr. Rajesh Kumar)"
+                        placeholder="Full Name "
                         className={LEET_INPUT}
                       />
                     </div>
