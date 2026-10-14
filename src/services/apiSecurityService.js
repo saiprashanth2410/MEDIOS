@@ -188,3 +188,4 @@ export async function testGeminiApiKey(key) {
     return { success: false, error: msg };
   }
 }
+
