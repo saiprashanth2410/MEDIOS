@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import {
   Brain,
   Box,
@@ -6,11 +6,7 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
-  Sparkles,
-  RefreshCw,
-  CheckCircle2,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   calculateForecastError,
   calculateOverstock,
@@ -18,10 +14,6 @@ import {
   calculateProcurementDelay,
   calculateTrend,
 } from "../../utils/calculateMetrics";
-import {
-  getGeminiApiKey,
-  generatePharmacyPerformanceInsights,
-} from "../../services/aiService";
 
 const DEFAULT_METRIC_DATA = {
   sales: [],
@@ -88,22 +80,6 @@ const METRIC_CONFIG = [
 ===================================================== */
 
 export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
-  const [hasApiKey, setHasApiKey] = useState(() => Boolean(getGeminiApiKey()));
-
-  useEffect(() => {
-    const handleKeyUpdate = () => setHasApiKey(Boolean(getGeminiApiKey()));
-    window.addEventListener("meditrack_gemini_api_key_updated", handleKeyUpdate);
-    window.addEventListener("storage", handleKeyUpdate);
-    return () => {
-      window.removeEventListener("meditrack_gemini_api_key_updated", handleKeyUpdate);
-      window.removeEventListener("storage", handleKeyUpdate);
-    };
-  }, []);
-
-  const [aiAdvice, setAiAdvice] = useState("");
-  const [aiModel, setAiModel] = useState("Built-in Analytics Engine");
-  const [loadingAi, setLoadingAi] = useState(false);
-
   /* =====================================================
      COMPUTE METRICS FROM DATA
   ===================================================== */
@@ -137,47 +113,6 @@ export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
   });
 
   /* =====================================================
-     AUTO-LOAD AI INSIGHTS
-  ===================================================== */
-
-  useEffect(() => {
-    const fetchInitialAiInsights = async () => {
-      const res = await generatePharmacyPerformanceInsights({
-        sales: data.rawSales || data.sales,
-        medicines: data.rawMeds || data.medicines,
-        metrics,
-      });
-      if (res?.aiAdvice) {
-        setAiAdvice(res.aiAdvice);
-        setAiModel(res.model || "Built-in Analytics Engine");
-      }
-    };
-
-    fetchInitialAiInsights();
-  }, [data, metrics]);
-
-  const handleFetchAiInsights = async () => {
-    try {
-      setLoadingAi(true);
-      const res = await generatePharmacyPerformanceInsights({
-        sales: data.rawSales || data.sales,
-        medicines: data.rawMeds || data.medicines,
-        metrics,
-      });
-
-      if (res?.aiAdvice) {
-        setAiAdvice(res.aiAdvice);
-        setAiModel(res.model || "Google Gemini 1.5 Flash");
-        toast.success(res.isAiKeyConnected ? "Gemini AI analysis generated!" : "Built-in AI analytics refreshed!");
-      }
-    } catch {
-      toast.error("Failed to generate AI insights.");
-    } finally {
-      setLoadingAi(false);
-    }
-  };
-
-  /* =====================================================
      RENDER
   ===================================================== */
 
@@ -193,47 +128,7 @@ export default function PerformanceMetrics({ data = DEFAULT_METRIC_DATA }) {
             AI Supply Chain & POS Telemetry
           </span>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Refresh / Generate AI Insights */}
-          <button
-            onClick={handleFetchAiInsights}
-            disabled={loadingAi}
-            className="h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white flex items-center gap-1.5 shadow-xs transition cursor-pointer disabled:opacity-50"
-            title="Generate real-time AI performance analysis"
-          >
-            <Sparkles size={13} className={loadingAi ? "animate-spin" : ""} />
-            <span>{loadingAi ? "Analyzing..." : "AI Insights"}</span>
-          </button>
-        </div>
       </div>
-
-      {/* AI Advisory Callout */}
-      {aiAdvice && (
-        <div className="mb-4 p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-purple-50/80 via-indigo-50/50 to-teal-50/40 dark:from-purple-950/30 dark:via-indigo-950/20 dark:to-teal-950/20 border border-purple-200/60 dark:border-purple-800/40 shadow-xs flex items-start gap-3 transition">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-            <Sparkles size={16} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
-                <span>{aiModel}</span>
-                {hasApiKey && (
-                  <span className="text-[10px] bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 px-1.5 py-0.2 rounded font-mono font-medium">
-                    Live Gemini Active
-                  </span>
-                )}
-              </span>
-              <span className="text-[10px] text-slate-400">
-                Real-time Stock & Billing Telemetry
-              </span>
-            </div>
-            <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans">
-              {aiAdvice}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
